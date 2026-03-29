@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+enum ProjectMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum IssueStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+}
+
+enum IssuePriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum IssueType {
+  BUG
+  TASK
+  STORY
+  EPIC
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  avatarUrl    String?
+  role         UserRole @default(MEMBER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  projectMembers ProjectMember[]
+  assignedIssues Issue[]         @relation("AssignedIssues")
+  reportedIssues Issue[]         @relation("ReportedIssues")
+  comments       Comment[]
+  activityLogs   ActivityLog[]
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  key         String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members ProjectMember[]
+  issues  Issue[]
+  boards  Board[]
+}
+
+model ProjectMember {
+  id        String            @id @default(cuid())
+  userId    String
+  projectId String
+  role      ProjectMemberRole @default(MEMBER)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+model Issue {
+  id          String        @id @default(cuid())
+  projectId   String
+  key         String        @unique
+  title       String
+  description String?
+  status      IssueStatus   @default(TODO)
+  priority    IssuePriority @default(MEDIUM)
+  type        IssueType     @default(TASK)
+  assigneeId  String?
+  reporterId  String
+  parentId    String?
+  position    Int           @default(0)
+  labels      String[]      @default([])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee User?    @relation("AssignedIssues", fields: [assigneeId], references: [id])
+  reporter User     @relation("ReportedIssues", fields: [reporterId], references: [id])
+  parent   Issue?   @relation("SubIssues", fields: [parentId], references: [id])
+  children Issue[]  @relation("SubIssues")
+
+  comments     Comment[]
+  activityLogs ActivityLog[]
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([reporterId])
+  @@index([status])
+  @@index([priority])
+}
+
+model Board {
+  id        String @id @default(cuid())
+  projectId String
+  name      String
+
+  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  columns Column[]
+
+  @@index([projectId])
+}
+
+model Column {
+  id       String @id @default(cuid())
+  boardId  String
+  name     String
+  position Int
+  color    String @default("#94a3b8")
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  issueId   String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  issue  Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author User  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([issueId])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  issueId   String
+  userId    String
+  action    String
+  field     String?
+  oldValue  String?
+  newValue  String?
+  createdAt DateTime @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([issueId])
+  @@index([userId])
+}
