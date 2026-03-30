@@ -5,7 +5,14 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { generateIssueKey } from "@/lib/issue-keys";
-import { IssueStatus, IssuePriority, IssueType, Prisma } from "@prisma/client";
+import {
+  requireProjectRole,
+  canEditSettings,
+  canManageMembers,
+  canManageProject,
+} from "@/lib/permissions";
+import { IssueStatus, IssuePriority, IssueType, ProjectMemberRole, Prisma } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 // Helper: verify user is a project member, returns { userId, projectId }
 async function requireProjectMember(projectKey: string) {
@@ -414,5 +421,150 @@ export async function deleteComment(projectKey: string, commentId: string) {
   await prisma.comment.delete({ where: { id: commentId } });
 
   revalidatePath(`/projects/${projectKey}/issues/${comment.issue.key}`);
+  return { success: true };
+}
+
+// --- UPDATE PROJECT SETTINGS ---
+export async function updateProject(
+  projectKey: string,
+  data: { name?: string; description?: string | null }
+) {
+  const { projectId } = await requireProjectRole(projectKey, canEditSettings);
+
+  const updated = await prisma.project.update({
+    where: { id: projectId },
+    data,
+  });
+
+  revalidatePath(`/projects/${projectKey}/settings`);
+  return { success: true, project: updated };
+}
+
+// --- DELETE PROJECT ---
+export async function deleteProject(projectKey: string) {
+  const { projectId } = await requireProjectRole(projectKey, canManageProject);
+
+  await prisma.project.delete({ where: { id: projectId } });
+
+  revalidatePath("/projects");
+  redirect("/projects");
+}
+
+// --- ADD PROJECT MEMBER ---
+export async function addProjectMember(
+  projectKey: string,
+  userId: string,
+  role: ProjectMemberRole
+) {
+  const { projectId } = await requireProjectRole(projectKey, canManageMembers);
+
+  // Check if user is already a member
+  const existing = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+  });
+  if (existing) throw new Error("User is already a project member");
+
+  await prisma.projectMember.create({
+    data: { userId, projectId, role },
+  });
+
+  revalidatePath(`/projects/${projectKey}/settings`);
+  return { success: true };
+}
+
+// --- REMOVE PROJECT MEMBER ---
+export async function removeProjectMember(
+  projectKey: string,
+  membershipId: string
+) {
+  const { projectId } = await requireProjectRole(projectKey, canManageMembers);
+
+  const membership = await prisma.projectMember.findFirst({
+    where: { id: membershipId, projectId },
+  });
+  if (!membership) throw new Error("Membership not found");
+  if (membership.role === "OWNER") throw new Error("Cannot remove the project owner");
+
+  await prisma.projectMember.delete({ where: { id: membershipId } });
+
+  revalidatePath(`/projects/${projectKey}/settings`);
+  return { success: true };
+}
+
+// --- CHANGE MEMBER ROLE ---
+export async function changeMemberRole(
+  projectKey: string,
+  membershipId: string,
+  newRole: ProjectMemberRole
+) {
+  const { projectId } = await requireProjectRole(projectKey, canManageMembers);
+
+  const membership = await prisma.projectMember.findFirst({
+    where: { id: membershipId, projectId },
+  });
+  if (!membership) throw new Error("Membership not found");
+  if (membership.role === "OWNER") throw new Error("Cannot change the owner's role");
+
+  await prisma.projectMember.update({
+    where: { id: membershipId },
+    data: { role: newRole },
+  });
+
+  revalidatePath(`/projects/${projectKey}/settings`);
+  return { success: true };
+}
+
+// --- SEARCH USERS (for adding members) ---
+export async function searchUsers(query: string, projectKey: string) {
+  const { projectId } = await requireProjectRole(projectKey, canManageMembers);
+
+  // Get existing member user IDs to exclude
+  const existingMembers = await prisma.projectMember.findMany({
+    where: { projectId },
+    select: { userId: true },
+  });
+  const excludeIds = existingMembers.map((m) => m.userId);
+
+  return prisma.user.findMany({
+    where: {
+      id: { notIn: excludeIds },
+      OR: [
+        { email: { contains: query, mode: "insensitive" } },
+        { name: { contains: query, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, name: true, email: true, avatarUrl: true },
+    take: 10,
+  });
+}
+
+// --- CREATE USER AND ADD TO PROJECT ---
+export async function createUserAndAddToProject(
+  projectKey: string,
+  data: { name: string; email: string; password: string; role: ProjectMemberRole }
+) {
+  const { projectId } = await requireProjectRole(projectKey, canManageMembers);
+
+  // Check if email already exists
+  const existingUser = await prisma.user.findUnique({
+    where: { email: data.email },
+  });
+  if (existingUser) throw new Error("A user with this email already exists");
+
+  const passwordHash = await bcrypt.hash(data.password, 12);
+
+  const user = await prisma.user.create({
+    data: {
+      name: data.name,
+      email: data.email,
+      passwordHash,
+    },
+  });
+
+  await prisma.projectMember.create({
+    data: { userId: user.id, projectId, role: data.role },
+  });
+
+  revalidatePath(`/projects/${projectKey}/settings`);
   return { success: true };
 }

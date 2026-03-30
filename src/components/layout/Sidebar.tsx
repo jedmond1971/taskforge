@@ -6,6 +6,8 @@ import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard,
   FolderKanban,
+  Search,
+  ShieldCheck,
   LogOut,
   ChevronRight,
   Zap,
@@ -23,6 +25,7 @@ import {
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/search", label: "Search", icon: Search },
   { href: "/projects", label: "Projects", icon: FolderKanban },
 ];
 
@@ -92,6 +95,25 @@ export function Sidebar({ onClose }: SidebarProps) {
             </Link>
           );
         })}
+
+        {/* Admin link — only visible to users with ADMIN role */}
+        {user?.role === "ADMIN" && (
+          <Link
+            href="/admin"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]",
+              pathname.startsWith("/admin")
+                ? "bg-indigo-600/20 text-indigo-400"
+                : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+            )}
+          >
+            <ShieldCheck className="w-4 h-4 flex-shrink-0" />
+            Admin
+            {pathname.startsWith("/admin") && (
+              <ChevronRight className="w-3 h-3 ml-auto text-indigo-400" />
+            )}
+          </Link>
+        )}
       </nav>
 
       {/* User section */}
