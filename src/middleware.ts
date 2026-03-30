@@ -1,5 +1,8 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
+
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const { nextUrl } = req;
@@ -7,14 +10,12 @@ export default auth((req) => {
 
   const isAuthRoute = nextUrl.pathname.startsWith("/login") || nextUrl.pathname.startsWith("/register");
   const isApiRoute = nextUrl.pathname.startsWith("/api");
-  const isPublicRoute = nextUrl.pathname === "/api/auth/register";
+  const isPublicApiRoute = nextUrl.pathname === "/api/auth/register";
 
-  if (isApiRoute && !isPublicRoute) return NextResponse.next();
+  if (isApiRoute && !isPublicApiRoute) return NextResponse.next();
 
   if (isAuthRoute) {
-    if (isLoggedIn) {
-      return NextResponse.redirect(new URL("/", nextUrl));
-    }
+    if (isLoggedIn) return NextResponse.redirect(new URL("/", nextUrl));
     return NextResponse.next();
   }
 
