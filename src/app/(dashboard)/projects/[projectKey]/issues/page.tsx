@@ -46,9 +46,9 @@ export default async function IssuesPage({ params, searchParams }: PageProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Issues</h2>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100">Issues</h2>
           <p className="text-zinc-500 text-sm">{issues.length} issue{issues.length !== 1 ? "s" : ""}</p>
         </div>
       </div>

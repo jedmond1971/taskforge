@@ -39,10 +39,10 @@ export function IssueFiltersBar({ members, currentFilters }: IssueFiltersBarProp
 
   const hasFilters = !!(currentFilters.status || currentFilters.priority || currentFilters.type || currentFilters.assigneeId);
 
-  const selectClass = "px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer";
+  const selectClass = "px-3 py-2 sm:py-1.5 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer min-h-[44px] sm:min-h-0 w-full sm:w-auto";
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:flex-wrap">
       <select
         value={currentFilters.status ?? ""}
         onChange={(e) => updateFilter("status", e.target.value)}
@@ -90,7 +90,7 @@ export function IssueFiltersBar({ members, currentFilters }: IssueFiltersBarProp
       {hasFilters && (
         <button
           onClick={clearAll}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          className="flex items-center justify-center gap-1 px-3 py-2 sm:py-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors min-h-[44px] sm:min-h-0"
         >
           <X className="w-3.5 h-3.5" />
           Clear

@@ -56,7 +56,7 @@ export function KanbanCard({ issue, projectKey, isDragOverlay = false }: KanbanC
         <button
           {...attributes}
           {...listeners}
-          className="mt-0.5 flex-shrink-0 text-zinc-300 dark:text-zinc-700 hover:text-zinc-500 dark:hover:text-zinc-400 cursor-grab active:cursor-grabbing touch-none"
+          className="mt-0.5 flex-shrink-0 text-zinc-300 dark:text-zinc-700 hover:text-zinc-500 dark:hover:text-zinc-400 cursor-grab active:cursor-grabbing touch-none p-1"
           tabIndex={-1}
           aria-label="Drag to reorder"
         >

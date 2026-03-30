@@ -31,7 +31,7 @@ export default async function ActivityPage({ params }: { params: { projectKey: s
   if (!entries) redirect("/projects");
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-2xl space-y-4 min-w-0">
       <div>
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Activity</h2>
         <p className="text-zinc-500 text-sm">{entries.length} event{entries.length !== 1 ? "s" : ""}</p>

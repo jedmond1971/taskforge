@@ -29,9 +29,9 @@ export default async function ProjectsPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Projects</h1>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100">Projects</h1>
           <p className="text-zinc-500 text-sm mt-0.5">{projects.length} project{projects.length !== 1 ? "s" : ""}</p>
         </div>
         <NewProjectDialog />

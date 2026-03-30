@@ -52,19 +52,19 @@ export function Header() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
-    <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex items-center justify-between px-6 flex-shrink-0">
-      <div className="flex items-center gap-2">
+    <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex items-center justify-between px-3 sm:px-6 flex-shrink-0 gap-2">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
         {breadcrumbs.length > 1 && (
-          <nav className="flex items-center gap-1 text-sm text-zinc-400 dark:text-zinc-500">
+          <nav className="flex items-center gap-1 text-sm text-zinc-400 dark:text-zinc-500 min-w-0 overflow-hidden">
             {breadcrumbs.map((crumb, i) => (
-              <span key={crumb.href} className="flex items-center gap-1">
-                {i > 0 && <ChevronRight className="w-3 h-3" />}
+              <span key={crumb.href} className="flex items-center gap-1 flex-shrink-0 last:flex-shrink min-w-0">
+                {i > 0 && <ChevronRight className="w-3 h-3 flex-shrink-0" />}
                 <span
-                  className={
+                  className={`truncate ${
                     i === breadcrumbs.length - 1
                       ? "text-zinc-900 dark:text-zinc-100 font-medium"
                       : "hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer"
-                  }
+                  }`}
                 >
                   {crumb.label}
                 </span>
@@ -73,7 +73,7 @@ export function Header() {
           </nav>
         )}
         {breadcrumbs.length <= 1 && (
-          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{title}</h1>
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 truncate">{title}</h1>
         )}
       </div>
 
@@ -97,10 +97,10 @@ export function Header() {
         ) : (
           <button
             disabled
-            className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[0.8rem] font-medium rounded-lg bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 h-9 sm:h-7 px-2.5 text-[0.8rem] font-medium rounded-lg bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed flex-shrink-0"
           >
             <Plus className="w-4 h-4" />
-            Create Issue
+            <span className="hidden sm:inline">Create Issue</span>
           </button>
         )}
       </div>

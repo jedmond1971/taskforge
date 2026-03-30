@@ -40,7 +40,7 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
   const { setNodeRef } = useDroppable({ id: status });
 
   return (
-    <div className="flex flex-col flex-shrink-0 w-72">
+    <div className="flex flex-col flex-shrink-0 w-64 sm:w-72">
       {/* Column header */}
       <div
         className={cn(
