@@ -77,28 +77,28 @@ function CommentItem({
 
   return (
     <div className="flex gap-3 group animate-fade-in">
-      <div className="w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0 mt-0.5">
-        <span className="text-xs text-zinc-300 font-medium">{initial}</span>
+      <div className="w-7 h-7 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <span className="text-xs text-zinc-700 dark:text-zinc-300 font-medium">{initial}</span>
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-sm font-medium text-zinc-200">{comment.author.name}</span>
-          <span className="text-xs text-zinc-600">{timeAgo(comment.createdAt)}</span>
+          <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{comment.author.name}</span>
+          <span className="text-xs text-zinc-400 dark:text-zinc-600">{timeAgo(comment.createdAt)}</span>
           {comment.updatedAt > comment.createdAt && (
-            <span className="text-xs text-zinc-700 italic">(edited)</span>
+            <span className="text-xs text-zinc-400 dark:text-zinc-700 italic">(edited)</span>
           )}
           {isAuthor && !editing && (
             <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => setEditing(true)}
-                className="p-1 text-zinc-600 hover:text-zinc-300 rounded"
+                className="p-1 text-zinc-400 dark:text-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-300 rounded"
               >
                 <Pencil className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={handleDelete}
                 disabled={isPending}
-                className="p-1 text-zinc-600 hover:text-red-400 rounded"
+                className="p-1 text-zinc-400 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 rounded"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -113,7 +113,7 @@ function CommentItem({
               onChange={(e) => setEditBody(e.target.value)}
               rows={3}
               autoFocus
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
             />
             <div className="flex gap-2">
               <button
@@ -125,14 +125,14 @@ function CommentItem({
               </button>
               <button
                 onClick={() => { setEditBody(comment.body); setEditing(false); }}
-                className="flex items-center gap-1 px-3 py-1 text-zinc-400 hover:text-zinc-200 text-xs border border-zinc-700 rounded-lg"
+                className="flex items-center gap-1 px-3 py-1 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 text-xs border border-zinc-300 dark:border-zinc-700 rounded-lg"
               >
                 <X className="w-3 h-3" /> Cancel
               </button>
             </div>
           </div>
         ) : (
-          <p className="text-sm text-zinc-300 whitespace-pre-wrap">{comment.body}</p>
+          <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{comment.body}</p>
         )}
       </div>
     </div>
@@ -143,8 +143,8 @@ export function CommentThread({ comments, projectKey, currentUserId }: CommentTh
   if (comments.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-6">
-        <MessageSquare className="w-8 h-8 text-zinc-700" />
-        <p className="text-sm text-zinc-600">No comments yet</p>
+        <MessageSquare className="w-8 h-8 text-zinc-300 dark:text-zinc-700" />
+        <p className="text-sm text-zinc-400 dark:text-zinc-600">No comments yet</p>
       </div>
     );
   }

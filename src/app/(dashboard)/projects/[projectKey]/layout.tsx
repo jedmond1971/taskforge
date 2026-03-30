@@ -29,13 +29,13 @@ export default async function ProjectLayout({
   return (
     <div className="space-y-0 -m-6">
       {/* Project header */}
-      <div className="px-6 pt-6 pb-0 border-b border-zinc-800">
+      <div className="px-6 pt-6 pb-0 border-b border-zinc-200 dark:border-zinc-800">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-lg bg-indigo-700 flex items-center justify-center flex-shrink-0">
             <span className="text-sm font-bold text-white">{project.key.slice(0, 2)}</span>
           </div>
           <div>
-            <h1 className="text-lg font-bold text-zinc-100">{project.name}</h1>
+            <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{project.name}</h1>
             {project.description && (
               <p className="text-xs text-zinc-500">{project.description}</p>
             )}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Plus, ChevronRight } from "lucide-react";
 import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 function getBreadcrumbs(pathname: string): { label: string; href: string }[] {
   const segments = pathname.split("/").filter(Boolean);
@@ -51,18 +52,18 @@ export function Header() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
-    <header className="h-14 border-b border-zinc-800 bg-zinc-950 flex items-center justify-between px-6 flex-shrink-0">
+    <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex items-center justify-between px-6 flex-shrink-0">
       <div className="flex items-center gap-2">
         {breadcrumbs.length > 1 && (
-          <nav className="flex items-center gap-1 text-sm text-zinc-500">
+          <nav className="flex items-center gap-1 text-sm text-zinc-400 dark:text-zinc-500">
             {breadcrumbs.map((crumb, i) => (
               <span key={crumb.href} className="flex items-center gap-1">
                 {i > 0 && <ChevronRight className="w-3 h-3" />}
                 <span
                   className={
                     i === breadcrumbs.length - 1
-                      ? "text-zinc-100 font-medium"
-                      : "hover:text-zinc-300 cursor-pointer"
+                      ? "text-zinc-900 dark:text-zinc-100 font-medium"
+                      : "hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer"
                   }
                 >
                   {crumb.label}
@@ -72,34 +73,37 @@ export function Header() {
           </nav>
         )}
         {breadcrumbs.length <= 1 && (
-          <h1 className="text-lg font-semibold text-zinc-100">{title}</h1>
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{title}</h1>
         )}
       </div>
 
-      {projectKey ? (
-        <>
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        {projectKey ? (
+          <>
+            <button
+              onClick={() => setDialogOpen(true)}
+              className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[0.8rem] font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Create Issue
+            </button>
+            <CreateIssueDialog
+              projectKey={projectKey}
+              open={dialogOpen}
+              onOpenChange={setDialogOpen}
+            />
+          </>
+        ) : (
           <button
-            onClick={() => setDialogOpen(true)}
-            className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[0.8rem] font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+            disabled
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[0.8rem] font-medium rounded-lg bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
             Create Issue
           </button>
-          <CreateIssueDialog
-            projectKey={projectKey}
-            open={dialogOpen}
-            onOpenChange={setDialogOpen}
-          />
-        </>
-      ) : (
-        <button
-          disabled
-          className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[0.8rem] font-medium rounded-lg bg-zinc-800 text-zinc-500 cursor-not-allowed"
-        >
-          <Plus className="w-4 h-4" />
-          Create Issue
-        </button>
-      )}
+        )}
+      </div>
     </header>
   );
 }

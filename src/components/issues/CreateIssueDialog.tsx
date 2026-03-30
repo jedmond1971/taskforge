@@ -30,9 +30,9 @@ export function CreateIssueDialog({ projectKey, open, onOpenChange, defaultStatu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 sm:max-w-lg">
+      <DialogContent className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-zinc-100">Create Issue</DialogTitle>
+          <DialogTitle className="text-zinc-900 dark:text-zinc-100">Create Issue</DialogTitle>
         </DialogHeader>
         <IssueForm
           projectKey={projectKey}

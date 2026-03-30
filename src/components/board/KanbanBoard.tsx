@@ -93,9 +93,6 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
   }
 
   function handleDragEnd({ over }: DragEndEvent) {
-    // Capture original issue before clearing — handleDragOver has already mutated
-    // `issues` state (optimistic update), so reading from `issues` here would give
-    // the post-move status, not the original. activeIssue was set at dragStart.
     const draggedIssue = activeIssue;
     setActiveIssue(null);
     setOverId(null);
@@ -112,11 +109,9 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
       .sort((a, b) => a.position - b.position);
 
     if (destStatus !== draggedIssue.status) {
-      // Cross-column move — draggedIssue.status is the ORIGINAL column
       const overIndex = destColumn.findIndex((i) => i.id === over.id);
       const newPosition = overIndex === -1 ? destColumn.length : overIndex;
 
-      // Finalize optimistic update with correct position
       setIssues((prev) =>
         prev.map((i) =>
           i.id === draggedIssue.id
@@ -125,7 +120,6 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
         )
       );
 
-      // Persist
       setIsSaving(true);
       moveIssue(projectKey, draggedIssue.id, destStatus, newPosition)
         .catch(() => {
@@ -136,7 +130,6 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
           setIsSaving(false);
         });
     } else {
-      // Within same column — reorder
       const oldIndex = destColumn.findIndex((i) => i.id === draggedIssue.id);
       const newIndex = destColumn.findIndex((i) => i.id === over.id);
 
@@ -144,14 +137,12 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
 
       const reordered = arrayMove(destColumn, oldIndex, newIndex);
 
-      // Optimistic update
       setIssues((prev) => {
         const otherColumns = prev.filter((i) => i.status !== destStatus);
         const updated = reordered.map((issue, idx) => ({ ...issue, position: idx }));
         return [...otherColumns, ...updated];
       });
 
-      // Persist
       setIsSaving(true);
       reorderIssues(projectKey, reordered.map((i) => i.id))
         .catch(() => {
@@ -196,8 +187,8 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
       </DragOverlay>
 
       {isSaving && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-xs text-zinc-300 flex items-center gap-2 shadow-lg z-50">
-          <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-4 py-2 text-xs text-zinc-700 dark:text-zinc-300 flex items-center gap-2 shadow-lg z-50">
+          <div className="w-3 h-3 border-2 border-indigo-500 dark:border-indigo-400 border-t-transparent rounded-full animate-spin" />
           Saving...
         </div>
       )}

@@ -81,28 +81,30 @@ function EditableTitle({ value, issueId, projectKey, onSaved }: {
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="flex-1 text-xl font-bold bg-zinc-800 border border-indigo-500 rounded px-2 py-1 text-zinc-100 focus:outline-none"
+          className="flex-1 text-xl font-bold bg-zinc-50 dark:bg-zinc-800 border border-indigo-500 rounded px-2 py-1 text-zinc-900 dark:text-zinc-100 focus:outline-none"
           onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") { setTitle(value); setEditing(false); } }}
           autoFocus
         />
-        <button onClick={save} disabled={isPending} className="p-1 text-emerald-400 hover:text-emerald-300"><Check className="w-4 h-4" /></button>
-        <button onClick={() => { setTitle(value); setEditing(false); }} className="p-1 text-zinc-500 hover:text-zinc-300"><X className="w-4 h-4" /></button>
+        <button onClick={save} disabled={isPending} className="p-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300"><Check className="w-4 h-4" /></button>
+        <button onClick={() => { setTitle(value); setEditing(false); }} className="p-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"><X className="w-4 h-4" /></button>
       </div>
     );
   }
 
   return (
     <div className="flex items-start gap-2 group">
-      <h1 className="text-xl font-bold text-zinc-100 flex-1">{value}</h1>
+      <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex-1">{value}</h1>
       <button
         onClick={() => setEditing(true)}
-        className="p-1 text-zinc-600 hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
+        className="p-1 text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
       >
         <Pencil className="w-3.5 h-3.5" />
       </button>
     </div>
   );
 }
+
+const selectClass = "w-full px-2 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50";
 
 function InlineSelect<T extends string>({ label, value, options, issueId, projectKey, fieldKey, onSaved }: {
   label: string;
@@ -131,7 +133,7 @@ function InlineSelect<T extends string>({ label, value, options, issueId, projec
         value={value}
         onChange={(e) => handleChange(e.target.value as T)}
         disabled={isPending}
-        className="w-full px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+        className={selectClass}
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
@@ -188,7 +190,7 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
   return (
     <div className="max-w-5xl">
       <div className="flex items-center gap-2 text-sm text-zinc-500 mb-4">
-        <span className="font-mono text-indigo-400">{issue.key}</span>
+        <span className="font-mono text-indigo-600 dark:text-indigo-400">{issue.key}</span>
         <span>·</span>
         <span>{issue.project.name}</span>
       </div>
@@ -220,11 +222,11 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
           {/* Description */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-zinc-400">Description</h3>
+              <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Description</h3>
               {!editingDesc && (
                 <button
                   onClick={() => setEditingDesc(true)}
-                  className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
+                  className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 flex items-center gap-1"
                 >
                   <Pencil className="w-3 h-3" /> Edit
                 </button>
@@ -236,14 +238,14 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={6}
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   placeholder="Add a description..."
                 />
                 <div className="flex gap-2">
                   <button onClick={saveDescription} disabled={isPending} className="flex items-center gap-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg transition-colors disabled:opacity-50">
                     <Check className="w-3.5 h-3.5" /> Save
                   </button>
-                  <button onClick={() => { setDescription(issue.description ?? ""); setEditingDesc(false); }} className="flex items-center gap-1 px-3 py-1 text-zinc-400 hover:text-zinc-200 text-xs border border-zinc-700 rounded-lg">
+                  <button onClick={() => { setDescription(issue.description ?? ""); setEditingDesc(false); }} className="flex items-center gap-1 px-3 py-1 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 text-xs border border-zinc-300 dark:border-zinc-700 rounded-lg">
                     <X className="w-3.5 h-3.5" /> Cancel
                   </button>
                 </div>
@@ -251,12 +253,12 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
             ) : (
               <div
                 onClick={() => setEditingDesc(true)}
-                className="min-h-[60px] p-3 rounded-lg bg-zinc-900 border border-zinc-800 cursor-pointer hover:border-zinc-700 transition-colors"
+                className="min-h-[60px] p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
               >
                 {issue.description ? (
-                  <p className="text-sm text-zinc-300 whitespace-pre-wrap">{issue.description}</p>
+                  <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{issue.description}</p>
                 ) : (
-                  <p className="text-sm text-zinc-600 italic">Click to add a description...</p>
+                  <p className="text-sm text-zinc-400 dark:text-zinc-600 italic">Click to add a description...</p>
                 )}
               </div>
             )}
@@ -265,10 +267,10 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
           {/* Labels */}
           {issue.labels.length > 0 && (
             <div>
-              <h3 className="text-sm font-medium text-zinc-400 mb-2">Labels</h3>
+              <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">Labels</h3>
               <div className="flex flex-wrap gap-2">
                 {issue.labels.map((label) => (
-                  <span key={label} className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs border border-zinc-700">
+                  <span key={label} className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded text-xs border border-zinc-200 dark:border-zinc-700">
                     {label}
                   </span>
                 ))}
@@ -278,10 +280,10 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
 
           {/* Comments */}
           <div>
-            <h3 className="text-sm font-medium text-zinc-400 mb-4">
+            <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-4">
               Comments
               {issue.comments.length > 0 && (
-                <span className="ml-2 text-xs text-zinc-600 bg-zinc-800 rounded px-1.5 py-0.5 font-mono">
+                <span className="ml-2 text-xs text-zinc-400 dark:text-zinc-600 bg-zinc-100 dark:bg-zinc-800 rounded px-1.5 py-0.5 font-mono">
                   {issue.comments.length}
                 </span>
               )}
@@ -303,14 +305,14 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
 
           {/* Activity */}
           <div>
-            <h3 className="text-sm font-medium text-zinc-400 mb-3">Activity</h3>
+            <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-3">Activity</h3>
             <ActivityFeed entries={issue.activityLogs} />
           </div>
         </div>
 
         {/* Sidebar */}
         <div className="space-y-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-4">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-4">
             <InlineSelect
               label="Status"
               value={issue.status}
@@ -349,7 +351,7 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
                     refresh();
                   });
                 }}
-                className="w-full px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className={selectClass}
               >
                 {assigneeOptions.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -358,18 +360,18 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
             </div>
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-3 text-xs">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-3 text-xs">
             <div>
               <p className="text-zinc-500">Reporter</p>
-              <p className="text-zinc-300 mt-0.5">{issue.reporter.name}</p>
+              <p className="text-zinc-700 dark:text-zinc-300 mt-0.5">{issue.reporter.name}</p>
             </div>
             <div>
               <p className="text-zinc-500">Created</p>
-              <p className="text-zinc-300 mt-0.5">{new Date(issue.createdAt).toLocaleString()}</p>
+              <p className="text-zinc-700 dark:text-zinc-300 mt-0.5">{new Date(issue.createdAt).toLocaleString()}</p>
             </div>
             <div>
               <p className="text-zinc-500">Updated</p>
-              <p className="text-zinc-300 mt-0.5">{new Date(issue.updatedAt).toLocaleString()}</p>
+              <p className="text-zinc-700 dark:text-zinc-300 mt-0.5">{new Date(issue.updatedAt).toLocaleString()}</p>
             </div>
           </div>
         </div>

@@ -45,7 +45,7 @@ export function CommentForm({ projectKey, issueId, currentUserInitial }: Comment
       </div>
       <div className="flex-1 space-y-2">
         {error && (
-          <p className="text-red-400 text-xs">{error}</p>
+          <p className="text-red-600 dark:text-red-400 text-xs">{error}</p>
         )}
         <textarea
           ref={textareaRef}
@@ -53,13 +53,13 @@ export function CommentForm({ projectKey, issueId, currentUserInitial }: Comment
           onChange={(e) => setBody(e.target.value)}
           placeholder="Leave a comment..."
           rows={3}
-          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit(e as unknown as React.FormEvent);
           }}
         />
         <div className="flex items-center justify-between">
-          <p className="text-xs text-zinc-600">Ctrl+Enter to submit</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-600">Ctrl+Enter to submit</p>
           <Button
             type="submit"
             disabled={isPending || !body.trim()}

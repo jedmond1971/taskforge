@@ -72,18 +72,18 @@ export function NewProjectDialog({ trigger }: NewProjectDialogProps) {
     <>
       {triggerEl}
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 sm:max-w-md">
+      <DialogContent className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-zinc-100">Create New Project</DialogTitle>
+          <DialogTitle className="text-zinc-900 dark:text-zinc-100">Create New Project</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-600 dark:text-red-400 text-sm">
               {error}
             </div>
           )}
           <div className="space-y-1.5">
-            <label htmlFor="name" className="text-sm font-medium text-zinc-300">
+            <label htmlFor="name" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Project name
             </label>
             <Input
@@ -91,7 +91,7 @@ export function NewProjectDialog({ trigger }: NewProjectDialogProps) {
               name="name"
               required
               placeholder="My Awesome Project"
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
+              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
               onChange={(e) => {
                 const keyInput = e.currentTarget.form?.querySelector<HTMLInputElement>('[name="key"]');
                 if (keyInput && !keyInput.dataset.touched) {
@@ -104,7 +104,7 @@ export function NewProjectDialog({ trigger }: NewProjectDialogProps) {
             />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="key" className="text-sm font-medium text-zinc-300">
+            <label htmlFor="key" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Project key <span className="text-zinc-500 font-normal">(unique identifier)</span>
             </label>
             <Input
@@ -113,7 +113,7 @@ export function NewProjectDialog({ trigger }: NewProjectDialogProps) {
               required
               placeholder="MAP"
               maxLength={6}
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 uppercase"
+              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 uppercase"
               onInput={(e) => {
                 e.currentTarget.value = e.currentTarget.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
                 e.currentTarget.dataset.touched = "true";
@@ -121,14 +121,14 @@ export function NewProjectDialog({ trigger }: NewProjectDialogProps) {
             />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="description" className="text-sm font-medium text-zinc-300">
+            <label htmlFor="description" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Description <span className="text-zinc-500 font-normal">(optional)</span>
             </label>
             <Input
               id="description"
               name="description"
               placeholder="What is this project about?"
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
+              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
@@ -136,7 +136,7 @@ export function NewProjectDialog({ trigger }: NewProjectDialogProps) {
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+              className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
               Cancel
             </Button>

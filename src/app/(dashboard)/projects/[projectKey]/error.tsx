@@ -20,7 +20,7 @@ export default function ProjectError({
         <AlertTriangle className="w-7 h-7 text-red-400" />
       </div>
       <div>
-        <h2 className="text-xl font-bold text-zinc-100 mb-1">Something went wrong</h2>
+        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">Something went wrong</h2>
         <p className="text-sm text-zinc-500 max-w-sm">
           {error.message || "An unexpected error occurred. Please try again."}
         </p>
@@ -29,7 +29,7 @@ export default function ProjectError({
         <Button onClick={reset} className="bg-indigo-600 hover:bg-indigo-500 text-white">
           Try again
         </Button>
-        <Button variant="outline" onClick={() => window.history.back()} className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
+        <Button variant="outline" onClick={() => window.history.back()} className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">
           Go back
         </Button>
       </div>

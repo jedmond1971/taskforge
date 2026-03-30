@@ -63,29 +63,29 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
   });
 
   function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) return <ChevronUp className="w-3 h-3 text-zinc-600" />;
+    if (sortField !== field) return <ChevronUp className="w-3 h-3 text-zinc-400 dark:text-zinc-600" />;
     return sortOrder === "asc"
-      ? <ChevronUp className="w-3 h-3 text-indigo-400" />
-      : <ChevronDown className="w-3 h-3 text-indigo-400" />;
+      ? <ChevronUp className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+      : <ChevronDown className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />;
   }
 
   if (sorted.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-16">
-        <CheckSquare className="w-12 h-12 text-zinc-700" />
+        <CheckSquare className="w-12 h-12 text-zinc-300 dark:text-zinc-700" />
         <p className="text-lg font-medium text-zinc-500">No issues found</p>
-        <p className="text-sm text-zinc-600">Create your first issue to get started</p>
+        <p className="text-sm text-zinc-400 dark:text-zinc-600">Create your first issue to get started</p>
       </div>
     );
   }
 
   return (
-    <div className="border border-zinc-800 rounded-lg overflow-x-auto">
+    <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-x-auto">
       <table className="w-full text-sm min-w-[640px]">
         <thead>
-          <tr className="border-b border-zinc-800 bg-zinc-900/50">
+          <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
             <th
-              className="text-left px-4 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-300 w-24"
+              className="text-left px-4 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 w-24"
               onClick={() => handleSort("key")}
             >
               <span className="flex items-center gap-1">Key <SortIcon field="key" /></span>
@@ -93,7 +93,7 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
             <th className="text-left px-4 py-2.5 text-zinc-500 font-medium">Title</th>
             <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-32">Status</th>
             <th
-              className="text-left px-4 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-300 w-28"
+              className="text-left px-4 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 w-28"
               onClick={() => handleSort("priority")}
             >
               <span className="flex items-center gap-1">Priority <SortIcon field="priority" /></span>
@@ -101,7 +101,7 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
             <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-20">Type</th>
             <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-32 hidden sm:table-cell">Assignee</th>
             <th
-              className="text-left px-4 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-300 w-28 hidden sm:table-cell"
+              className="text-left px-4 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 w-28 hidden sm:table-cell"
               onClick={() => handleSort("createdAt")}
             >
               <span className="flex items-center gap-1">Created <SortIcon field="createdAt" /></span>
@@ -112,12 +112,12 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
           {sorted.map((issue, i) => (
             <tr
               key={issue.id}
-              className={`border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors ${i === sorted.length - 1 ? "border-b-0" : ""}`}
+              className={`border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors ${i === sorted.length - 1 ? "border-b-0" : ""}`}
             >
               <td className="px-4 py-3">
                 <Link
                   href={`/projects/${projectKey}/issues/${issue.key}`}
-                  className="text-zinc-500 hover:text-indigo-400 font-mono text-xs"
+                  className="text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-mono text-xs"
                 >
                   {issue.key}
                 </Link>
@@ -125,7 +125,7 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
               <td className="px-4 py-3">
                 <Link
                   href={`/projects/${projectKey}/issues/${issue.key}`}
-                  className="text-zinc-100 hover:text-indigo-300 font-medium line-clamp-1"
+                  className="text-zinc-900 dark:text-zinc-100 hover:text-indigo-600 dark:hover:text-indigo-300 font-medium line-clamp-1"
                 >
                   {issue.title}
                 </Link>
@@ -153,10 +153,10 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
                     <div className="w-6 h-6 rounded-full bg-indigo-700 flex items-center justify-center flex-shrink-0">
                       <span className="text-xs text-white font-medium">{issue.assignee.name.charAt(0)}</span>
                     </div>
-                    <span className="text-zinc-400 text-xs truncate max-w-20">{issue.assignee.name}</span>
+                    <span className="text-zinc-500 dark:text-zinc-400 text-xs truncate max-w-20">{issue.assignee.name}</span>
                   </div>
                 ) : (
-                  <span className="text-zinc-600 text-xs">Unassigned</span>
+                  <span className="text-zinc-400 dark:text-zinc-600 text-xs">Unassigned</span>
                 )}
               </td>
               <td className="px-4 py-3 text-zinc-500 text-xs hidden sm:table-cell">

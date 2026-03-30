@@ -33,10 +33,10 @@ export default async function ActivityPage({ params }: { params: { projectKey: s
   return (
     <div className="max-w-2xl space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-zinc-100">Activity</h2>
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Activity</h2>
         <p className="text-zinc-500 text-sm">{entries.length} event{entries.length !== 1 ? "s" : ""}</p>
       </div>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
         <ActivityFeed entries={entries} showIssue />
       </div>
     </div>

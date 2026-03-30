@@ -44,20 +44,20 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
       {/* Column header */}
       <div
         className={cn(
-          "bg-zinc-900 border border-zinc-800 border-t-2 rounded-t-lg px-3 py-2.5 flex items-center justify-between",
+          "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 border-t-2 rounded-t-lg px-3 py-2.5 flex items-center justify-between",
           cfg.border
         )}
       >
         <div className="flex items-center gap-2">
           <div className={cn("w-2 h-2 rounded-full", cfg.dot)} />
-          <span className="text-sm font-semibold text-zinc-200">{cfg.label}</span>
-          <span className="text-xs text-zinc-500 bg-zinc-800 rounded px-1.5 py-0.5 font-mono">
+          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{cfg.label}</span>
+          <span className="text-xs text-zinc-500 bg-zinc-100 dark:bg-zinc-800 rounded px-1.5 py-0.5 font-mono">
             {issues.length}
           </span>
         </div>
         <button
           onClick={() => setCreateOpen(true)}
-          className="p-1 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 rounded transition-colors"
+          className="p-1 text-zinc-400 dark:text-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
           aria-label={`Add issue to ${cfg.label}`}
         >
           <Plus className="w-4 h-4" />
@@ -68,8 +68,8 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
       <div
         ref={setNodeRef}
         className={cn(
-          "flex-1 border border-t-0 border-zinc-800 rounded-b-lg p-2 space-y-2 min-h-[120px] overflow-y-auto max-h-[calc(100vh-220px)] transition-colors",
-          isOver && "bg-zinc-800/40"
+          "flex-1 border border-t-0 border-zinc-200 dark:border-zinc-800 rounded-b-lg p-2 space-y-2 min-h-[120px] overflow-y-auto max-h-[calc(100vh-220px)] transition-colors",
+          isOver && "bg-zinc-100 dark:bg-zinc-800/40"
         )}
       >
         <SortableContext
@@ -83,13 +83,13 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
 
         {issues.length === 0 && (
           <div className="flex flex-col items-center justify-center h-24 gap-2">
-            <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
-              <Plus className="w-4 h-4 text-zinc-600" />
+            <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+              <Plus className="w-4 h-4 text-zinc-400 dark:text-zinc-600" />
             </div>
-            <p className="text-xs text-zinc-600">No issues</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-600">No issues</p>
             <button
               onClick={() => setCreateOpen(true)}
-              className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors"
             >
               Add one
             </button>

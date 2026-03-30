@@ -53,23 +53,25 @@ export default function RegisterPage() {
     }
   }
 
+  const inputClass = "w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm";
+
   return (
     <div className="w-full max-w-md px-6">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 shadow-2xl">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-8 shadow-2xl">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-white mb-1">Create an account</h1>
-          <p className="text-zinc-400 text-sm">Get started with TaskForge</p>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-1">Create an account</h1>
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm">Get started with TaskForge</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-600 dark:text-red-400 text-sm">
               {error}
             </div>
           )}
 
           <div className="space-y-1">
-            <label htmlFor="name" className="text-sm font-medium text-zinc-300">
+            <label htmlFor="name" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Full name
             </label>
             <input
@@ -78,12 +80,12 @@ export default function RegisterPage() {
               type="text"
               required
               placeholder="Alex Johnson"
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className={inputClass}
             />
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="email" className="text-sm font-medium text-zinc-300">
+            <label htmlFor="email" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Email
             </label>
             <input
@@ -92,12 +94,12 @@ export default function RegisterPage() {
               type="email"
               required
               placeholder="you@example.com"
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className={inputClass}
             />
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="password" className="text-sm font-medium text-zinc-300">
+            <label htmlFor="password" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Password
             </label>
             <input
@@ -107,12 +109,12 @@ export default function RegisterPage() {
               required
               placeholder="••••••••"
               minLength={8}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className={inputClass}
             />
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="confirmPassword" className="text-sm font-medium text-zinc-300">
+            <label htmlFor="confirmPassword" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Confirm password
             </label>
             <input
@@ -121,7 +123,7 @@ export default function RegisterPage() {
               type="password"
               required
               placeholder="••••••••"
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className={inputClass}
             />
           </div>
 
@@ -136,7 +138,7 @@ export default function RegisterPage() {
 
         <p className="text-center text-zinc-500 text-sm mt-6">
           Already have an account?{" "}
-          <Link href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium">
+          <Link href="/login" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 font-medium">
             Sign in
           </Link>
         </p>

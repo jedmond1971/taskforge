@@ -46,6 +46,8 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
   const [assigneeId, setAssigneeId] = useState<string>(issue?.assigneeId ?? "");
   const [labelsStr, setLabelsStr] = useState(issue?.labels.join(", ") ?? "");
 
+  const selectClass = "w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500";
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -86,40 +88,40 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-600 dark:text-red-400 text-sm">
           {error}
         </div>
       )}
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-zinc-300">Title *</label>
+        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Title *</label>
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Issue title"
           required
-          className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
+          className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
         />
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-zinc-300">Description</label>
+        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Description</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Add a description..."
           rows={4}
-          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
         />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-zinc-300">Status</label>
+          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Status</label>
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value as IssueStatus)}
-            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className={selectClass}
           >
             {(Object.keys(STATUS_CONFIG) as IssueStatus[]).map((s) => (
               <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
@@ -128,11 +130,11 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-zinc-300">Priority</label>
+          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Priority</label>
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value as IssuePriority)}
-            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className={selectClass}
           >
             {(Object.keys(PRIORITY_CONFIG) as IssuePriority[]).map((p) => (
               <option key={p} value={p}>{PRIORITY_CONFIG[p].label}</option>
@@ -141,11 +143,11 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-zinc-300">Type</label>
+          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Type</label>
           <select
             value={type}
             onChange={(e) => setType(e.target.value as IssueType)}
-            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className={selectClass}
           >
             {(Object.keys(TYPE_CONFIG) as IssueType[]).map((t) => (
               <option key={t} value={t}>{TYPE_CONFIG[t].icon} {TYPE_CONFIG[t].label}</option>
@@ -154,11 +156,11 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-zinc-300">Assignee</label>
+          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Assignee</label>
           <select
             value={assigneeId}
             onChange={(e) => setAssigneeId(e.target.value)}
-            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className={selectClass}
           >
             <option value="">Unassigned</option>
             {members.map((m) => (
@@ -169,18 +171,18 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-zinc-300">Labels <span className="text-zinc-500 font-normal">(comma separated)</span></label>
+        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Labels <span className="text-zinc-500 font-normal">(comma separated)</span></label>
         <Input
           value={labelsStr}
           onChange={(e) => setLabelsStr(e.target.value)}
           placeholder="bug, frontend, urgent"
-          className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
+          className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
         />
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel} className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
+          <Button type="button" variant="outline" onClick={onCancel} className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">
             Cancel
           </Button>
         )}

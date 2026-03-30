@@ -44,6 +44,7 @@ export function Sidebar({ onClose }: SidebarProps) {
         .slice(0, 2)
     : "??";
 
+  // Sidebar stays dark in both light and dark modes for a premium look
   return (
     <div className="flex flex-col w-64 bg-zinc-900 border-r border-zinc-800 h-screen">
       {/* Logo */}

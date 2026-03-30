@@ -45,10 +45,10 @@ export function KanbanCard({ issue, projectKey, isDragOverlay = false }: KanbanC
       ref={setNodeRef}
       style={style}
       className={cn(
-        "bg-zinc-900 border border-zinc-800 rounded-lg p-3 group select-none",
+        "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3 group select-none",
         isDragging && "opacity-40 border-dashed",
-        isDragOverlay && "shadow-2xl shadow-black/50 rotate-1 border-zinc-700",
-        !isDragging && !isDragOverlay && "hover:border-zinc-700 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 transition-all duration-150"
+        isDragOverlay && "shadow-2xl shadow-black/50 rotate-1 border-zinc-300 dark:border-zinc-700",
+        !isDragging && !isDragOverlay && "hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/20 hover:-translate-y-0.5 transition-all duration-150"
       )}
     >
       <div className="flex items-start gap-1.5">
@@ -56,7 +56,7 @@ export function KanbanCard({ issue, projectKey, isDragOverlay = false }: KanbanC
         <button
           {...attributes}
           {...listeners}
-          className="mt-0.5 flex-shrink-0 text-zinc-700 hover:text-zinc-400 cursor-grab active:cursor-grabbing touch-none"
+          className="mt-0.5 flex-shrink-0 text-zinc-300 dark:text-zinc-700 hover:text-zinc-500 dark:hover:text-zinc-400 cursor-grab active:cursor-grabbing touch-none"
           tabIndex={-1}
           aria-label="Drag to reorder"
         >
@@ -68,12 +68,12 @@ export function KanbanCard({ issue, projectKey, isDragOverlay = false }: KanbanC
           className="flex-1 min-w-0 cursor-pointer"
           onClick={() => router.push(`/projects/${projectKey}/issues/${issue.key}`)}
         >
-          <p className="text-sm text-zinc-100 leading-snug line-clamp-2 mb-2">
+          <p className="text-sm text-zinc-900 dark:text-zinc-100 leading-snug line-clamp-2 mb-2">
             {issue.title}
           </p>
 
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-mono text-zinc-600">{issue.key}</span>
+            <span className="text-xs font-mono text-zinc-400 dark:text-zinc-600">{issue.key}</span>
             <PriorityBadge priority={issue.priority} />
           </div>
 

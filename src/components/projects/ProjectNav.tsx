@@ -30,8 +30,8 @@ export function ProjectNav({ projectKey }: ProjectNavProps) {
             className={cn(
               "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
               isActive
-                ? "border-indigo-500 text-indigo-400"
-                : "border-transparent text-zinc-500 hover:text-zinc-300"
+                ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
+                : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
             )}
           >
             {tab.label}
