@@ -55,7 +55,7 @@ export function Sidebar({ onClose }: SidebarProps) {
         {onClose && (
           <button
             onClick={onClose}
-            className="lg:hidden p-1 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-colors"
+            className="lg:hidden p-2.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-colors"
             aria-label="Close sidebar"
           >
             <X className="w-4 h-4" />
@@ -77,7 +77,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]",
                 isActive
                   ? "bg-indigo-600/20 text-indigo-400"
                   : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"

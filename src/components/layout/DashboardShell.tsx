@@ -33,7 +33,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <div className="lg:hidden flex items-center gap-2 px-4 py-3 border-b border-zinc-800 bg-zinc-900 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors"
+            className="p-2.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors"
           >
             <Menu className="w-5 h-5" />
           </button>
@@ -42,7 +42,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
         <Header />
 
-        <main className="flex-1 overflow-y-auto bg-zinc-950 p-6">
+        <main className="flex-1 overflow-y-auto bg-zinc-950 p-4 sm:p-6">
           <div className="animate-page-in">
             {children}
           </div>

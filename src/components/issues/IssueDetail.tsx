@@ -131,7 +131,7 @@ function InlineSelect<T extends string>({ label, value, options, issueId, projec
         value={value}
         onChange={(e) => handleChange(e.target.value as T)}
         disabled={isPending}
-        className="w-full px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+        className="w-full px-2 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 min-h-[44px]"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
@@ -186,18 +186,18 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
   ];
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-5xl min-w-0">
       <div className="flex items-center gap-2 text-sm text-zinc-500 mb-4">
         <span className="font-mono text-indigo-400">{issue.key}</span>
         <span>·</span>
         <span>{issue.project.name}</span>
       </div>
 
-      <div className="grid grid-cols-[1fr_280px] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
         {/* Main content */}
         <div className="space-y-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
+            <div className="flex-1 min-w-0 w-full sm:w-auto">
               <EditableTitle
                 value={issue.title}
                 issueId={issue.id}
@@ -349,7 +349,7 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
                     refresh();
                   });
                 }}
-                className="w-full px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-2 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[44px]"
               >
                 {assigneeOptions.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>

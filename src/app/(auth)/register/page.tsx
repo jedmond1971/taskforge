@@ -54,8 +54,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="w-full max-w-md px-6">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 shadow-2xl">
+    <div className="w-full max-w-md px-4 sm:px-6">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 sm:p-8 shadow-2xl">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-white mb-1">Create an account</h1>
           <p className="text-zinc-400 text-sm">Get started with TaskForge</p>
@@ -78,7 +78,7 @@ export default function RegisterPage() {
               type="text"
               required
               placeholder="Alex Johnson"
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm min-h-[44px]"
             />
           </div>
 
@@ -92,7 +92,7 @@ export default function RegisterPage() {
               type="email"
               required
               placeholder="you@example.com"
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm min-h-[44px]"
             />
           </div>
 
@@ -107,7 +107,7 @@ export default function RegisterPage() {
               required
               placeholder="••••••••"
               minLength={8}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm min-h-[44px]"
             />
           </div>
 
@@ -121,14 +121,14 @@ export default function RegisterPage() {
               type="password"
               required
               placeholder="••••••••"
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm min-h-[44px]"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors text-sm mt-2"
+            className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors text-sm mt-2 min-h-[44px]"
           >
             {loading ? "Creating account..." : "Create account"}
           </button>

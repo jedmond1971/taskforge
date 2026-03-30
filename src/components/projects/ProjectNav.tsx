@@ -20,7 +20,7 @@ export function ProjectNav({ projectKey }: ProjectNavProps) {
   ];
 
   return (
-    <nav className="flex gap-1">
+    <nav className="flex gap-1 overflow-x-auto -mx-6 px-6 scrollbar-none">
       {tabs.map((tab) => {
         const isActive = pathname.startsWith(tab.href) || (tab.href.endsWith("/board") && pathname === base);
         return (
@@ -28,7 +28,7 @@ export function ProjectNav({ projectKey }: ProjectNavProps) {
             key={tab.href}
             href={tab.href}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+              "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] flex items-center",
               isActive
                 ? "border-indigo-500 text-indigo-400"
                 : "border-transparent text-zinc-500 hover:text-zinc-300"
