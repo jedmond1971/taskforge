@@ -68,7 +68,7 @@ const roleColors: Record<string, string> = {
 };
 
 const selectStyles =
-  "h-8 rounded-lg border border-zinc-700 bg-zinc-800 px-2 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-indigo-500";
+  "h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-indigo-500";
 
 function getInitials(name: string | null): string {
   if (!name) return "?";
@@ -101,7 +101,7 @@ export function ProjectSettings({
   return (
     <div className="space-y-6">
       {/* Tab navigation */}
-      <nav className="flex gap-1 border-b border-zinc-800">
+      <nav className="flex gap-1 border-b border-zinc-200 dark:border-zinc-800">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -110,7 +110,7 @@ export function ProjectSettings({
               "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
               activeTab === tab.id
                 ? "border-indigo-500 text-indigo-400"
-                : "border-transparent text-zinc-500 hover:text-zinc-300"
+                : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
             )}
           >
             {tab.label}
@@ -184,29 +184,29 @@ function GeneralTab({
   return (
     <div className="max-w-xl space-y-6">
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-zinc-300">
+        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Project name
         </label>
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="bg-zinc-800 border-zinc-700 text-zinc-100"
+          className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
         />
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-zinc-300">Description</label>
+        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Description</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
         />
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-zinc-300">Project key</label>
-        <div className="px-3 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-lg text-sm text-zinc-400 font-mono">
+        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Project key</label>
+        <div className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-300/50 dark:border-zinc-700/50 rounded-lg text-sm text-zinc-500 dark:text-zinc-400 font-mono">
           {project.key}
         </div>
       </div>
@@ -214,13 +214,13 @@ function GeneralTab({
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
           <p className="text-zinc-500">Created</p>
-          <p className="text-zinc-300">
+          <p className="text-zinc-700 dark:text-zinc-300">
             {new Date(project.createdAt).toLocaleDateString()}
           </p>
         </div>
         <div>
           <p className="text-zinc-500">Owner</p>
-          <p className="text-zinc-300">{ownerName}</p>
+          <p className="text-zinc-700 dark:text-zinc-300">{ownerName}</p>
         </div>
       </div>
 
@@ -297,10 +297,10 @@ function MembersTab({
     <div className="space-y-8">
       {/* Members list */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-zinc-300">
+        <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Project members ({members.length})
         </h3>
-        <div className="divide-y divide-zinc-800 rounded-xl border border-zinc-800 overflow-hidden">
+        <div className="divide-y divide-zinc-200 dark:divide-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
           {members.map((member) => {
             const isOwner = member.role === "OWNER";
             const isSelf = member.userId === currentUserId;
@@ -308,7 +308,7 @@ function MembersTab({
             return (
               <div
                 key={member.id}
-                className="flex items-center gap-3 px-4 py-3 bg-zinc-900"
+                className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-zinc-900"
               >
                 <Avatar size="default">
                   {member.user.avatarUrl && (
@@ -320,7 +320,7 @@ function MembersTab({
                 </Avatar>
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-zinc-100 truncate">
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
                     {member.user.name ?? "Unnamed"}
                     {isSelf && (
                       <span className="text-zinc-500 ml-1">(you)</span>
@@ -388,12 +388,12 @@ function MembersTab({
           if (!open) setMemberToRemove(null);
         }}
       >
-        <DialogContent className="bg-zinc-900 border-zinc-800 sm:max-w-md">
+        <DialogContent className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-zinc-100">Remove member</DialogTitle>
-            <DialogDescription className="text-zinc-400">
+            <DialogTitle className="text-zinc-900 dark:text-zinc-100">Remove member</DialogTitle>
+            <DialogDescription className="text-zinc-600 dark:text-zinc-400">
               Are you sure you want to remove{" "}
-              <span className="font-medium text-zinc-200">
+              <span className="font-medium text-zinc-800 dark:text-zinc-200">
                 {memberToRemove?.user.name ?? memberToRemove?.user.email}
               </span>{" "}
               from this project?
@@ -403,7 +403,7 @@ function MembersTab({
             <Button
               variant="outline"
               onClick={() => setMemberToRemove(null)}
-              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+              className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
               Cancel
             </Button>
@@ -530,7 +530,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-zinc-300">Add member</h3>
+        <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Add member</h3>
         <button
           onClick={() => setMode(mode === "search" ? "create" : "search")}
           className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
@@ -550,13 +550,13 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
               placeholder="Search users by email..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 pl-9"
+              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 pl-9"
             />
           </div>
 
           {/* Search results dropdown */}
           {searchQuery.trim() && !selectedUser && (
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900 overflow-hidden">
+            <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
               {searching ? (
                 <div className="px-4 py-3 text-sm text-zinc-500">
                   Searching...
@@ -570,7 +570,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
                   <button
                     key={user.id}
                     onClick={() => setSelectedUser(user)}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-zinc-800 transition-colors"
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                   >
                     <Avatar size="sm">
                       {user.avatarUrl && (
@@ -581,7 +581,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <p className="text-sm text-zinc-200 truncate">
+                      <p className="text-sm text-zinc-800 dark:text-zinc-200 truncate">
                         {user.name ?? "Unnamed"}
                       </p>
                       <p className="text-xs text-zinc-500 truncate">
@@ -596,7 +596,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
 
           {/* Selected user */}
           {selectedUser && (
-            <div className="flex items-center gap-3 p-3 rounded-lg border border-zinc-800 bg-zinc-900">
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
               <Avatar size="sm">
                 {selectedUser.avatarUrl && (
                   <AvatarImage src={selectedUser.avatarUrl} />
@@ -606,7 +606,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-zinc-200 truncate">
+                <p className="text-sm text-zinc-800 dark:text-zinc-200 truncate">
                   {selectedUser.name ?? "Unnamed"}
                 </p>
                 <p className="text-xs text-zinc-500 truncate">
@@ -640,26 +640,26 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
         /* Create user mode */
         <div className="space-y-3 max-w-md">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-zinc-300">Name</label>
+            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Name</label>
             <Input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Full name"
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
+              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-zinc-300">Email</label>
+            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Email</label>
             <Input
               type="email"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
               placeholder="user@example.com"
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
+              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-zinc-300">
+            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Password
             </label>
             <Input
@@ -667,11 +667,11 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Temporary password"
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
+              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-zinc-300">Role</label>
+            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Role</label>
             <select
               value={createRole}
               onChange={(e) =>
@@ -746,27 +746,27 @@ function DangerZoneTab({
       </div>
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 sm:max-w-md">
+        <DialogContent className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-zinc-100">
+            <DialogTitle className="text-zinc-900 dark:text-zinc-100">
               Delete project {project.key}?
             </DialogTitle>
-            <DialogDescription className="text-zinc-400">
+            <DialogDescription className="text-zinc-600 dark:text-zinc-400">
               This action cannot be undone. All issues, comments, and data will
               be permanently deleted.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <label className="text-sm text-zinc-300">
-                Type <span className="font-bold text-zinc-100">{project.key}</span> to
+              <label className="text-sm text-zinc-700 dark:text-zinc-300">
+                Type <span className="font-bold text-zinc-900 dark:text-zinc-100">{project.key}</span> to
                 confirm
               </label>
               <Input
                 value={confirmInput}
                 onChange={(e) => setConfirmInput(e.target.value)}
                 placeholder={project.key}
-                className="bg-zinc-800 border-zinc-700 text-zinc-100 font-mono"
+                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-mono"
               />
             </div>
             <div className="flex justify-end gap-2">
@@ -776,7 +776,7 @@ function DangerZoneTab({
                   setShowDeleteDialog(false);
                   setConfirmInput("");
                 }}
-                className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
                 Cancel
               </Button>

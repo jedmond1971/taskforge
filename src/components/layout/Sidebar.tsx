@@ -47,19 +47,18 @@ export function Sidebar({ onClose }: SidebarProps) {
         .slice(0, 2)
     : "??";
 
-  // Sidebar stays dark in both light and dark modes for a premium look
   return (
-    <div className="flex flex-col w-64 bg-zinc-900 border-r border-zinc-800 h-screen">
+    <div className="flex flex-col w-64 bg-sidebar border-r border-sidebar-border h-screen">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-zinc-800">
+      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-sidebar-border">
         <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
           <Zap className="w-4 h-4 text-white" />
         </div>
-        <span className="font-bold text-white text-lg tracking-tight flex-1">TaskForge</span>
+        <span className="font-bold text-sidebar-foreground text-lg tracking-tight flex-1">TaskForge</span>
         {onClose && (
           <button
             onClick={onClose}
-            className="lg:hidden p-2.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-colors"
+            className="lg:hidden p-2.5 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors"
             aria-label="Close sidebar"
           >
             <X className="w-4 h-4" />
@@ -84,7 +83,7 @@ export function Sidebar({ onClose }: SidebarProps) {
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]",
                 isActive
                   ? "bg-indigo-600/20 text-indigo-400"
-                  : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent"
               )}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
@@ -104,7 +103,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]",
               pathname.startsWith("/admin")
                 ? "bg-indigo-600/20 text-indigo-400"
-                : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent"
             )}
           >
             <ShieldCheck className="w-4 h-4 flex-shrink-0" />
@@ -117,9 +116,9 @@ export function Sidebar({ onClose }: SidebarProps) {
       </nav>
 
       {/* User section */}
-      <div className="p-3 border-t border-zinc-800">
+      <div className="p-3 border-t border-sidebar-border">
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors text-left">
+          <DropdownMenuTrigger className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-sidebar-accent transition-colors text-left">
             <Avatar className="w-7 h-7">
               <AvatarImage src={user?.image ?? undefined} />
               <AvatarFallback className="bg-indigo-700 text-white text-xs font-semibold">
@@ -127,10 +126,10 @@ export function Sidebar({ onClose }: SidebarProps) {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-zinc-100 truncate">
+              <p className="text-sm font-medium text-sidebar-foreground truncate">
                 {user?.name ?? "Loading..."}
               </p>
-              <p className="text-xs text-zinc-500 truncate">{user?.email ?? ""}</p>
+              <p className="text-xs text-muted-foreground truncate">{user?.email ?? ""}</p>
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
