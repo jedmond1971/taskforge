@@ -55,6 +55,7 @@ model User {
   reportedIssues Issue[]         @relation("ReportedIssues")
   comments       Comment[]
   activityLogs   ActivityLog[]
+  savedFilters   SavedFilter[]
 }
 
 model Project {
@@ -152,6 +153,19 @@ model Comment {
   author User  @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([issueId])
+}
+
+model SavedFilter {
+  id        String   @id @default(cuid())
+  name      String
+  query     String
+  userId    String
+  isGlobal  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model ActivityLog {
