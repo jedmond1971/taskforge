@@ -3,6 +3,7 @@ import type { NextAuthConfig } from "next-auth";
 // Edge-compatible config: no Prisma, no bcrypt, no Node.js-only imports.
 // Used by middleware for JWT session verification only.
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
   pages: {
     signIn: "/login",
   },
