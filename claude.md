@@ -1,15 +1,34 @@
 # TaskForge — Project Intelligence
 
 ## What is this?
-TaskForge is a Jira-clone portfolio project built with Next.js 14, PostgreSQL, Prisma, and Tailwind CSS.
+TaskForge is a Jira-inspired project management app built with Next.js 14, PostgreSQL, 
+Prisma, and Tailwind CSS. Currently deployed and live on Railway. Being considered as 
+a potential indie product/acquisition target — a simpler, more affordable alternative to Jira.
 
 ## Tech Stack
 - Next.js 14 App Router with Server Components and Server Actions
-- PostgreSQL via Prisma ORM
-- NextAuth.js for authentication
+- PostgreSQL via Prisma ORM (hosted on Railway)
+- NextAuth.js v5 for authentication
 - Tailwind CSS + shadcn/ui for UI
 - @dnd-kit for drag-and-drop
 - SSE for real-time activity feed
+
+## Deployment
+- Hosted on Railway (app + PostgreSQL), project name: **striking-strength**, service: **taskforge**
+- Live at **https://www.ciphercompass.com** (custom domain via IONOS CNAME → xqo6u471.up.railway.app)
+- Railway fallback URL: https://taskforge-production-099b.up.railway.app
+- `NEXTAUTH_URL` = `https://www.ciphercompass.com`
+- `PORT` = `3000` (must be set — Railway defaults to 8080 which breaks routing)
+- `trustHost: true` is required in auth.config.ts (Railway runs behind a reverse proxy)
+- Use the public Railway connection string for local Prisma migrations/scripts
+- Internal DATABASE_URL (postgres.railway.internal) is only reachable from within Railway
+
+## Railway CLI
+- CLI v4.39.0 is installed and linked — use it directly instead of the dashboard
+- `railway variables` / `railway variables set KEY=VALUE` — manage env vars
+- `railway logs` — tail live logs
+- `railway redeploy` — redeploy latest build
+- `railway status` — confirm linked project/service
 
 ## Conventions
 - All database queries go through Prisma client in `src/lib/prisma.ts`
@@ -31,7 +50,37 @@ TaskForge is a Jira-clone portfolio project built with Next.js 14, PostgreSQL, P
 - Shared files or state (merge conflict risk)
 - Unclear scope (need to understand before proceeding)
 
+## Local Development
+- Postgres runs in Docker container `taskforge-db` on port 5433 (matches `.env`)
+- To start a dev session: `docker start taskforge-db && npm run dev`
+- Seed users: admin@taskforge.dev, member@taskforge.dev, carol@taskforge.dev, dave@taskforge.dev (password: see seed file)
+- Do NOT run `prisma/seed.ts` against production — it wipes all data first
+- Always test UI changes locally before pushing to production
+
+## Scripts
+- `scripts/create-user.ts` — one-off user creation script (safe, idempotent)
+  Usage: DATABASE_URL="..." ADMIN_EMAIL="..." ADMIN_PASSWORD="..." ADMIN_NAME="..." npx tsx scripts/create-user.ts
+- `taskforge-issues.sh` — lists open issues from production DB via `railway connect postgres`
+  Usage: `./taskforge-issues.sh` (all open) or `./taskforge-issues.sh "TaskForge Enhancements" IN_PROGRESS`
+- To close an issue: `echo "UPDATE \"Issue\" SET status = 'DONE' WHERE id = '<id>';" | railway connect postgres`
+
+## Issue Workflow
+1. Run `./taskforge-issues.sh` to find the highest-priority open issue
+2. Implement the fix (start local dev server to test)
+3. Commit → push to main → Railway auto-deploys
+4. Close the issue via `railway connect postgres`
+
+## Components — Notable Patterns
+- `LabelInput` (`components/issues/LabelInput.tsx`) — tag-style input for labels; type + Enter/comma to add, X to remove, deterministic color per label string. Used in both IssueForm and IssueDetail (auto-saves on change in detail view).
+- `KanbanCard` — full card is the drag target (no grip handle); relies on PointerSensor 6px activation distance to allow click-through navigation.
+
 ## Current Status
-- Phase: 1 (Foundation)
-- Completed: nothing yet
-- In progress: initial setup
+- Phase: 8 (Production Deployment) — COMPLETE
+- All phases complete and live at https://www.ciphercompass.com
+- App is fully functional with real data
+- Custom domain fully configured with SSL (Let's Encrypt via Railway)
+- Local dev environment fully configured (Docker + Postgres)
+
+## Completed Enhancements (post-launch)
+- **Label management** — interactive add/remove labels on issue detail + create/edit form (LabelInput component)
+- **Full-card drag-and-drop** — kanban cards draggable from any area, not just the grip handle
