@@ -1,10 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Plus, ChevronRight } from "lucide-react";
 import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+
+function segmentLabel(segment: string): string {
+  // Issue keys like TF-1, MYPROJECT-42 — preserve as-is
+  if (/^[A-Z][A-Z0-9]*-\d+$/.test(segment)) return segment;
+  // All-caps project keys like TF, MYPROJECT
+  if (/^[A-Z][A-Z0-9]+$/.test(segment)) return segment;
+  return segment
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
 
 function getBreadcrumbs(pathname: string): { label: string; href: string }[] {
   const segments = pathname.split("/").filter(Boolean);
@@ -15,11 +27,7 @@ function getBreadcrumbs(pathname: string): { label: string; href: string }[] {
   let currentPath = "";
   for (const segment of segments) {
     currentPath += `/${segment}`;
-    const label = segment
-      .split("-")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ");
-    crumbs.push({ label, href: currentPath });
+    crumbs.push({ label: segmentLabel(segment), href: currentPath });
   }
 
   return crumbs;
@@ -59,15 +67,18 @@ export function Header() {
             {breadcrumbs.map((crumb, i) => (
               <span key={crumb.href} className="flex items-center gap-1 flex-shrink-0 last:flex-shrink min-w-0">
                 {i > 0 && <ChevronRight className="w-3 h-3 flex-shrink-0" />}
-                <span
-                  className={`truncate ${
-                    i === breadcrumbs.length - 1
-                      ? "text-zinc-900 dark:text-zinc-100 font-medium"
-                      : "hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer"
-                  }`}
-                >
-                  {crumb.label}
-                </span>
+                {i === breadcrumbs.length - 1 ? (
+                  <span className="truncate text-zinc-900 dark:text-zinc-100 font-medium">
+                    {crumb.label}
+                  </span>
+                ) : (
+                  <Link
+                    href={crumb.href}
+                    className="truncate hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                  >
+                    {crumb.label}
+                  </Link>
+                )}
               </span>
             ))}
           </nav>
