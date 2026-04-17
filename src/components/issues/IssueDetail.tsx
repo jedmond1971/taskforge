@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
 import { updateIssue, deleteIssue } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { STATUS_CONFIG, PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
 import { Pencil, Trash2, Check, X } from "lucide-react";
+import { LabelInput } from "@/components/issues/LabelInput";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CommentThread } from "@/components/comments/CommentThread";
@@ -148,6 +149,9 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
   const [isPending, startTransition] = useTransition();
   const [editingDesc, setEditingDesc] = useState(false);
   const [description, setDescription] = useState(issue.description ?? "");
+  const [labels, setLabels] = useState<string[]>(issue.labels);
+
+  useEffect(() => { setLabels(issue.labels); }, [issue.labels]);
 
   const currentUserInitial = currentUserName.charAt(0).toUpperCase();
 
@@ -158,6 +162,15 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
       await updateIssue(projectKey, issue.id, { description: description.trim() || null });
       setEditingDesc(false);
       toast.success("Description updated");
+      refresh();
+    });
+  }
+
+  function handleLabelsChange(newLabels: string[]) {
+    setLabels(newLabels);
+    startTransition(async () => {
+      await updateIssue(projectKey, issue.id, { labels: newLabels });
+      toast.success("Labels updated");
       refresh();
     });
   }
@@ -265,18 +278,10 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
           </div>
 
           {/* Labels */}
-          {issue.labels.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">Labels</h3>
-              <div className="flex flex-wrap gap-2">
-                {issue.labels.map((label) => (
-                  <span key={label} className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded text-xs border border-zinc-200 dark:border-zinc-700">
-                    {label}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+          <div>
+            <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">Labels</h3>
+            <LabelInput labels={labels} onChange={handleLabelsChange} disabled={isPending} />
+          </div>
 
           {/* Comments */}
           <div>

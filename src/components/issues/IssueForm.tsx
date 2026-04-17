@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { STATUS_CONFIG, PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
+import { LabelInput } from "@/components/issues/LabelInput";
 
 type ProjectMember = {
   user: { id: string; name: string; avatarUrl: string | null };
@@ -44,7 +45,7 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
   const [priority, setPriority] = useState<IssuePriority>(issue?.priority ?? "MEDIUM");
   const [type, setType] = useState<IssueType>(issue?.type ?? "TASK");
   const [assigneeId, setAssigneeId] = useState<string>(issue?.assigneeId ?? "");
-  const [labelsStr, setLabelsStr] = useState(issue?.labels.join(", ") ?? "");
+  const [labels, setLabels] = useState<string[]>(issue?.labels ?? []);
 
   const selectClass = "w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
@@ -60,7 +61,7 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
       priority,
       type,
       assigneeId: assigneeId || undefined,
-      labels: labelsStr.split(",").map((l) => l.trim()).filter(Boolean),
+      labels,
     };
 
     startTransition(async () => {
@@ -171,13 +172,9 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Labels <span className="text-zinc-500 font-normal">(comma separated)</span></label>
-        <Input
-          value={labelsStr}
-          onChange={(e) => setLabelsStr(e.target.value)}
-          placeholder="bug, frontend, urgent"
-          className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
-        />
+        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Labels</label>
+        <LabelInput labels={labels} onChange={setLabels} disabled={isPending} />
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">Type a label and press Enter or comma to add</p>
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
