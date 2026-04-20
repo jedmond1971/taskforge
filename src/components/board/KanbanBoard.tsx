@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -55,6 +55,11 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
+
+  // Sync server-refreshed issues into local state, but not while a drag is in flight
+  useEffect(() => {
+    if (!activeIssue) setIssues(initialIssues);
+  }, [initialIssues]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Group issues by status, sorted by position
   const byStatus = useCallback(

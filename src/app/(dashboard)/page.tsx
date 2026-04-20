@@ -77,7 +77,7 @@ export default async function DashboardPage() {
       {/* Welcome */}
       <div>
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-          Good morning, {firstName} 👋
+          Hi, {firstName}
         </h1>
         <p className="text-zinc-500 dark:text-zinc-400 mt-1 text-sm">
           Here&apos;s what&apos;s happening across your projects today.

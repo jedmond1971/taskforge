@@ -5,6 +5,7 @@ import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
 import { getIssues, getProjectMembers } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { IssueList } from "@/components/issues/IssueList";
 import { IssueFiltersBar } from "@/components/issues/IssueFiltersBar";
+import { AutoRefresh } from "@/components/layout/AutoRefresh";
 
 interface PageProps {
   params: { projectKey: string };
@@ -46,6 +47,7 @@ export default async function IssuesPage({ params, searchParams }: PageProps) {
 
   return (
     <div className="space-y-4">
+      <AutoRefresh />
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100">Issues</h2>

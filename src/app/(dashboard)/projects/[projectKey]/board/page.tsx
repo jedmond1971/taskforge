@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { KanbanBoard } from "@/components/board/KanbanBoard";
+import { AutoRefresh } from "@/components/layout/AutoRefresh";
 
 async function getBoardData(projectKey: string, userId: string) {
   return prisma.project.findFirst({
@@ -33,6 +34,7 @@ export default async function BoardPage({ params }: { params: { projectKey: stri
 
   return (
     <div className="h-full overflow-x-auto">
+      <AutoRefresh />
       <KanbanBoard
         initialIssues={project.issues}
         projectKey={params.projectKey}
