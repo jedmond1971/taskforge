@@ -391,7 +391,7 @@ export function QueryBar({
           );
           return;
         }
-        if (e.key === "Enter" || e.key === "Tab") {
+        if (e.key === "Tab") {
           e.preventDefault();
           insertSuggestion(suggestions[selectedIndex]);
           return;
