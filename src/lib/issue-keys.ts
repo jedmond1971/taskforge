@@ -1,19 +1,28 @@
 import { prisma } from "./prisma";
 
 export async function generateIssueKey(projectKey: string): Promise<string> {
-  // Find the highest existing issue number for this project
-  const lastIssue = await prisma.issue.findFirst({
-    where: { key: { startsWith: `${projectKey}-` } },
-    orderBy: { key: "desc" },
-    select: { key: true },
-  });
+  // Use a raw query to get the true numeric max, avoiding lexicographic sort issues
+  // (e.g. "TFE-9" sorts higher than "TFE-10" in string order).
+  // Strip the known prefix so project keys containing hyphens are handled correctly.
+  const prefix = `${projectKey}-`;
+  const result = await prisma.$queryRaw<{ max_num: number | null }[]>`
+    SELECT MAX(CAST(SUBSTRING(key FROM ${prefix.length + 1}) AS INTEGER)) AS max_num
+    FROM "Issue"
+    WHERE key LIKE ${`${prefix}%`}
+  `;
 
-  let nextNumber = 1;
-  if (lastIssue) {
-    const parts = lastIssue.key.split("-");
-    const lastNum = parseInt(parts[parts.length - 1], 10);
-    if (!isNaN(lastNum)) nextNumber = lastNum + 1;
+  const maxNum = result[0]?.max_num ?? 0;
+  return `${projectKey}-${maxNum + 1}`;
+}
+
+export async function generateIssueKeyWithRetry(
+  projectKey: string,
+  maxRetries = 5
+): Promise<string> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const key = await generateIssueKey(projectKey);
+    const exists = await prisma.issue.findUnique({ where: { key }, select: { key: true } });
+    if (!exists) return key;
   }
-
-  return `${projectKey}-${nextNumber}`;
+  throw new Error(`Could not generate a unique issue key for project ${projectKey} after ${maxRetries} attempts`);
 }

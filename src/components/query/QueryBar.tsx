@@ -13,7 +13,7 @@ interface QueryBarProps {
   isLoading?: boolean;
 }
 
-const HISTORY_KEY = "taskforge-query-history";
+const HISTORY_KEY = "jedforge-query-history";
 const MAX_HISTORY = 5;
 
 const FIELDS = new Set([

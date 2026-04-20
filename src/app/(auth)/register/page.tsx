@@ -60,7 +60,7 @@ export default function RegisterPage() {
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 sm:p-8 shadow-2xl">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-1">Create an account</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 text-sm">Get started with TaskForge</p>
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm">Get started with JedForge</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -44,7 +44,7 @@ export default function LoginPage() {
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 sm:p-8 shadow-2xl">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-1">Welcome back</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 text-sm">Sign in to your TaskForge account</p>
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm">Sign in to your JedForge account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

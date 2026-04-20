@@ -54,7 +54,7 @@ export function Sidebar({ onClose }: SidebarProps) {
         <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
           <Zap className="w-4 h-4 text-white" />
         </div>
-        <span className="font-bold text-sidebar-foreground text-lg tracking-tight flex-1">TaskForge</span>
+        <span className="font-bold text-sidebar-foreground text-lg tracking-tight flex-1">JedForge</span>
         {onClose && (
           <button
             onClick={onClose}

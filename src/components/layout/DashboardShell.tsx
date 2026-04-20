@@ -37,7 +37,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">TaskForge</span>
+          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">JedForge</span>
         </div>
 
         <Header />

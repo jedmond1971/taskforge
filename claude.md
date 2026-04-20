@@ -1,9 +1,10 @@
-# TaskForge — Project Intelligence
+# JedForge — Project Intelligence
 
 ## What is this?
-TaskForge is a Jira-inspired project management app built with Next.js 14, PostgreSQL, 
+JedForge is a Jira-inspired project management app built with Next.js 14, PostgreSQL, 
 Prisma, and Tailwind CSS. Currently deployed and live on Railway. Being considered as 
 a potential indie product/acquisition target — a simpler, more affordable alternative to Jira.
+Renamed from TaskForge to JedForge in April 2026 ("TaskForge" name was already in use by another company).
 
 ## Tech Stack
 - Next.js 14 App Router with Server Components and Server Actions
@@ -15,9 +16,9 @@ a potential indie product/acquisition target — a simpler, more affordable alte
 
 ## Deployment
 - Hosted on Railway (app + PostgreSQL), project name: **striking-strength**, service: **taskforge**
-- Live at **https://www.ciphercompass.com** (custom domain via IONOS CNAME → xqo6u471.up.railway.app)
+- Custom domain TBD — ciphercompass.com being replaced with a new domain (as of 2026-04-20)
 - Railway fallback URL: https://taskforge-production-099b.up.railway.app
-- `NEXTAUTH_URL` = `https://www.ciphercompass.com`
+- `NEXTAUTH_URL` = must be updated in Railway env vars when new domain is configured
 - `PORT` = `3000` (must be set — Railway defaults to 8080 which breaks routing)
 - `trustHost: true` is required in auth.config.ts (Railway runs behind a reverse proxy)
 - Use the public Railway connection string for local Prisma migrations/scripts
@@ -53,7 +54,7 @@ a potential indie product/acquisition target — a simpler, more affordable alte
 ## Local Development
 - Postgres runs in Docker container `taskforge-db` on port 5433 (matches `.env`)
 - To start a dev session: `docker start taskforge-db && npm run dev`
-- Seed users: admin@taskforge.dev, member@taskforge.dev, carol@taskforge.dev, dave@taskforge.dev (password: see seed file)
+- Seed users: admin@taskforge.dev, member@taskforge.dev, carol@taskforge.dev, dave@taskforge.dev (password: see seed file — legacy emails, not user-facing)
 - Do NOT run `prisma/seed.ts` against production — it wipes all data first
 - Always test UI changes locally before pushing to production
 
@@ -61,7 +62,7 @@ a potential indie product/acquisition target — a simpler, more affordable alte
 - `scripts/create-user.ts` — one-off user creation script (safe, idempotent)
   Usage: DATABASE_URL="..." ADMIN_EMAIL="..." ADMIN_PASSWORD="..." ADMIN_NAME="..." npx tsx scripts/create-user.ts
 - `taskforge-issues.sh` — lists open issues from production DB via `railway connect postgres`
-  Usage: `./taskforge-issues.sh` (all open) or `./taskforge-issues.sh "TaskForge Enhancements" IN_PROGRESS`
+  Usage: `./taskforge-issues.sh` (all open) or `./taskforge-issues.sh "JedForge Enhancements" IN_PROGRESS`
 - To close an issue: `echo "UPDATE \"Issue\" SET status = 'DONE' WHERE id = '<id>';" | railway connect postgres`
 
 ## Issue Workflow
@@ -76,9 +77,10 @@ a potential indie product/acquisition target — a simpler, more affordable alte
 
 ## Current Status
 - Phase: 8 (Production Deployment) — COMPLETE
-- All phases complete and live at https://www.ciphercompass.com
+- All phases complete and live on Railway
+- App renamed from TaskForge → JedForge (April 2026)
+- Custom domain change pending (ciphercompass.com → TBD)
 - App is fully functional with real data
-- Custom domain fully configured with SSL (Let's Encrypt via Railway)
 - Local dev environment fully configured (Docker + Postgres)
 
 ## Completed Enhancements (post-launch)

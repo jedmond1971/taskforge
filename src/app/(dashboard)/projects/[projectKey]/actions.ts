@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { generateIssueKey } from "@/lib/issue-keys";
+import { generateIssueKeyWithRetry } from "@/lib/issue-keys";
 import {
   requireProjectRole,
   canEditSettings,
@@ -59,7 +59,7 @@ export async function createIssue(projectKey: string, formData: {
 
   // Count existing issues for position
   const issueCount = await prisma.issue.count({ where: { projectId } });
-  const issueKey = await generateIssueKey(key);
+  const issueKey = await generateIssueKeyWithRetry(key);
 
   const issue = await prisma.issue.create({
     data: {
