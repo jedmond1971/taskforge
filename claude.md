@@ -66,10 +66,18 @@ Renamed from TaskForge to JedForge in April 2026 ("TaskForge" name was already i
 - To close an issue: `echo "UPDATE \"Issue\" SET status = 'DONE' WHERE id = '<id>';" | railway connect postgres`
 
 ## Issue Workflow
-1. Run `./taskforge-issues.sh` to find the highest-priority open issue
+1. Run `./taskforge-issues.sh "JedForge Enhancements"` to find open issues
 2. Implement the fix (start local dev server to test)
 3. Commit → push to main → Railway auto-deploys
-4. Close the issue via `railway connect postgres`
+4. Post a fix-summary comment on the issue in JedForge using the Maximus account (see below)
+5. Close the issue via `railway connect postgres`
+
+## JedForge Commenting (Claude Code)
+- Claude Code has a dedicated JedForge account: **Maximus** (`maximus@taskforge.dev`, user ID: `cmo365psl000vdrd0p63lirlz`)
+- After completing work on an issue, INSERT a comment summarizing the root cause(s) and fix, referencing the commit hash
+- Always INSERT — never UPDATE or overwrite existing comments
+- Only touch rows where `authorId` = Maximus's ID; never modify Jamie's comments (`cmnhxdr2g0002tmm00mqwhhn7`)
+- Insert via: `railway connect postgres` with a raw SQL INSERT into `"Comment"`
 
 ## Components — Notable Patterns
 - `LabelInput` (`components/issues/LabelInput.tsx`) — tag-style input for labels; type + Enter/comma to add, X to remove, deterministic color per label string. Used in both IssueForm and IssueDetail (auto-saves on change in detail view).
@@ -86,3 +94,11 @@ Renamed from TaskForge to JedForge in April 2026 ("TaskForge" name was already i
 ## Completed Enhancements (post-launch)
 - **Label management** — interactive add/remove labels on issue detail + create/edit form (LabelInput component)
 - **Full-card drag-and-drop** — kanban cards draggable from any area, not just the grip handle
+- **App rename** — TaskForge → JedForge across all UI, page titles, and package.json (April 2026)
+- **Duplicate issue key fix** — `generateIssueKey` used lexicographic sort, causing `TFE-9 > TFE-10`; replaced with JS numeric max + retry-on-conflict logic (TFEN-10)
+- **Dashboard greeting** — "Good morning [name] 👋" → "Hi, [name]" (TFEN-8)
+- **Board/Issues auto-refresh on creation** — KanbanBoard state now syncs from `initialIssues` via `useEffect` on server refresh; `router.refresh()` called after issue creation (TFEN-7)
+- **Periodic auto-refresh** — `AutoRefresh` component calls `router.refresh()` every 3 minutes on Board and Issues pages (TFEN-6)
+- **Search type-ahead fixes** — suppressed EOF/unclosed-string parse errors during typing; fixed autocomplete inside partial quoted strings; added labels DB lookup for suggestions (TFEN-9)
+- **Search Enter key** — Enter now always executes the search; Tab selects autocomplete suggestions (TFEN-9)
+- **Self-service password change** — `/settings` page with current-password verification; accessible from sidebar user menu (TFEN-11)
