@@ -303,9 +303,12 @@ export function QueryBar({
         }
       } catch (err) {
         if (err && typeof err === "object" && "message" in err) {
-          setErrors([
-            { message: (err as { message: string }).message },
-          ]);
+          const msg = (err as { message: string }).message;
+          // Suppress errors that indicate incomplete input — the user is still typing.
+          // "EOF" errors mean the parser ran out of tokens mid-expression;
+          // "Unclosed string" means they're inside a quoted value.
+          if (msg.includes("EOF") || msg.includes("Unclosed string")) return;
+          setErrors([{ message: msg }]);
         }
       }
     }, 500);

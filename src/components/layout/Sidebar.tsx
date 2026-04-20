@@ -9,6 +9,7 @@ import {
   Search,
   ShieldCheck,
   LogOut,
+  Settings,
   ChevronRight,
   Zap,
   X,
@@ -133,6 +134,12 @@ export function Sidebar({ onClose }: SidebarProps) {
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem className="cursor-pointer p-0">
+              <Link href="/settings" className="flex items-center w-full px-2 py-1.5">
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => signOut({ callbackUrl: "/login" })}

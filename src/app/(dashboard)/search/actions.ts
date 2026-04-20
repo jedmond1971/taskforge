@@ -108,12 +108,29 @@ export async function getAutocompleteSuggestions(
     "key",
   ];
 
+  const operators = ["=", "!=", ">", "<", ">=", "<=", "~", "IN"];
+
   // If empty or after a logical operator -> suggest field names
   if (
     tokens.length === 0 ||
     ["AND", "OR", "("].includes(lastToken.toUpperCase())
   ) {
     return { type: "field", suggestions: allFields };
+  }
+
+  // If the cursor is inside an unclosed string literal (e.g. status = "TO|"),
+  // detect the field from context and return relevant value suggestions.
+  const isInsideString =
+    lastToken.startsWith('"') &&
+    (lastToken.length === 1 || !lastToken.endsWith('"') || lastToken.length < 2);
+  if (isInsideString) {
+    const field = operators.includes(secondLastToken)
+      ? thirdLastToken.toLowerCase()
+      : secondLastToken.toLowerCase();
+    return {
+      type: "value",
+      suggestions: await getValueSuggestions(field, session.user.id),
+    };
   }
 
   // If after a field name -> suggest operators
@@ -134,7 +151,6 @@ export async function getAutocompleteSuggestions(
   }
 
   // If after an operator -> suggest values
-  const operators = ["=", "!=", ">", "<", ">=", "<=", "~", "IN"];
   if (
     operators.includes(lastToken) ||
     (lastToken.toUpperCase() === "IN" &&
@@ -183,6 +199,23 @@ async function getValueSuggestions(
         include: { project: { select: { key: true } } },
       });
       return projects.map((m) => `"${m.project.key}"`);
+    }
+    case "labels": {
+      const memberships = await prisma.projectMember.findMany({
+        where: { userId },
+        select: { projectId: true },
+      });
+      const projectIds = memberships.map((m) => m.projectId);
+      const issues = await prisma.issue.findMany({
+        where: { projectId: { in: projectIds }, labels: { isEmpty: false } },
+        select: { labels: true },
+        take: 200,
+      });
+      const labelSet = new Set<string>();
+      for (const issue of issues) {
+        for (const label of issue.labels) labelSet.add(label);
+      }
+      return Array.from(labelSet).map((l) => `"${l}"`);
     }
     case "createdat":
     case "updatedat":
