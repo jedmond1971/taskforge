@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { CommentThread } from "@/components/comments/CommentThread";
 import { CommentForm } from "@/components/comments/CommentForm";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
+import { AttachmentsPanel } from "@/components/attachments/AttachmentsPanel";
 
 type User = { id: string; name: string; avatarUrl: string | null };
 type ActivityLog = {
@@ -55,6 +56,7 @@ interface IssueDetailProps {
   projectKey: string;
   currentUserId: string;
   currentUserName: string;
+  canEdit: boolean;
 }
 
 function EditableTitle({ value, issueId, projectKey, onSaved }: {
@@ -144,7 +146,7 @@ function InlineSelect<T extends string>({ label, value, options, issueId, projec
   );
 }
 
-export function IssueDetail({ issue, members, projectKey, currentUserId, currentUserName }: IssueDetailProps) {
+export function IssueDetail({ issue, members, projectKey, currentUserId, currentUserName, canEdit }: IssueDetailProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editingDesc, setEditingDesc] = useState(false);
@@ -281,6 +283,16 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
           <div>
             <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">Labels</h3>
             <LabelInput labels={labels} onChange={handleLabelsChange} disabled={isPending} />
+          </div>
+
+          {/* Attachments */}
+          <div>
+            <AttachmentsPanel
+              issueId={issue.id}
+              projectId={issue.project.id}
+              canEdit={canEdit}
+              currentUserId={currentUserId}
+            />
           </div>
 
           {/* Comments */}

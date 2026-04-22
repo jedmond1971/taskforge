@@ -18,6 +18,11 @@ export default async function IssueDetailPage({ params }: PageProps) {
 
   if (!issue) notFound();
 
+  const currentMember = members.find((m) => m.userId === session.user.id);
+  const canEdit = currentMember
+    ? ["OWNER", "ADMIN", "MEMBER"].includes(currentMember.role)
+    : false;
+
   return (
     <IssueDetail
       issue={issue}
@@ -25,6 +30,7 @@ export default async function IssueDetailPage({ params }: PageProps) {
       projectKey={params.projectKey}
       currentUserId={session.user.id}
       currentUserName={session.user.name ?? ""}
+      canEdit={canEdit}
     />
   );
 }

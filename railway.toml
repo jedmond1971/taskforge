@@ -1,5 +1,5 @@
 [deploy]
-startCommand = "node node_modules/.bin/next start -p ${PORT:-3000} -H 0.0.0.0"
+startCommand = "npx prisma migrate deploy && node node_modules/.bin/next start -p ${PORT:-3000} -H 0.0.0.0"
 healthcheckPath = "/login"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
