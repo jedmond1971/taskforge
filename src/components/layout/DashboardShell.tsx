@@ -40,12 +40,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           <img
             src="/jedforge-wordmark-light.svg"
             alt="JedForge"
-            className="h-7 w-auto block dark:hidden"
+            className="h-10 w-auto block dark:hidden"
           />
           <img
             src="/jedforge-wordmark-dark.svg"
             alt="JedForge"
-            className="h-7 w-auto hidden dark:block"
+            className="h-10 w-auto hidden dark:block"
           />
         </div>
 

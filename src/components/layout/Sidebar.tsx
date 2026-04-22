@@ -54,12 +54,12 @@ export function Sidebar({ onClose }: SidebarProps) {
         <img
           src="/jedforge-wordmark-light.svg"
           alt="JedForge"
-          className="h-8 w-auto block dark:hidden"
+          className="h-12 w-auto block dark:hidden"
         />
         <img
           src="/jedforge-wordmark-dark.svg"
           alt="JedForge"
-          className="h-8 w-auto hidden dark:block"
+          className="h-12 w-auto hidden dark:block"
         />
         {onClose && (
           <button
