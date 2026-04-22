@@ -108,53 +108,34 @@ export function AttachmentsPanel({
       setUploading((prev) => [...prev, { id: uploadId, fileName: file.name, progress: 0 }]);
 
       try {
-        // 1. Get presigned URL + create DB record
-        const presignRes = await fetch("/api/attachments/presign", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            issueId,
-            fileName: file.name,
-            fileSize: file.size,
-            mimeType: file.type,
-          }),
-        });
-        if (!presignRes.ok) {
-          const err = await presignRes.json() as { error: string };
-          throw new Error(err.error ?? "Presign failed");
-        }
-        const { uploadUrl, attachmentId } = await presignRes.json() as {
-          uploadUrl: string;
-          key: string;
-          attachmentId: string;
-        };
+        const formData = new FormData();
+        formData.append("issueId", issueId);
+        formData.append("file", file);
 
-        // 2. PUT directly to S3 via XHR for progress tracking
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open("PUT", uploadUrl);
-          xhr.setRequestHeader("Content-Type", file.type);
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              const pct = Math.round((e.loaded / e.total) * 100);
-              setUploading((prev) =>
-                prev.map((u) => (u.id === uploadId ? { ...u, progress: pct } : u))
-              );
-            }
-          };
-          xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("Upload failed")));
-          xhr.onerror = () => reject(new Error("Upload failed"));
-          xhr.send(file);
-        });
-
-        // 3. Confirm upload + log activity
-        const confirmRes = await fetch("/api/attachments/confirm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ attachmentId }),
-        });
-        if (!confirmRes.ok) throw new Error("Confirm failed");
-        const { attachment } = await confirmRes.json() as { attachment: AttachmentItem };
+        const { attachment } = await new Promise<{ attachment: AttachmentItem }>(
+          (resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/api/attachments/upload");
+            xhr.upload.onprogress = (e) => {
+              if (e.lengthComputable) {
+                const pct = Math.round((e.loaded / e.total) * 100);
+                setUploading((prev) =>
+                  prev.map((u) => (u.id === uploadId ? { ...u, progress: pct } : u))
+                );
+              }
+            };
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(JSON.parse(xhr.responseText) as { attachment: AttachmentItem });
+              } else {
+                const body = JSON.parse(xhr.responseText) as { error?: string };
+                reject(new Error(body.error ?? "Upload failed"));
+              }
+            };
+            xhr.onerror = () => reject(new Error("Upload failed"));
+            xhr.send(formData);
+          }
+        );
 
         setAttachments((prev) => [...prev, attachment]);
         toast.success(`${file.name} uploaded`);
