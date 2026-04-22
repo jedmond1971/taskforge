@@ -102,26 +102,28 @@ Renamed from TaskForge to JedForge in April 2026 ("TaskForge" name was already i
 - `RAILWAY_BUCKET_NAME` — bucket name (e.g. `jedforge-attachments-q5zf9y`)
 - `RAILWAY_BUCKET_REGION` — region (e.g. `auto` for Tigris)
 
-### Upload Flow (presign → upload → confirm)
-1. **POST /api/attachments/presign** — validates file type/size, checks MEMBER+ role, generates S3 key, creates `Attachment` DB record, returns `{ uploadUrl, key, attachmentId }`
-2. **PUT to uploadUrl** — client uploads directly to S3 using the presigned URL (safe: time-limited, scoped to one object); credentials never touch the client
-3. **POST /api/attachments/confirm** — logs `"attached"` activity, returns the attachment with a fresh presigned download URL
+### Upload Flow
+Client POSTs `FormData` (`issueId` + `file`) to `POST /api/attachments/upload`. The server validates, puts the file directly to S3 using the SDK, creates the DB record, logs activity, and returns the attachment with a presigned download URL — all in one request. **Do not use a direct browser → S3 PUT:** Railway's bucket does not return CORS headers, so XHR cross-origin PUTs are blocked by the browser.
+
+Presign/confirm routes (`/api/attachments/presign`, `/api/attachments/confirm`) exist for server-to-server use but are not used by the UI.
 
 ### File Limits
 - Max size: **20 MB** per file
-- Allowed types: `image/*`, `application/pdf`, Word/Excel/PowerPoint (`.doc/.docx/.xls/.xlsx/.ppt/.pptx`), `text/plain`, `text/csv`, `zip`
+- Allowed types: everything **except** executable/script extensions: `.exe`, `.bat`, `.cmd`, `.sh`, `.ps1`, `.msi`, `.dll`, `.com`, `.scr`
+- Validation uses a blocklist on the file extension (not MIME type) to avoid browser MIME-detection gaps
 
 ### Deleting Attachments
 - Only the uploader **or** a project OWNER/ADMIN can delete
-- `DELETE /api/attachments/[id]` — calls `deleteObject(fileKey)` to remove from S3, deletes DB record, logs `"removed_attachment"` activity
+- `DELETE /api/attachments/[id]` — removes from S3, deletes DB record, logs `"removed_attachment"` activity
 
 ### S3 Utility (`lib/s3.ts`)
-- `getPresignedUploadUrl(key, mimeType, fileSizeBytes)` — presigned PUT, valid 15 min
-- `getPresignedDownloadUrl(key)` — presigned GET, valid 1 hour
+- `putObject(key, buffer, mimeType)` — server-side upload
+- `getPresignedDownloadUrl(key)` — presigned GET URL, valid 1 hour (safe to use in `<img src>` or open in new tab — no CORS issue for reads)
+- `getPresignedUploadUrl(key, mimeType, fileSizeBytes)` — presigned PUT, valid 15 min (server-to-server only)
 - `deleteObject(key)` — hard delete from S3
 
 ### Prisma Model
-`Attachment` table with cascade delete when parent issue is deleted. Back-relations added to both `Issue` and `User`.
+`Attachment` table with cascade delete when parent issue is deleted. Back-relations added to both `Issue` and `User`. S3 key stored as `fileKey`; always delete the S3 object before deleting the DB record.
 
 ## Completed Enhancements (post-launch)
 - **Label management** — interactive add/remove labels on issue detail + create/edit form (LabelInput component)
@@ -134,3 +136,4 @@ Renamed from TaskForge to JedForge in April 2026 ("TaskForge" name was already i
 - **Search type-ahead fixes** — suppressed EOF/unclosed-string parse errors during typing; fixed autocomplete inside partial quoted strings; added labels DB lookup for suggestions (TFEN-9)
 - **Search Enter key** — Enter now always executes the search; Tab selects autocomplete suggestions (TFEN-9)
 - **Self-service password change** — `/settings` page with current-password verification; accessible from sidebar user menu (TFEN-11)
+- **File attachments** — drag-and-drop or file-picker on issue detail; images show thumbnails, other types show file icons; XHR upload with progress bar; delete restricted to uploader or OWNER/ADMIN; Railway S3 bucket (`jedforge-attachments-q5zf9y`)
