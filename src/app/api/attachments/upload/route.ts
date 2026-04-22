@@ -7,24 +7,25 @@ export const maxDuration = 60;
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
-const ALLOWED_MIME_PREFIXES = ["image/"];
-const ALLOWED_MIME_TYPES = new Set([
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-  "text/csv",
-  "application/zip",
-  "application/x-zip-compressed",
+// Block only known executable/script types; everything else is allowed.
+const BLOCKED_MIME_TYPES = new Set([
+  "application/x-msdownload",
+  "application/x-executable",
+  "application/x-sh",
+  "application/x-bat",
+  "text/x-sh",
+  "application/x-msdos-program",
 ]);
 
-function isAllowedMimeType(mimeType: string): boolean {
-  if (ALLOWED_MIME_PREFIXES.some((p) => mimeType.startsWith(p))) return true;
-  return ALLOWED_MIME_TYPES.has(mimeType);
+const BLOCKED_EXTENSIONS = new Set([
+  ".exe", ".bat", ".cmd", ".sh", ".ps1", ".msi", ".dll", ".com", ".scr",
+]);
+
+function isAllowedFile(mimeType: string, fileName: string): boolean {
+  if (BLOCKED_MIME_TYPES.has(mimeType)) return false;
+  const ext = fileName.slice(fileName.lastIndexOf(".")).toLowerCase();
+  if (BLOCKED_EXTENSIONS.has(ext)) return false;
+  return true;
 }
 
 function sanitizeFileName(name: string): string {
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing issueId or file" }, { status: 400 });
     }
 
-    if (!isAllowedMimeType(file.type)) {
+    if (!isAllowedFile(file.type, file.name)) {
       return NextResponse.json({ error: "File type not allowed" }, { status: 400 });
     }
 

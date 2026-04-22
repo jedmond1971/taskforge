@@ -38,23 +38,13 @@ interface AttachmentsPanelProps {
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
-const ALLOWED_MIME_TYPES = [
-  "image/",
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-  "text/csv",
-  "application/zip",
-  "application/x-zip-compressed",
-];
+const BLOCKED_EXTENSIONS = new Set([
+  ".exe", ".bat", ".cmd", ".sh", ".ps1", ".msi", ".dll", ".com", ".scr",
+]);
 
-function isAllowedMimeType(mimeType: string): boolean {
-  return ALLOWED_MIME_TYPES.some((t) => mimeType.startsWith(t));
+function isAllowedFile(fileName: string): boolean {
+  const ext = fileName.slice(fileName.lastIndexOf(".")).toLowerCase();
+  return !BLOCKED_EXTENSIONS.has(ext);
 }
 
 function formatBytes(bytes: number): string {
@@ -95,7 +85,7 @@ export function AttachmentsPanel({
 
   const uploadFile = useCallback(
     async (file: File) => {
-      if (!isAllowedMimeType(file.type)) {
+      if (!isAllowedFile(file.name)) {
         toast.error(`${file.name}: file type not allowed`);
         return;
       }
@@ -206,7 +196,7 @@ export function AttachmentsPanel({
         multiple
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
-        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+        accept="*/*"
       />
 
       {loading ? (
