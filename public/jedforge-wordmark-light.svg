@@ -26,11 +26,11 @@
   </g>
 
   <!-- Divider -->
-  <line x1="158" y1="36" x2="158" y2="124" stroke="#dddddd" stroke-width="1"/>
+  <line x1="158" y1="36" x2="158" y2="152" stroke="#dddddd" stroke-width="1"/>
 
   <!-- Wordmark -->
   <text
-    x="178" y="104"
+    x="178" y="100"
     font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
     font-size="68"
     font-weight="500"
@@ -39,11 +39,12 @@
 
   <!-- Subtext -->
   <text
-    x="180" y="128"
+    x="178" y="148"
     font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
     font-size="28"
     font-weight="400"
-    letter-spacing="4"
-    fill="#888888">PROJECT MANAGEMENT</text>
+    textLength="280"
+    lengthAdjust="spacingAndGlyphs"
+    fill="#444444">PROJECT MANAGEMENT</text>
 
 </svg>
