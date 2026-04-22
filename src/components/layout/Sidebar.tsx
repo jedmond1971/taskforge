@@ -11,7 +11,6 @@ import {
   LogOut,
   Settings,
   ChevronRight,
-  Zap,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -52,10 +51,16 @@ export function Sidebar({ onClose }: SidebarProps) {
     <div className="flex flex-col w-64 bg-sidebar border-r border-sidebar-border h-screen">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-4 border-b border-sidebar-border">
-        <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
-          <Zap className="w-4 h-4 text-white" />
-        </div>
-        <span className="font-bold text-sidebar-foreground text-lg tracking-tight flex-1">JedForge</span>
+        <img
+          src="/jedforge-wordmark-light.svg"
+          alt="JedForge"
+          className="h-8 w-auto block dark:hidden"
+        />
+        <img
+          src="/jedforge-wordmark-dark.svg"
+          alt="JedForge"
+          className="h-8 w-auto hidden dark:block"
+        />
         {onClose && (
           <button
             onClick={onClose}

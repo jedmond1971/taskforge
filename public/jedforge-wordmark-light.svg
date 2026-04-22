@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 160" width="640" height="160" role="img">
+  <title>JedForge</title>
+  <desc>JedForge full logo — light mode</desc>
+
+  <!-- Gear centered at 80, 80 -->
+  <g transform="translate(80,80)">
+    <!-- 12 teeth -->
+    <rect x="-7" y="-58" width="14" height="14" rx="3" fill="#1a1a1a" transform="rotate(0)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" fill="#1a1a1a" transform="rotate(30)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" fill="#1a1a1a" transform="rotate(60)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" fill="#1a1a1a" transform="rotate(90)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" fill="#1a1a1a" transform="rotate(120)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" fill="#1a1a1a" transform="rotate(150)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" fill="#1a1a1a" transform="rotate(180)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" fill="#1a1a1a" transform="rotate(210)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" fill="#1a1a1a" transform="rotate(240)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" fill="#1a1a1a" transform="rotate(270)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" fill="#1a1a1a" transform="rotate(300)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" fill="#1a1a1a" transform="rotate(330)"/>
+    <!-- Gear body -->
+    <circle r="47" fill="#1a1a1a"/>
+    <!-- Center hole -->
+    <circle r="20" fill="white"/>
+    <!-- Bolt — orange always -->
+    <polygon points="6,-18 -7,2 0,2 -6,18 9,0 2,0" fill="#e85d2f"/>
+  </g>
+
+  <!-- Divider -->
+  <line x1="158" y1="36" x2="158" y2="124" stroke="#dddddd" stroke-width="1"/>
+
+  <!-- Wordmark -->
+  <text
+    x="178" y="104"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
+    font-size="58"
+    font-weight="500"
+    letter-spacing="-1"
+    fill="#111111">JedForge</text>
+
+  <!-- Subtext -->
+  <text
+    x="180" y="128"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
+    font-size="13"
+    font-weight="400"
+    letter-spacing="4"
+    fill="#888888">PROJECT MANAGEMENT</text>
+
+</svg>
