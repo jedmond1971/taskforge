@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { canEditIssues } from "@/lib/permissions";
 
 export async function PATCH(
   request: NextRequest,
@@ -20,7 +21,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Issue not found" }, { status: 404 });
     }
 
-    // Check membership
+    // Check membership and edit role
     const member = await prisma.projectMember.findUnique({
       where: {
         userId_projectId: {
@@ -29,7 +30,7 @@ export async function PATCH(
         },
       },
     });
-    if (!member) {
+    if (!member || !canEditIssues(member.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -102,7 +103,7 @@ export async function DELETE(
         },
       },
     });
-    if (!member) {
+    if (!member || !canEditIssues(member.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
