@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "npx --yes vitest run",
+    "test": "vitest run",
     "db:seed": "npx prisma db seed",
     "db:migrate": "npx prisma migrate dev",
     "db:studio": "npx prisma studio"
@@ -52,6 +52,7 @@
     "postcss": "^8",
     "tailwindcss": "^4.2.2",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }
