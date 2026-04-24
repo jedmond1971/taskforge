@@ -46,6 +46,7 @@ export async function updateFilter(
   });
   if (!filter) throw new Error("Filter not found");
   if (filter.userId !== session.user.id) throw new Error("Forbidden");
+  if (filter.isGlobal && session.user.role !== "ADMIN") throw new Error("Forbidden");
   if (updates.isGlobal === true && session.user.role !== "ADMIN") throw new Error("Forbidden");
 
   const updated = await prisma.savedFilter.update({
