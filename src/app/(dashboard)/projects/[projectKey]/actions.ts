@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { generateIssueKeyWithRetry } from "@/lib/issue-keys";
 import {
   requireProjectRole,
+  canEditIssues,
   canEditSettings,
   canManageMembers,
   canManageProject,
@@ -55,7 +56,7 @@ export async function createIssue(projectKey: string, formData: {
   assigneeId?: string;
   labels?: string[];
 }) {
-  const { userId, projectId, projectKey: key } = await requireProjectMember(projectKey);
+  const { userId, projectId, projectKey: key } = await requireProjectRole(projectKey, canEditIssues);
 
   // Count existing issues for position
   const issueCount = await prisma.issue.count({ where: { projectId } });
@@ -102,7 +103,7 @@ export async function updateIssue(
     labels: string[];
   }>
 ) {
-  const { userId, projectId } = await requireProjectMember(projectKey);
+  const { userId, projectId } = await requireProjectRole(projectKey, canEditIssues);
 
   const existing = await prisma.issue.findFirst({
     where: { id: issueId, projectId },
@@ -156,7 +157,7 @@ export async function updateIssue(
 
 // --- DELETE ISSUE ---
 export async function deleteIssue(projectKey: string, issueId: string) {
-  const { projectId } = await requireProjectMember(projectKey);
+  const { projectId } = await requireProjectRole(projectKey, canEditIssues);
 
   const issue = await prisma.issue.findFirst({
     where: { id: issueId, projectId },
@@ -249,8 +250,8 @@ export async function getIssue(projectKey: string, issueKey: string) {
   });
   if (!member) throw new Error("Not a project member");
 
-  return prisma.issue.findUnique({
-    where: { key: issueKey.toUpperCase() },
+  return prisma.issue.findFirst({
+    where: { key: issueKey.toUpperCase(), projectId: project.id },
     include: {
       assignee: { select: { id: true, name: true, avatarUrl: true } },
       reporter: { select: { id: true, name: true, avatarUrl: true } },
@@ -296,7 +297,7 @@ export async function moveIssue(
   newStatus: IssueStatus,
   newPosition: number
 ) {
-  const { userId, projectId } = await requireProjectMember(projectKey);
+  const { userId, projectId } = await requireProjectRole(projectKey, canEditIssues);
 
   const existing = await prisma.issue.findFirst({
     where: { id: issueId, projectId },
@@ -338,7 +339,7 @@ export async function reorderIssues(
   projectKey: string,
   issueIds: string[]
 ) {
-  const { projectId } = await requireProjectMember(projectKey);
+  const { projectId } = await requireProjectRole(projectKey, canEditIssues);
 
   await prisma.$transaction(
     issueIds.map((id, index) =>

@@ -183,9 +183,19 @@ async function getValueSuggestions(
       return ['"BUG"', '"TASK"', '"STORY"', '"EPIC"'];
     case "assignee":
     case "reporter": {
+      const memberships = await prisma.projectMember.findMany({
+        where: { userId },
+        select: { projectId: true },
+      });
+      const projectIds = memberships.map((m) => m.projectId);
       const users = await prisma.user.findMany({
+        where: {
+          projectMembers: {
+            some: { projectId: { in: projectIds } },
+          },
+        },
         select: { email: true, name: true },
-        take: 10,
+        take: 20,
       });
       return [
         "currentUser()",

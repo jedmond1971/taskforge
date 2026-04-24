@@ -59,11 +59,12 @@ interface IssueDetailProps {
   canEdit: boolean;
 }
 
-function EditableTitle({ value, issueId, projectKey, onSaved }: {
+function EditableTitle({ value, issueId, projectKey, onSaved, canEdit }: {
   value: string;
   issueId: string;
   projectKey: string;
   onSaved: () => void;
+  canEdit: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(value);
@@ -97,19 +98,21 @@ function EditableTitle({ value, issueId, projectKey, onSaved }: {
   return (
     <div className="flex items-start gap-2 group">
       <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex-1">{value}</h1>
-      <button
-        onClick={() => setEditing(true)}
-        className="p-1 text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
-      >
-        <Pencil className="w-3.5 h-3.5" />
-      </button>
+      {canEdit && (
+        <button
+          onClick={() => setEditing(true)}
+          className="p-1 text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+      )}
     </div>
   );
 }
 
 const selectClass = "w-full px-2 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50";
 
-function InlineSelect<T extends string>({ label, value, options, issueId, projectKey, fieldKey, onSaved }: {
+function InlineSelect<T extends string>({ label, value, options, issueId, projectKey, fieldKey, onSaved, disabled: extraDisabled = false }: {
   label: string;
   value: T;
   options: { value: T; label: string }[];
@@ -117,11 +120,12 @@ function InlineSelect<T extends string>({ label, value, options, issueId, projec
   projectKey: string;
   fieldKey: string;
   onSaved: () => void;
+  disabled?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
 
   function handleChange(newValue: T) {
-    if (newValue === value) return;
+    if (newValue === value || extraDisabled) return;
     startTransition(async () => {
       await updateIssue(projectKey, issueId, { [fieldKey]: newValue } as Parameters<typeof updateIssue>[2]);
       toast.success("Issue updated");
@@ -135,7 +139,7 @@ function InlineSelect<T extends string>({ label, value, options, issueId, projec
       <select
         value={value}
         onChange={(e) => handleChange(e.target.value as T)}
-        disabled={isPending}
+        disabled={isPending || extraDisabled}
         className={selectClass + " min-h-[44px]"}
       >
         {options.map((o) => (
@@ -220,25 +224,28 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
                 issueId={issue.id}
                 projectKey={projectKey}
                 onSaved={refresh}
+                canEdit={canEdit}
               />
             </div>
-            <Button
-              onClick={handleDelete}
-              variant="destructive"
-              size="sm"
-              disabled={isPending}
-              className="flex-shrink-0"
-            >
-              <Trash2 className="w-3.5 h-3.5 mr-1" />
-              Delete
-            </Button>
+            {canEdit && (
+              <Button
+                onClick={handleDelete}
+                variant="destructive"
+                size="sm"
+                disabled={isPending}
+                className="flex-shrink-0"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                Delete
+              </Button>
+            )}
           </div>
 
           {/* Description */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Description</h3>
-              {!editingDesc && (
+              {!editingDesc && canEdit && (
                 <button
                   onClick={() => setEditingDesc(true)}
                   className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 flex items-center gap-1"
@@ -267,13 +274,15 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
               </div>
             ) : (
               <div
-                onClick={() => setEditingDesc(true)}
-                className="min-h-[60px] p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
+                onClick={canEdit ? () => setEditingDesc(true) : undefined}
+                className={`min-h-[60px] p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 transition-colors${canEdit ? " cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700" : ""}`}
               >
                 {issue.description ? (
                   <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{issue.description}</p>
                 ) : (
-                  <p className="text-sm text-zinc-400 dark:text-zinc-600 italic">Click to add a description...</p>
+                  <p className="text-sm text-zinc-400 dark:text-zinc-600 italic">
+                    {canEdit ? "Click to add a description..." : "No description."}
+                  </p>
                 )}
               </div>
             )}
@@ -282,7 +291,7 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
           {/* Labels */}
           <div>
             <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">Labels</h3>
-            <LabelInput labels={labels} onChange={handleLabelsChange} disabled={isPending} />
+            <LabelInput labels={labels} onChange={handleLabelsChange} disabled={isPending || !canEdit} />
           </div>
 
           {/* Attachments */}
@@ -338,6 +347,7 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
               projectKey={projectKey}
               fieldKey="status"
               onSaved={refresh}
+              disabled={!canEdit}
             />
             <InlineSelect
               label="Priority"
@@ -347,6 +357,7 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
               projectKey={projectKey}
               fieldKey="priority"
               onSaved={refresh}
+              disabled={!canEdit}
             />
             <InlineSelect
               label="Type"
@@ -356,18 +367,21 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
               projectKey={projectKey}
               fieldKey="type"
               onSaved={refresh}
+              disabled={!canEdit}
             />
             <div>
               <p className="text-xs text-zinc-500 font-medium mb-1">Assignee</p>
               <select
                 value={issue.assigneeId ?? ""}
                 onChange={(e) => {
+                  if (!canEdit) return;
                   startTransition(async () => {
                     await updateIssue(projectKey, issue.id, { assigneeId: e.target.value || null });
                     toast.success("Assignee updated");
                     refresh();
                   });
                 }}
+                disabled={isPending || !canEdit}
                 className={selectClass + " min-h-[44px]"}
               >
                 {assigneeOptions.map((o) => (
