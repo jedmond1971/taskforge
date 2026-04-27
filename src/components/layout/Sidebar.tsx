@@ -50,16 +50,16 @@ export function Sidebar({ onClose }: SidebarProps) {
   return (
     <div className="flex flex-col w-64 bg-sidebar border-r border-sidebar-border h-screen">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-sidebar-border">
+      <div className="flex justify-center px-5 py-5 border-b border-sidebar-border">
         <img
-          src="/jedforge-wordmark-light.svg"
+          src="/logo-light.png"
           alt="JedForge"
-          className="h-12 w-auto block dark:hidden"
+          className="h-28 w-auto block dark:hidden"
         />
         <img
-          src="/jedforge-wordmark-dark.svg"
+          src="/logo-dark.png"
           alt="JedForge"
-          className="h-12 w-auto hidden dark:block"
+          className="h-28 w-auto hidden dark:block"
         />
         {onClose && (
           <button
