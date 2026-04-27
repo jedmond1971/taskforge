@@ -38,12 +38,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <Menu className="w-5 h-5" />
           </button>
           <img
-            src="/jedforge-wordmark-light.svg"
+            src="/logo-light.png"
             alt="JedForge"
             className="h-10 w-auto block dark:hidden"
           />
           <img
-            src="/jedforge-wordmark-dark.svg"
+            src="/logo-dark.png"
             alt="JedForge"
             className="h-10 w-auto hidden dark:block"
           />

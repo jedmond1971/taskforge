@@ -10,6 +10,15 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "JedForge",
   description: "Project management built for developers",
+  icons: {
+    icon: [
+      { url: "/icons/light/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/light/favicon-16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: "/icons/light/icon-128.png",
+    shortcut: "/icons/light/favicon-32.png",
+  },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({

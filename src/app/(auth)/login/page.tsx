@@ -40,8 +40,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full max-w-md px-4 sm:px-6">
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 sm:p-8 shadow-2xl">
+    <div className="flex flex-col items-center gap-6 w-full px-4 sm:px-6">
+      <img src="/logo-light.png" alt="JedForge" className="w-full max-w-[90vw] sm:w-[512px] h-auto block dark:hidden" />
+      <img src="/logo-dark.png" alt="JedForge" className="w-full max-w-[90vw] sm:w-[512px] h-auto hidden dark:block" />
+      <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 sm:p-8 shadow-2xl">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-1">Welcome back</h1>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm">Sign in to your JedForge account</p>
