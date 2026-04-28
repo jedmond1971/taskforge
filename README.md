@@ -1,6 +1,6 @@
 # JedForge
 
-A full-stack project management tool inspired by Jira, built as a portfolio project to demonstrate modern full-stack development skills.
+A full-stack project management tool built as a portfolio project to demonstrate modern full-stack development skills.
 
 ## Features
 
