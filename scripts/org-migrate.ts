@@ -119,7 +119,7 @@ async function step3_reassignProjects() {
     SELECT p.id,
       (SELECT pm."userId" FROM "ProjectMember" pm
        WHERE pm."projectId" = p.id
-       ORDER BY CASE pm.role WHEN 'OWNER' THEN 1 WHEN 'ADMIN' THEN 2 ELSE 3 END, pm."createdAt"
+       ORDER BY CASE pm.role WHEN 'OWNER' THEN 1 WHEN 'ADMIN' THEN 2 ELSE 3 END, pm.id
        LIMIT 1) AS "ownerUserId"
     FROM "Project" p
     WHERE p."orgId" IS NULL
