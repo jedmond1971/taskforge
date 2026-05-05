@@ -20,6 +20,7 @@ export const authConfig: NextAuthConfig = {
       if (token) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.orgId = token.orgId as string;
       }
       return session;
     },

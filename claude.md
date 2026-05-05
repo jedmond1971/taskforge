@@ -7,11 +7,16 @@ a potential indie product/acquisition target — a simpler, more affordable alte
 Renamed from TaskForge to JedForge in April 2026 ("TaskForge" name was already in use by another company).
 
 ## Tech Stack
-- Next.js 14 App Router with Server Components and Server Actions
-- PostgreSQL via Prisma ORM (hosted on Railway)
-- NextAuth.js v5 for authentication
-- Tailwind CSS + shadcn/ui for UI
-- @dnd-kit for drag-and-drop
+- **Next.js 14.2.35** — App Router, Server Components, Server Actions (no custom next.config)
+- **React 18** with TypeScript 5 strict mode; SWC transpilation (no Babel)
+- **PostgreSQL** via **Prisma 5.22.0** ORM (hosted on Railway)
+- **NextAuth.js v5 beta** (`next-auth@^5.0.0-beta.30`) — Credentials provider, JWT session strategy, bcryptjs (12 rounds)
+- **Tailwind CSS v4.2.2** via `@tailwindcss/postcss`; **shadcn/ui v4.1.1** (`style: base-nova`) on `@base-ui/react`; CSS custom properties for theming
+- **next-themes** — dark/light mode via class on `<html>`; **sonner** — toast notifications
+- **@dnd-kit/core + sortable** — Kanban drag-and-drop
+- **AWS S3** (`@aws-sdk/client-s3` + `s3-request-presigner`) — file attachment storage via Railway Bucket
+- **date-fns v4**, **lucide-react**, **class-variance-authority**, **clsx**, **tailwind-merge**
+- **No client-side state management** — no Redux/Zustand/Jotai; data via server components + React local state
 - SSE for real-time activity feed
 
 ## Deployment
@@ -125,6 +130,32 @@ Presign/confirm routes (`/api/attachments/presign`, `/api/attachments/confirm`) 
 ### Prisma Model
 `Attachment` table with cascade delete when parent issue is deleted. Back-relations added to both `Issue` and `User`. S3 key stored as `fileKey`; always delete the S3 object before deleting the DB record.
 
+## Branding Assets
+
+All production-ready brand assets live in `public/`:
+- `public/logo-light.png` — full JF + JedForge wordmark, light background (use in sidebar and login page)
+- `public/logo-dark.png` — full JF + JedForge wordmark, dark background
+- `public/icons/light/` — JF monogram PNGs at 1024/512/256/128/64/32/16px + SVG + ICO (light/white background)
+- `public/icons/dark/` — same set on dark background
+- `public/favicon.ico` — light variant ICO, served automatically by Next.js
+- `public/site.webmanifest` — PWA manifest with brand orange `#FF6A00` theme color
+
+Source asset package (do not use in app, reference only):
+- `jedforge_icons_light_dark/` — original icon package from designer
+- `LightModeIcons.png`, `DarkModeIcons.png` — originals (copied to `public/logo-*.png`)
+- `IconPackageReference.png` — designer reference sheet
+
+Favicon metadata is wired in `src/app/layout.tsx` via the `icons` key. Sidebar logo is `h-28` centered. Login page logo is outside the card at `sm:w-[512px]` / `w-full max-w-[90vw]` on mobile.
+
+## CI / Testing
+
+- GitHub Actions workflow: `.github/workflows/ci.yml` — runs on push/PR to `main`
+- Steps (in order): `npm ci` → `npm run lint` → `npm run build` → `npm test`
+- Test runner: **Vitest 3.x** (pinned to v3 — v4 requires Node 20; local dev uses Node 18)
+- Test script: `vitest run` (no npx wrapper)
+- Tests live in `src/lib/query/__tests__/` — currently covers the query parser (256 tests: comparisons, logical operators, ORDER BY, error cases, edge cases)
+- CI runner uses Node 20; local dev uses Node 18
+
 ## Completed Enhancements (post-launch)
 - **Label management** — interactive add/remove labels on issue detail + create/edit form (LabelInput component)
 - **Full-card drag-and-drop** — kanban cards draggable from any area, not just the grip handle
@@ -137,3 +168,7 @@ Presign/confirm routes (`/api/attachments/presign`, `/api/attachments/confirm`) 
 - **Search Enter key** — Enter now always executes the search; Tab selects autocomplete suggestions (TFEN-9)
 - **Self-service password change** — `/settings` page with current-password verification; accessible from sidebar user menu (TFEN-11)
 - **File attachments** — drag-and-drop or file-picker on issue detail; images show thumbnails, other types show file icons; XHR upload with progress bar; delete restricted to uploader or OWNER/ADMIN; Railway S3 bucket (`jedforge-attachments-q5zf9y`)
+- **CI setup** — GitHub Actions workflow added by Codex; Vitest installed as proper dev dependency (v3, pinned for Node 18 compatibility); test script cleaned up from `npx --yes vitest run` → `vitest run`; temporary CI workaround step removed (commit `0899b68`)
+- **Brand refresh** — New JF monogram icon set and wordmark PNGs replacing old SVGs; favicon + webmanifest wired; login page logo at 512px above the card; sidebar logo enlarged to h-28 and centered (TFEN-16)
+- **Security / RBAC hardening** — non-admins blocked from promoting filters to global scope; project and issue authorization tightened throughout (branch: codex/security-rbac-hardening, PR #7)
+- **Login ember effect** — rising orange particle animation on the login page background; brand-orange Sign In button; orange hairline accent on the login card (`src/app/(auth)/login/page.tsx`)

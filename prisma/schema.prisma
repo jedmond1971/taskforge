@@ -12,6 +12,26 @@ enum UserRole {
   MEMBER
 }
 
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum Plan {
+  FREE
+  PRO
+  TEAM
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
 enum ProjectMemberRole {
   OWNER
   ADMIN
@@ -57,6 +77,8 @@ model User {
   activityLogs   ActivityLog[]
   savedFilters   SavedFilter[]
   attachments    Attachment[]
+  ownedOrgs      Organization[]  @relation("OwnedOrgs")
+  orgMembers     OrgMember[]
 }
 
 model Project {
@@ -64,9 +86,11 @@ model Project {
   name        String
   key         String   @unique
   description String?
+  orgId       String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  org     Organization  @relation(fields: [orgId], references: [id])
   members ProjectMember[]
   issues  Issue[]
   boards  Board[]
@@ -201,4 +225,64 @@ model Attachment {
 
   @@index([issueId])
   @@index([uploaderId])
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      Plan     @default(FREE)
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner        User           @relation("OwnedOrgs", fields: [ownerId], references: [id])
+  members      OrgMember[]
+  invites      OrgInvite[]
+  subscription Subscription?
+  projects     Project[]
+}
+
+model OrgMember {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      OrgRole  @default(MEMBER)
+  createdAt DateTime @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+}
+
+model OrgInvite {
+  id        String   @id @default(cuid())
+  orgId     String
+  email     String
+  token     String   @unique @default(cuid())
+  role      OrgRole  @default(MEMBER)
+  accepted  Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, email])
+  @@index([token])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  orgId                String             @unique
+  stripeCustomerId     String             @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  status               SubscriptionStatus @default(TRIALING)
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }

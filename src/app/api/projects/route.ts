@@ -15,6 +15,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name and key are required" }, { status: 400 });
     }
 
+    const { orgId } = session.user;
+    if (!orgId) {
+      return NextResponse.json({ error: "No active organization on session" }, { status: 400 });
+    }
+
     const existing = await prisma.project.findUnique({ where: { key: key.toUpperCase() } });
     if (existing) {
       return NextResponse.json({ error: "Project key already in use" }, { status: 409 });
@@ -25,6 +30,7 @@ export async function POST(request: NextRequest) {
         name,
         key: key.toUpperCase(),
         description: description || null,
+        orgId,
         members: {
           create: {
             userId: session.user.id,

@@ -38,6 +38,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = (user as { role?: string }).role;
+        const membership = await prisma.orgMember.findFirst({
+          where: { userId: user.id! },
+          select: { orgId: true },
+        });
+        token.orgId = membership?.orgId;
+      }
+      return token;
+    },
+    session({ session, token }) {
+      if (token) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
+        session.user.orgId = token.orgId as string;
+      }
+      return session;
+    },
+  },
 });
 
 export async function getCurrentUser() {

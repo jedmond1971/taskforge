@@ -1,17 +1,21 @@
-import { PrismaClient, IssueStatus, IssuePriority, IssueType, UserRole, ProjectMemberRole } from "@prisma/client";
+import { PrismaClient, IssueStatus, IssuePriority, IssueType, UserRole, ProjectMemberRole, Plan } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  // Cleanup
+  // Cleanup — order respects FK constraints
   await prisma.activityLog.deleteMany();
   await prisma.comment.deleteMany();
   await prisma.issue.deleteMany();
   await prisma.projectMember.deleteMany();
+  await prisma.subscription.deleteMany();
+  await prisma.orgInvite.deleteMany();
+  await prisma.orgMember.deleteMany();
   await prisma.column.deleteMany();
   await prisma.board.deleteMany();
   await prisma.project.deleteMany();
+  await prisma.organization.deleteMany();
   await prisma.user.deleteMany();
 
   // Users
@@ -30,12 +34,24 @@ async function main() {
     data: { email: "dave@taskforge.dev", name: "Dave Kim", passwordHash: hashedPassword, role: UserRole.MEMBER },
   });
 
+  // Alice's organization — all seed projects live here
+  const aliceOrg = await prisma.organization.create({
+    data: {
+      name: "Alice's workspace",
+      slug: "alice-workspace",
+      plan: Plan.FREE,
+      ownerId: alice.id,
+      members: { create: { userId: alice.id, role: "OWNER" } },
+    },
+  });
+
   // Project 1: Product Launch
   const pl = await prisma.project.create({
     data: {
       name: "Product Launch",
       key: "PL",
       description: "Q2 product launch coordination — features, marketing, and release readiness",
+      orgId: aliceOrg.id,
     },
   });
   await prisma.projectMember.createMany({
@@ -52,6 +68,7 @@ async function main() {
       name: "Mobile App",
       key: "MA",
       description: "Native mobile app for iOS and Android — React Native rewrite",
+      orgId: aliceOrg.id,
     },
   });
   await prisma.projectMember.createMany({
@@ -68,6 +85,7 @@ async function main() {
       name: "Website Redesign",
       key: "WR",
       description: "Full redesign of marketing site with new brand guidelines",
+      orgId: aliceOrg.id,
     },
   });
   await prisma.projectMember.createMany({
