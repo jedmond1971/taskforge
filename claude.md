@@ -38,6 +38,34 @@ Renamed from TaskForge to JedForge in April 2026 ("TaskForge" name was already i
 - `railway redeploy` — redeploy latest build
 - `railway status` — confirm linked project/service
 
+## Multi-Tenancy
+
+The app is multi-tenant. Every user belongs to at least one **Organization** (workspace).
+
+### Data model
+- `Organization` — name, slug (unique), plan (FREE/PRO/TEAM), ownerId
+- `OrgMember` — (orgId, userId) unique pair with `OrgRole` (OWNER, ADMIN, MEMBER)
+- `OrgInvite` — email-based invite with token; not yet used in UI (schema-only)
+- `Subscription` — Stripe fields; not yet implemented
+- `Project.orgId` — required, every project belongs to exactly one org
+
+### Auth / session
+- At login, `auth.ts` JWT callback looks up `OrgMember.findFirst({ where: { userId } })` and bakes `orgId` into the JWT
+- `session.user.orgId` is available on every request — no per-request DB lookup needed
+- `src/types/next-auth.d.ts` augments Session and JWT types to include `orgId`
+- **Limitation:** if a user is added to a second org, they won't see it until they log out and back in (token is cached for the session lifetime)
+
+### Migration history
+- Phase 1: schema added (nullable orgId on Project)
+- Phase 2: `scripts/org-migrate.ts` created one org per user and reassigned all projects
+- Phase 3: orgId made required (NOT NULL) on Project
+- Production migrated May 2026 — 6 users, 6 orgs, 4 projects, all clean
+
+### Admin org management
+- `/admin/orgs` — system admins can create orgs (name/slug/plan/owner), manage members (add with MEMBER/ADMIN role, remove non-owners), and delete orgs
+- Creating an org via admin panel automatically creates the OrgMember OWNER row
+- `UserRole.ADMIN` (system-wide) is separate from `OrgRole` (within-org) — system admins have no elevated org privileges by virtue of their UserRole alone
+
 ## Conventions
 - All database queries go through Prisma client in `src/lib/prisma.ts`
 - Use Server Actions for mutations where possible, API routes for streaming/complex ops
@@ -172,3 +200,5 @@ Favicon metadata is wired in `src/app/layout.tsx` via the `icons` key. Sidebar l
 - **Brand refresh** — New JF monogram icon set and wordmark PNGs replacing old SVGs; favicon + webmanifest wired; login page logo at 512px above the card; sidebar logo enlarged to h-28 and centered (TFEN-16)
 - **Security / RBAC hardening** — non-admins blocked from promoting filters to global scope; project and issue authorization tightened throughout (branch: codex/security-rbac-hardening, PR #7)
 - **Login ember effect** — rising orange particle animation on the login page background; brand-orange Sign In button; orange hairline accent on the login card (`src/app/(auth)/login/page.tsx`)
+- **Multi-tenant organizations** — full three-phase migration: Organization/OrgMember/OrgInvite/Subscription schema added; `scripts/org-migrate.ts` backfilled one org per user and reassigned all projects to orgs; orgId made required on Project; orgId baked into JWT at login; project create reads orgId from session
+- **Admin org management** — `/admin/orgs` page: create orgs with owner assignment, manage members (add/remove with OrgRole), delete with confirmation; admin home updated with org stat tile and nav card
