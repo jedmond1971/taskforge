@@ -1,16 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { Users, FolderKanban, CircleDot } from "lucide-react";
+import { Users, FolderKanban, CircleDot, Building2 } from "lucide-react";
 
 export default async function AdminPage() {
-  const [userCount, projectCount, issueCount] = await Promise.all([
+  const [userCount, projectCount, issueCount, orgCount] = await Promise.all([
     prisma.user.count(),
     prisma.project.count(),
     prisma.issue.count(),
+    prisma.organization.count(),
   ]);
 
   const stats = [
     { label: "Total Users", value: userCount, icon: Users },
+    { label: "Organizations", value: orgCount, icon: Building2 },
     { label: "Total Projects", value: projectCount, icon: FolderKanban },
     { label: "Total Issues", value: issueCount, icon: CircleDot },
   ];
@@ -24,6 +26,13 @@ export default async function AdminPage() {
       stat: `${userCount} users`,
     },
     {
+      href: "/admin/orgs",
+      title: "Organization Management",
+      description: "Create and manage organizations. Add or remove members and assign roles.",
+      icon: Building2,
+      stat: `${orgCount} orgs`,
+    },
+    {
       href: "/admin/projects",
       title: "Project Management",
       description: "View and manage all projects. Delete projects or review their status.",
@@ -35,7 +44,7 @@ export default async function AdminPage() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -56,7 +65,7 @@ export default async function AdminPage() {
       </div>
 
       {/* Navigation Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {sections.map((section) => {
           const Icon = section.icon;
           return (

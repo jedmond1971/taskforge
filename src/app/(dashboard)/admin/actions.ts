@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
-import { UserRole } from "@prisma/client";
+import { UserRole, OrgRole, Plan } from "@prisma/client";
 
 async function requireAdmin() {
   const session = await auth();
@@ -128,6 +128,109 @@ export async function getAdminProjects(search?: string) {
     orderBy: { createdAt: "desc" },
   });
 }
+
+// ─── Org actions ────────────────────────────────────────────────────────────
+
+export async function getAdminOrgs(search?: string) {
+  await requireAdmin();
+  const where = search
+    ? {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { slug: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+
+  return prisma.organization.findMany({
+    where,
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      plan: true,
+      createdAt: true,
+      owner: { select: { id: true, name: true, email: true } },
+      _count: { select: { members: true, projects: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getAdminOrgMembers(orgId: string) {
+  await requireAdmin();
+  return prisma.orgMember.findMany({
+    where: { orgId },
+    select: {
+      role: true,
+      user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+    },
+    orderBy: { role: "asc" },
+  });
+}
+
+export async function adminCreateOrg(data: {
+  name: string;
+  slug: string;
+  plan: Plan;
+  ownerId: string;
+}) {
+  await requireAdmin();
+
+  const existing = await prisma.organization.findUnique({ where: { slug: data.slug } });
+  if (existing) throw new Error("Slug already in use");
+
+  const org = await prisma.organization.create({
+    data: {
+      name: data.name,
+      slug: data.slug,
+      plan: data.plan,
+      ownerId: data.ownerId,
+      members: { create: { userId: data.ownerId, role: "OWNER" } },
+    },
+    select: { id: true, name: true, slug: true },
+  });
+
+  revalidatePath("/admin/orgs");
+  return org;
+}
+
+export async function adminAddOrgMember(orgId: string, userId: string, role: OrgRole) {
+  await requireAdmin();
+
+  const existing = await prisma.orgMember.findUnique({
+    where: { orgId_userId: { orgId, userId } },
+  });
+  if (existing) throw new Error("User is already a member of this org");
+
+  await prisma.orgMember.create({ data: { orgId, userId, role } });
+  revalidatePath("/admin/orgs");
+  return { success: true };
+}
+
+export async function adminRemoveOrgMember(orgId: string, userId: string) {
+  await requireAdmin();
+
+  const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { ownerId: true } });
+  if (org?.ownerId === userId) throw new Error("Cannot remove the org owner");
+
+  await prisma.orgMember.delete({ where: { orgId_userId: { orgId, userId } } });
+  revalidatePath("/admin/orgs");
+  return { success: true };
+}
+
+export async function adminDeleteOrg(orgId: string) {
+  await requireAdmin();
+
+  const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } });
+  if (!org) throw new Error("Organization not found");
+
+  await prisma.organization.delete({ where: { id: orgId } });
+  revalidatePath("/admin/orgs");
+  return { success: true };
+}
+
+// ─── Project actions ─────────────────────────────────────────────────────────
 
 // Delete project (admin override - no ownership check needed)
 export async function adminDeleteProject(projectId: string) {
