@@ -111,46 +111,46 @@ async function step2_createOrgMembers() {
 async function step3_reassignProjects() {
   console.log("\n── Step 3: Reassigning projects from userId → orgId ──");
 
-  const projects = await prisma.project.findMany({
-    where: { orgId: null },
-    select: {
-      id: true,
-      members: { select: { userId: true, role: true } },
-    },
-  });
+  // Use raw SQL — Prisma's runtime validator rejects `orgId: null` once the
+  // schema marks orgId as required, even though the column is still nullable
+  // in the DB until make_org_required applies.
+  type ProjectRow = { id: string; ownerUserId: string | null };
+  const projects = await prisma.$queryRaw<ProjectRow[]>`
+    SELECT p.id,
+      (SELECT pm."userId" FROM "ProjectMember" pm
+       WHERE pm."projectId" = p.id
+       ORDER BY CASE pm.role WHEN 'OWNER' THEN 1 WHEN 'ADMIN' THEN 2 ELSE 3 END, pm."createdAt"
+       LIMIT 1) AS "ownerUserId"
+    FROM "Project" p
+    WHERE p."orgId" IS NULL
+  `;
 
   let migrated = 0;
   let skipped = 0;
   let orphaned = 0;
 
   for (const project of projects) {
-    const ownerMember =
-      project.members.find((m) => m.role === "OWNER") ??
-      project.members.find((m) => m.role === "ADMIN") ??
-      project.members[0];
-
-    if (!ownerMember) {
+    if (!project.ownerUserId) {
       skipped++;
       continue;
     }
 
     const org = await prisma.organization.findFirst({
-      where: { ownerId: ownerMember.userId },
+      where: { ownerId: project.ownerUserId },
       select: { id: true },
     });
 
     if (!org) {
       console.warn(
-        `   WARNING: No org found for userId=${ownerMember.userId} (project ${project.id}) — skipping`
+        `   WARNING: No org found for userId=${project.ownerUserId} (project ${project.id}) — skipping`
       );
       orphaned++;
       continue;
     }
 
-    await (prisma as any).project.update({
-      where: { id: project.id },
-      data: { orgId: org.id },
-    });
+    await prisma.$executeRaw`
+      UPDATE "Project" SET "orgId" = ${org.id} WHERE id = ${project.id}
+    `;
 
     migrated++;
   }
@@ -175,10 +175,11 @@ async function step4_verify() {
   const userCount = await prisma.user.count();
   const orgCount = await prisma.organization.count();
   const memberCount = await prisma.orgMember.count();
-  const projectCount = await (prisma as any).project.count();
-  const unmigrated = await (prisma as any).project.count({
-    where: { orgId: null },
-  });
+  const projectCount = await prisma.project.count();
+  const unmigratedResult = await prisma.$queryRaw<[{ count: bigint }]>`
+    SELECT COUNT(*) AS count FROM "Project" WHERE "orgId" IS NULL
+  `;
+  const unmigrated = Number(unmigratedResult[0].count);
 
   console.log(`   Users:              ${userCount}`);
   console.log(`   Organizations:      ${orgCount}`);
