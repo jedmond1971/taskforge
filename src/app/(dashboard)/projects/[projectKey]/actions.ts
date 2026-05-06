@@ -67,23 +67,36 @@ export async function createIssue(projectKey: string, formData: {
 
   // Count existing issues for position
   const issueCount = await prisma.issue.count({ where: { projectId } });
-  const issueKey = await generateIssueKeyWithRetry(key);
 
-  const issue = await prisma.issue.create({
-    data: {
-      key: issueKey,
-      projectId,
-      title: formData.title,
-      description: formData.description ?? null,
-      status: formData.status ?? IssueStatus.TODO,
-      priority: formData.priority ?? IssuePriority.MEDIUM,
-      type: formData.type ?? IssueType.TASK,
-      assigneeId: formData.assigneeId ?? null,
-      reporterId: userId,
-      labels: formData.labels ?? [],
-      position: issueCount,
-    },
-  });
+  // Retry loop: generateIssueKeyWithRetry picks the next available key, but a
+  // concurrent create can race past that check and claim the same key before we
+  // insert. Catch the resulting unique-constraint error (P2002) and try again.
+  let issue;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const issueKey = await generateIssueKeyWithRetry(key);
+    try {
+      issue = await prisma.issue.create({
+        data: {
+          key: issueKey,
+          projectId,
+          title: formData.title,
+          description: formData.description ?? null,
+          status: formData.status ?? IssueStatus.TODO,
+          priority: formData.priority ?? IssuePriority.MEDIUM,
+          type: formData.type ?? IssueType.TASK,
+          assigneeId: formData.assigneeId ?? null,
+          reporterId: userId,
+          labels: formData.labels ?? [],
+          position: issueCount,
+        },
+      });
+      break;
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+      throw e;
+    }
+  }
+  if (!issue) throw new Error(`Could not create issue for project ${key} after retries`);
 
   await logActivity({
     issueId: issue.id,
@@ -333,6 +346,20 @@ export async function moveIssue(
   });
 
   if (statusChanged) {
+    // Compact the source column so positions are contiguous after the issue leaves
+    const sourceIssues = await prisma.issue.findMany({
+      where: { projectId, status: existing.status },
+      orderBy: { position: "asc" },
+      select: { id: true },
+    });
+    if (sourceIssues.length > 0) {
+      await prisma.$transaction(
+        sourceIssues.map((src, index) =>
+          prisma.issue.update({ where: { id: src.id }, data: { position: index } })
+        )
+      );
+    }
+
     await logActivity({
       issueId,
       userId,
