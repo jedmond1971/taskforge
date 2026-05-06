@@ -14,6 +14,8 @@ import { CommentThread } from "@/components/comments/CommentThread";
 import { CommentForm } from "@/components/comments/CommentForm";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
 import { AttachmentsPanel } from "@/components/attachments/AttachmentsPanel";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { RichTextDisplay } from "@/components/ui/rich-text-display";
 
 type User = { id: string; name: string; avatarUrl: string | null };
 type ActivityLog = {
@@ -171,7 +173,7 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
 
   function saveDescription() {
     startTransition(async () => {
-      await updateIssue(projectKey, issue.id, { description: description.trim() || null });
+      await updateIssue(projectKey, issue.id, { description: description || null });
       setEditingDesc(false);
       toast.success("Description updated");
       refresh();
@@ -274,12 +276,12 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
             </div>
             {editingDesc ? (
               <div className="space-y-2">
-                <textarea
+                <RichTextEditor
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={6}
-                  className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  onChange={setDescription}
                   placeholder="Add a description..."
+                  minHeight="140px"
+                  disabled={isPending}
                 />
                 <div className="flex gap-2">
                   <button onClick={saveDescription} disabled={isPending} className="flex items-center gap-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg transition-colors disabled:opacity-50">
@@ -296,7 +298,7 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
                 className={`min-h-[60px] p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 transition-colors${canEdit ? " cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700" : ""}`}
               >
                 {issue.description ? (
-                  <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{issue.description}</p>
+                  <RichTextDisplay content={issue.description} />
                 ) : (
                   <p className="text-sm text-zinc-400 dark:text-zinc-600 italic">
                     {canEdit ? "Click to add a description..." : "No description."}

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { STATUS_CONFIG, PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
 import { LabelInput } from "@/components/issues/LabelInput";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 type ProjectMember = {
   user: { id: string; name: string; avatarUrl: string | null };
@@ -62,7 +63,7 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
 
     const formData = {
       title: title.trim(),
-      description: description.trim() || undefined,
+      description: description || undefined,
       status,
       priority,
       type,
@@ -76,7 +77,7 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
         if (issue) {
           await updateIssue(projectKey, issue.id, {
             ...formData,
-            description: description.trim() || null,
+            description: description || null,
             assigneeId: assigneeId || null,
             dueDate: dueDateValue,
           });
@@ -115,12 +116,12 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
 
       <div className="space-y-1.5">
         <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Description</label>
-        <textarea
+        <RichTextEditor
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={setDescription}
           placeholder="Add a description..."
-          rows={4}
-          className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          minHeight="100px"
+          disabled={isPending}
         />
       </div>
 
