@@ -49,6 +49,7 @@ export async function requireProjectRole(
   userId: string;
   projectId: string;
   projectKey: string;
+  orgId: string;
   role: ProjectRole;
 }> {
   const session = await auth();
@@ -56,7 +57,7 @@ export async function requireProjectRole(
 
   const project = await prisma.project.findUnique({
     where: { key: projectKey.toUpperCase() },
-    select: { id: true, key: true },
+    select: { id: true, key: true, orgId: true },
   });
   if (!project) throw new Error("Project not found");
 
@@ -74,6 +75,7 @@ export async function requireProjectRole(
     userId: session.user.id,
     projectId: project.id,
     projectKey: project.key,
+    orgId: project.orgId,
     role: membership.role,
   };
 }

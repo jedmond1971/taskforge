@@ -58,6 +58,13 @@ export async function createIssue(projectKey: string, formData: {
 }) {
   const { userId, projectId, projectKey: key } = await requireProjectRole(projectKey, canEditIssues);
 
+  if (formData.assigneeId) {
+    const assigneeMember = await prisma.projectMember.findUnique({
+      where: { userId_projectId: { userId: formData.assigneeId, projectId } },
+    });
+    if (!assigneeMember) throw new Error("Assignee is not a member of this project");
+  }
+
   // Count existing issues for position
   const issueCount = await prisma.issue.count({ where: { projectId } });
   const issueKey = await generateIssueKeyWithRetry(key);
@@ -104,6 +111,13 @@ export async function updateIssue(
   }>
 ) {
   const { userId, projectId } = await requireProjectRole(projectKey, canEditIssues);
+
+  if (updates.assigneeId != null) {
+    const assigneeMember = await prisma.projectMember.findUnique({
+      where: { userId_projectId: { userId: updates.assigneeId, projectId } },
+    });
+    if (!assigneeMember) throw new Error("Assignee is not a member of this project");
+  }
 
   const existing = await prisma.issue.findFirst({
     where: { id: issueId, projectId },
@@ -457,9 +471,13 @@ export async function addProjectMember(
   userId: string,
   role: ProjectMemberRole
 ) {
-  const { projectId } = await requireProjectRole(projectKey, canManageMembers);
+  const { projectId, orgId } = await requireProjectRole(projectKey, canManageMembers);
 
-  // Check if user is already a member
+  const orgMembership = await prisma.orgMember.findUnique({
+    where: { orgId_userId: { orgId, userId } },
+  });
+  if (!orgMembership) throw new Error("User is not a member of this organization");
+
   const existing = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
   });
@@ -517,18 +535,24 @@ export async function changeMemberRole(
 
 // --- SEARCH USERS (for adding members) ---
 export async function searchUsers(query: string, projectKey: string) {
-  const { projectId } = await requireProjectRole(projectKey, canManageMembers);
+  const { projectId, orgId } = await requireProjectRole(projectKey, canManageMembers);
 
-  // Get existing member user IDs to exclude
   const existingMembers = await prisma.projectMember.findMany({
     where: { projectId },
     select: { userId: true },
   });
   const excludeIds = existingMembers.map((m) => m.userId);
 
+  // Only surface users who are already in the project's org
+  const orgMembers = await prisma.orgMember.findMany({
+    where: { orgId, userId: { notIn: excludeIds } },
+    select: { userId: true },
+  });
+  const orgMemberIds = orgMembers.map((m) => m.userId);
+
   return prisma.user.findMany({
     where: {
-      id: { notIn: excludeIds },
+      id: { in: orgMemberIds },
       OR: [
         { email: { contains: query, mode: "insensitive" } },
         { name: { contains: query, mode: "insensitive" } },
@@ -544,9 +568,8 @@ export async function createUserAndAddToProject(
   projectKey: string,
   data: { name: string; email: string; password: string; role: ProjectMemberRole }
 ) {
-  const { projectId } = await requireProjectRole(projectKey, canManageMembers);
+  const { projectId, orgId } = await requireProjectRole(projectKey, canManageMembers);
 
-  // Check if email already exists
   const existingUser = await prisma.user.findUnique({
     where: { email: data.email },
   });
@@ -554,16 +577,18 @@ export async function createUserAndAddToProject(
 
   const passwordHash = await bcrypt.hash(data.password, 12);
 
-  const user = await prisma.user.create({
-    data: {
-      name: data.name,
-      email: data.email,
-      passwordHash,
-    },
-  });
+  await prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: { name: data.name, email: data.email, passwordHash },
+    });
 
-  await prisma.projectMember.create({
-    data: { userId: user.id, projectId, role: data.role },
+    await tx.orgMember.create({
+      data: { orgId, userId: user.id, role: "MEMBER" },
+    });
+
+    await tx.projectMember.create({
+      data: { userId: user.id, projectId, role: data.role },
+    });
   });
 
   revalidatePath(`/projects/${projectKey}/settings`);

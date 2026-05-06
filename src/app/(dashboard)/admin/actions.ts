@@ -222,8 +222,17 @@ export async function adminRemoveOrgMember(orgId: string, userId: string) {
 export async function adminDeleteOrg(orgId: string) {
   await requireAdmin();
 
-  const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } });
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { name: true, _count: { select: { projects: true } } },
+  });
   if (!org) throw new Error("Organization not found");
+
+  if (org._count.projects > 0) {
+    throw new Error(
+      `Cannot delete "${org.name}" — it still has ${org._count.projects} project(s). Delete or reassign all projects first.`
+    );
+  }
 
   await prisma.organization.delete({ where: { id: orgId } });
   revalidatePath("/admin/orgs");
