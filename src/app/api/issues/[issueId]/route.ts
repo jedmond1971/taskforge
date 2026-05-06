@@ -41,6 +41,20 @@ export async function PATCH(
       if (field in body) updates[field] = body[field];
     }
 
+    if (updates.assigneeId != null) {
+      const assigneeMember = await prisma.projectMember.findUnique({
+        where: {
+          userId_projectId: {
+            userId: updates.assigneeId as string,
+            projectId: issue.project.id,
+          },
+        },
+      });
+      if (!assigneeMember) {
+        return NextResponse.json({ error: "Assignee is not a member of this project" }, { status: 400 });
+      }
+    }
+
     // Log changes
     const logs: Array<{
       issueId: string;

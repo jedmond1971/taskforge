@@ -35,6 +35,7 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
       delete: vi.fn(),
     },
     issue: {
+      findUnique: vi.fn(),
       findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
@@ -64,6 +65,8 @@ vi.mock("@/lib/issue-keys", () => ({
 
 import { NextRequest } from "next/server";
 import { POST } from "@/app/api/auth/register/route";
+import { POST as postProjects } from "@/app/api/projects/route";
+import { PATCH as patchIssue } from "@/app/api/issues/[issueId]/route";
 import {
   searchUsers,
   addProjectMember,
@@ -376,7 +379,97 @@ describe("adminRemoveOrgMember", () => {
   });
 });
 
-// ─── 7. adminDeleteOrg blocks when projects exist ────────────────────────────
+// ─── 7. POST /api/projects rejects stale-session orgId ───────────────────────
+
+describe("POST /api/projects", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAuthFn.mockResolvedValue({ user: { id: "user-1", orgId: "org-1", role: "MEMBER" } });
+  });
+
+  it("returns 403 when the session orgId is no longer a valid OrgMember", async () => {
+    mockPrisma.project.findUnique.mockResolvedValue(null); // key not taken
+    mockPrisma.orgMember.findUnique.mockResolvedValue(null); // membership revoked
+
+    const res = await postProjects(makeRequest({ name: "Test Project", key: "TST" }));
+    expect(res.status).toBe(403);
+    expect(mockPrisma.project.create).not.toHaveBeenCalled();
+  });
+
+  it("creates project when OrgMember row is present", async () => {
+    mockPrisma.project.findUnique.mockResolvedValue(null);
+    mockPrisma.orgMember.findUnique.mockResolvedValue({ role: "OWNER" });
+    mockPrisma.project.create.mockResolvedValue({ id: "proj-1", name: "Test Project", key: "TST" });
+
+    const res = await postProjects(makeRequest({ name: "Test Project", key: "TST" }));
+    expect(res.status).toBe(201);
+    expect(mockPrisma.project.create).toHaveBeenCalled();
+  });
+});
+
+// ─── 8. PATCH /api/issues/[issueId] validates assigneeId ─────────────────────
+
+describe("PATCH /api/issues/[issueId]", () => {
+  const mockIssue = {
+    id: "issue-1",
+    title: "Bug",
+    status: "TODO",
+    priority: "MEDIUM",
+    type: "TASK",
+    assigneeId: null,
+    labels: [],
+    project: { id: "proj-1" },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAuthFn.mockResolvedValue({ user: { id: "user-1", role: "MEMBER", orgId: "org-1" } });
+    mockPrisma.issue.findUnique.mockResolvedValue(mockIssue);
+    mockPrisma.projectMember.findUnique.mockResolvedValue({ role: "MEMBER" }); // caller is a member
+  });
+
+  it("returns 400 when assigneeId is not a project member", async () => {
+    mockPrisma.projectMember.findUnique
+      .mockResolvedValueOnce({ role: "MEMBER" }) // caller check
+      .mockResolvedValueOnce(null); // assignee check
+
+    const res = await patchIssue(
+      makeRequest({ assigneeId: "outsider" }),
+      { params: { issueId: "issue-1" } }
+    );
+    expect(res.status).toBe(400);
+    expect(mockPrisma.issue.update).not.toHaveBeenCalled();
+  });
+
+  it("allows null assigneeId without validation", async () => {
+    mockPrisma.issue.update.mockResolvedValue({ ...mockIssue, assigneeId: null });
+    mockPrisma.activityLog.createMany = vi.fn().mockResolvedValue({});
+
+    const res = await patchIssue(
+      makeRequest({ assigneeId: null }),
+      { params: { issueId: "issue-1" } }
+    );
+    expect(res.status).toBe(200);
+    expect(mockPrisma.issue.update).toHaveBeenCalled();
+  });
+
+  it("accepts a valid assigneeId that is a project member", async () => {
+    mockPrisma.projectMember.findUnique
+      .mockResolvedValueOnce({ role: "MEMBER" }) // caller check
+      .mockResolvedValueOnce({ role: "MEMBER" }); // assignee is a member
+    mockPrisma.issue.update.mockResolvedValue({ ...mockIssue, assigneeId: "user-2" });
+    mockPrisma.activityLog.createMany = vi.fn().mockResolvedValue({});
+
+    const res = await patchIssue(
+      makeRequest({ assigneeId: "user-2" }),
+      { params: { issueId: "issue-1" } }
+    );
+    expect(res.status).toBe(200);
+    expect(mockPrisma.issue.update).toHaveBeenCalled();
+  });
+});
+
+// ─── 9. adminDeleteOrg blocks when projects exist ────────────────────────────
 
 describe("adminDeleteOrg", () => {
   beforeEach(() => {

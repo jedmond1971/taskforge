@@ -65,6 +65,14 @@ The app is multi-tenant. Every user belongs to at least one **Organization** (wo
 - `/admin/orgs` — system admins can create orgs (name/slug/plan/owner), manage members (add with MEMBER/ADMIN role, remove non-owners), and delete orgs
 - Creating an org via admin panel automatically creates the OrgMember OWNER row
 - `UserRole.ADMIN` (system-wide) is separate from `OrgRole` (within-org) — system admins have no elevated org privileges by virtue of their UserRole alone
+- **Org deletion is blocked** when the org still has projects — delete or reassign all projects first
+- **Org-member removal is blocked** while the user still belongs to any project in that org — employment/org-access changes must not erase project history; another admin or project member must intentionally remove those project memberships first. Do not cascade-delete or silently clean up project memberships from org-member removal.
+
+### Tenancy invariants enforced in code
+See `CLAUDE.md` for the full list. Key rules:
+- `POST /api/projects` — verifies the session `orgId` still has a live `OrgMember` row before creating a project (JWT can be stale after an admin removes the user from the org)
+- `PATCH /api/issues/[issueId]` — non-null `assigneeId` must have a `ProjectMember` row for the issue's project
+- Server actions (`createIssue`, `updateIssue`, `addProjectMember`, etc.) enforce the same rules; see `src/app/(dashboard)/projects/[projectKey]/actions.ts`
 
 ## Conventions
 - All database queries go through Prisma client in `src/lib/prisma.ts`

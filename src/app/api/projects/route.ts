@@ -25,6 +25,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Project key already in use" }, { status: 409 });
     }
 
+    // Verify the session orgId is still a live OrgMember row — the JWT is
+    // cached and could reference an org the user was removed from.
+    const orgMembership = await prisma.orgMember.findUnique({
+      where: { orgId_userId: { orgId, userId: session.user.id } },
+    });
+    if (!orgMembership) {
+      return NextResponse.json(
+        { error: "Your session organization is no longer valid. Please sign in again." },
+        { status: 403 }
+      );
+    }
+
     const project = await prisma.project.create({
       data: {
         name,
