@@ -18,6 +18,8 @@ Every project belongs to exactly one organization, and every user-to-project rel
 
 6. **Admin org deletion** (`adminDeleteOrg`) — Blocked with a clear error if the org has any projects. Does not cascade-delete projects silently.
 
+7. **Admin org-member removal** (`adminRemoveOrgMember`) — Blocked with a clear error if the user still has `ProjectMember` rows for any project in that org. Employment/org-access changes must not erase project history; another admin or project member must intentionally remove those project memberships first. Do not cascade-delete or silently clean up project memberships from org-member removal.
+
 **Non-goals (do not implement without a separate product decision):**
 - Org switching UI
 - Full invite system

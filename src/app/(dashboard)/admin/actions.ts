@@ -214,6 +214,15 @@ export async function adminRemoveOrgMember(orgId: string, userId: string) {
   const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { ownerId: true } });
   if (org?.ownerId === userId) throw new Error("Cannot remove the org owner");
 
+  const projectCount = await prisma.projectMember.count({
+    where: { userId, project: { orgId } },
+  });
+  if (projectCount > 0) {
+    throw new Error(
+      `Cannot remove this member — they still belong to ${projectCount} project(s) in this organization. Remove them from those projects first.`
+    );
+  }
+
   await prisma.orgMember.delete({ where: { orgId_userId: { orgId, userId } } });
   revalidatePath("/admin/orgs");
   return { success: true };

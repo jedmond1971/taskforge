@@ -27,6 +27,7 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
       findMany: vi.fn(),
       create: vi.fn(),
       delete: vi.fn(),
+      count: vi.fn(),
     },
     project: {
       findUnique: vi.fn(),
@@ -70,7 +71,7 @@ import {
   createIssue,
   updateIssue,
 } from "@/app/(dashboard)/projects/[projectKey]/actions";
-import { adminDeleteOrg } from "@/app/(dashboard)/admin/actions";
+import { adminDeleteOrg, adminRemoveOrgMember } from "@/app/(dashboard)/admin/actions";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -338,7 +339,44 @@ describe("updateIssue", () => {
   });
 });
 
-// ─── 6. adminDeleteOrg blocks when projects exist ────────────────────────────
+// ─── 6. adminRemoveOrgMember blocks when user has project memberships ─────────
+
+describe("adminRemoveOrgMember", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAuthFn.mockResolvedValue({ user: { id: "admin-1", role: "ADMIN" } });
+    mockPrisma.organization.findUnique.mockResolvedValue({ ownerId: "other-user" });
+  });
+
+  it("throws when the user still belongs to projects in the org", async () => {
+    mockPrisma.projectMember.count.mockResolvedValue(2);
+
+    await expect(adminRemoveOrgMember("org-1", "user-2")).rejects.toThrow(
+      "still belong to 2 project(s)"
+    );
+    expect(mockPrisma.orgMember.delete).not.toHaveBeenCalled();
+  });
+
+  it("succeeds when the user has no project memberships in the org", async () => {
+    mockPrisma.projectMember.count.mockResolvedValue(0);
+    mockPrisma.orgMember.delete.mockResolvedValue({});
+
+    const result = await adminRemoveOrgMember("org-1", "user-2");
+    expect(result).toEqual({ success: true });
+    expect(mockPrisma.orgMember.delete).toHaveBeenCalledWith({
+      where: { orgId_userId: { orgId: "org-1", userId: "user-2" } },
+    });
+  });
+
+  it("throws when trying to remove the org owner", async () => {
+    mockPrisma.organization.findUnique.mockResolvedValue({ ownerId: "user-2" });
+
+    await expect(adminRemoveOrgMember("org-1", "user-2")).rejects.toThrow("Cannot remove the org owner");
+    expect(mockPrisma.projectMember.count).not.toHaveBeenCalled();
+  });
+});
+
+// ─── 7. adminDeleteOrg blocks when projects exist ────────────────────────────
 
 describe("adminDeleteOrg", () => {
   beforeEach(() => {

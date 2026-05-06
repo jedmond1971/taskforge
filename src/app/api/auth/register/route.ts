@@ -24,17 +24,19 @@ export async function POST(request: NextRequest) {
     const passwordHash = await bcrypt.hash(password, 12);
 
     const baseSlug = generateSlug(name);
-    let slug = baseSlug;
-    const slugTaken = await prisma.organization.findUnique({ where: { slug } });
-    if (slugTaken) {
-      slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
-    }
 
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: { name, email, passwordHash },
         select: { id: true, name: true, email: true },
       });
+
+      // Resolve a unique slug deterministically inside the transaction
+      let slug = baseSlug;
+      let counter = 2;
+      while (await tx.organization.findUnique({ where: { slug }, select: { id: true } })) {
+        slug = `${baseSlug}-${counter++}`;
+      }
 
       const org = await tx.organization.create({
         data: {
