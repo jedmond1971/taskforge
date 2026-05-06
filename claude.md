@@ -189,8 +189,10 @@ Favicon metadata is wired in `src/app/layout.tsx` via the `icons` key. Sidebar l
 - Steps (in order): `npm ci` → `npm run lint` → `npm run build` → `npm test`
 - Test runner: **Vitest 3.x** (pinned to v3 — v4 requires Node 20; local dev uses Node 18)
 - Test script: `vitest run` (no npx wrapper)
-- Tests live in `src/lib/query/__tests__/` — currently covers the query parser (256 tests: comparisons, logical operators, ORDER BY, error cases, edge cases)
 - CI runner uses Node 20; local dev uses Node 18
+- **Test files (76 tests total):**
+  - `src/lib/query/__tests__/` — query parser: comparisons, logical operators, ORDER BY, error cases, edge cases (26 tests)
+  - `src/__tests__/tenancy.test.ts` — org tenancy regression suite: registration transaction, member search/add/create scoped to org, assignee validation in server actions and API routes, org deletion and org-member removal guards, stale-session project creation block (50 tests)
 
 ## Completed Enhancements (post-launch)
 - **Label management** — interactive add/remove labels on issue detail + create/edit form (LabelInput component)
@@ -210,3 +212,4 @@ Favicon metadata is wired in `src/app/layout.tsx` via the `icons` key. Sidebar l
 - **Login ember effect** — rising orange particle animation on the login page background; brand-orange Sign In button; orange hairline accent on the login card (`src/app/(auth)/login/page.tsx`)
 - **Multi-tenant organizations** — full three-phase migration: Organization/OrgMember/OrgInvite/Subscription schema added; `scripts/org-migrate.ts` backfilled one org per user and reassigned all projects to orgs; orgId made required on Project; orgId baked into JWT at login; project create reads orgId from session
 - **Admin org management** — `/admin/orgs` page: create orgs with owner assignment, manage members (add/remove with OrgRole), delete with confirmation; admin home updated with org stat tile and nav card
+- **Organization tenancy hardening** (GitHub issue #9, commits b0c5fb3 / c35f827 / e57b515, May 2026) — multi-pass hardening to enforce the org boundary as a core safety invariant across all entry points: registration now creates User + Org + OrgMember in one transaction with deterministic slug collision handling; `searchUsers`, `addProjectMember`, and `createUserAndAddToProject` scoped to the project's org; `createIssue`/`updateIssue` server actions and `PATCH /api/issues/[issueId]` validate non-null assigneeId against ProjectMember; `adminDeleteOrg` blocked when org has projects; `adminRemoveOrgMember` blocked when user still has project memberships in the org; `POST /api/projects` verifies live OrgMember row against potentially stale JWT orgId; full invariant set documented in `CLAUDE.md`
