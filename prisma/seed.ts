@@ -22,16 +22,16 @@ async function main() {
   const hashedPassword = await bcrypt.hash("password123", 12);
 
   const alice = await prisma.user.create({
-    data: { email: "admin@taskforge.dev", name: "Alice Chen", passwordHash: hashedPassword, role: UserRole.ADMIN },
+    data: { email: "admin@jedforge.dev", name: "Alice Chen", passwordHash: hashedPassword, role: UserRole.ADMIN },
   });
   const bob = await prisma.user.create({
-    data: { email: "member@taskforge.dev", name: "Bob Martinez", passwordHash: hashedPassword, role: UserRole.MEMBER },
+    data: { email: "member@jedforge.dev", name: "Bob Martinez", passwordHash: hashedPassword, role: UserRole.MEMBER },
   });
   const carol = await prisma.user.create({
-    data: { email: "carol@taskforge.dev", name: "Carol Singh", passwordHash: hashedPassword, role: UserRole.MEMBER },
+    data: { email: "carol@jedforge.dev", name: "Carol Singh", passwordHash: hashedPassword, role: UserRole.MEMBER },
   });
   const dave = await prisma.user.create({
-    data: { email: "dave@taskforge.dev", name: "Dave Kim", passwordHash: hashedPassword, role: UserRole.MEMBER },
+    data: { email: "dave@jedforge.dev", name: "Dave Kim", passwordHash: hashedPassword, role: UserRole.MEMBER },
   });
 
   // Alice's organization — all seed projects live here
@@ -217,7 +217,7 @@ async function main() {
   await prisma.activityLog.createMany({ data: logs });
 
   console.log("Seed complete:");
-  console.log(`   Users: 4 (admin@taskforge.dev, member@taskforge.dev, carol@taskforge.dev, dave@taskforge.dev)`);
+  console.log(`   Users: 4 (admin@jedforge.dev, member@jedforge.dev, carol@jedforge.dev, dave@jedforge.dev)`);
   console.log(`   Projects: 3 (PL, MA, WR)`);
   console.log(`   Issues: ${plIssues.length + maIssues.length + wrIssues.length}`);
   console.log(`   Comments: 10`);

@@ -42,7 +42,7 @@ A full-stack project management tool built as a portfolio project to demonstrate
 1. **Clone the repository**
    ```bash
    git clone <repo-url>
-   cd TaskForge
+   cd taskforge
    ```
 
 2. **Install dependencies**
@@ -79,10 +79,10 @@ After seeding, you can log in with:
 
 | Email | Password | Role |
 |-------|----------|------|
-| admin@taskforge.dev | password123 | Admin |
-| member@taskforge.dev | password123 | Member |
-| carol@taskforge.dev | password123 | Member |
-| dave@taskforge.dev | password123 | Member |
+| admin@jedforge.dev | password123 | Admin |
+| member@jedforge.dev | password123 | Member |
+| carol@jedforge.dev | password123 | Member |
+| dave@jedforge.dev | password123 | Member |
 
 ## Screenshots
 
