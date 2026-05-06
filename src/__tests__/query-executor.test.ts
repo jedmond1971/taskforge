@@ -18,8 +18,6 @@ import { parse } from "@/lib/query/parser";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const emptyResult = { issues: [], total: 0 };
-
 function noIssues() {
   mockPrisma.issue.findMany.mockResolvedValue([]);
   mockPrisma.issue.count.mockResolvedValue(0);
