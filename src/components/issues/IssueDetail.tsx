@@ -9,6 +9,7 @@ import { Pencil, Trash2, Check, X } from "lucide-react";
 import { LabelInput } from "@/components/issues/LabelInput";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CommentThread } from "@/components/comments/CommentThread";
 import { CommentForm } from "@/components/comments/CommentForm";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
@@ -41,6 +42,7 @@ type Issue = {
   type: IssueType;
   assigneeId: string | null;
   labels: string[];
+  dueDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
   assignee: User | null;
@@ -156,6 +158,10 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
   const [editingDesc, setEditingDesc] = useState(false);
   const [description, setDescription] = useState(issue.description ?? "");
   const [labels, setLabels] = useState<string[]>(issue.labels);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [dueDate, setDueDate] = useState<string>(
+    issue.dueDate ? new Date(issue.dueDate).toISOString().split("T")[0] : ""
+  );
 
   useEffect(() => { setLabels(issue.labels); }, [issue.labels]);
 
@@ -182,7 +188,10 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
   }
 
   function handleDelete() {
-    if (!confirm(`Delete issue ${issue.key}? This cannot be undone.`)) return;
+    setConfirmDeleteOpen(true);
+  }
+
+  function handleConfirmDelete() {
     startTransition(async () => {
       toast.success("Issue deleted");
       await deleteIssue(projectKey, issue.id);
@@ -207,6 +216,15 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
   ];
 
   return (
+    <>
+    <ConfirmDialog
+      open={confirmDeleteOpen}
+      onOpenChange={setConfirmDeleteOpen}
+      title={`Delete ${issue.key}?`}
+      description="This issue and all its comments and attachments will be permanently deleted. This action cannot be undone."
+      confirmLabel="Delete"
+      onConfirm={handleConfirmDelete}
+    />
     <div className="max-w-5xl min-w-0">
       <div className="flex items-center gap-2 text-sm text-zinc-500 mb-4">
         <span className="font-mono text-indigo-600 dark:text-indigo-400">{issue.key}</span>
@@ -389,6 +407,27 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
                 ))}
               </select>
             </div>
+            <div>
+              <p className="text-xs text-zinc-500 font-medium mb-1">Due Date</p>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => {
+                  if (!canEdit) return;
+                  const newVal = e.target.value;
+                  setDueDate(newVal);
+                  startTransition(async () => {
+                    await updateIssue(projectKey, issue.id, {
+                      dueDate: newVal ? new Date(newVal) : null,
+                    });
+                    toast.success(newVal ? "Due date set" : "Due date cleared");
+                    refresh();
+                  });
+                }}
+                disabled={isPending || !canEdit}
+                className={selectClass}
+              />
+            </div>
           </div>
 
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-3 text-xs">
@@ -408,5 +447,6 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
         </div>
       </div>
     </div>
+    </>
   );
 }

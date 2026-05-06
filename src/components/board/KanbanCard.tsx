@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
 import { PriorityBadge } from "@/components/issues/PriorityBadge";
 import { cn } from "@/lib/utils";
+import { AlertCircle, Calendar } from "lucide-react";
 
 type CardIssue = {
   id: string;
@@ -14,6 +15,7 @@ type CardIssue = {
   status: IssueStatus;
   priority: IssuePriority;
   type: IssueType;
+  dueDate?: Date | null;
   assignee: { id: string; name: string; avatarUrl: string | null } | null;
 };
 
@@ -61,6 +63,25 @@ export function KanbanCard({ issue, projectKey, isDragOverlay = false }: KanbanC
         <span className="text-xs font-mono text-zinc-400 dark:text-zinc-600">{issue.key}</span>
         <PriorityBadge priority={issue.priority} />
       </div>
+
+      {issue.dueDate && issue.status !== "DONE" && (() => {
+        const due = new Date(issue.dueDate);
+        const now = new Date();
+        const isOverdue = due < now;
+        const isDueSoon = !isOverdue && (due.getTime() - now.getTime()) < 48 * 60 * 60 * 1000;
+        if (!isOverdue && !isDueSoon) return null;
+        return (
+          <div className={cn(
+            "flex items-center gap-1 mt-2 text-xs px-1.5 py-0.5 rounded w-fit",
+            isOverdue
+              ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+              : "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
+          )}>
+            {isOverdue ? <AlertCircle className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
+            {isOverdue ? "Overdue" : "Due soon"} · {due.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          </div>
+        );
+      })()}
 
       {issue.assignee && (
         <div className="flex items-center gap-1.5 mt-2">

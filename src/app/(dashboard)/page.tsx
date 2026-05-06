@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FolderKanban, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { FolderKanban, CheckCircle2, Clock, AlertCircle, CalendarClock } from "lucide-react";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
 
 async function getUserProjects(userId: string) {
@@ -24,6 +24,21 @@ async function getAssignedIssues(userId: string) {
     where: { assigneeId: userId, status: { not: "DONE" } },
     include: { project: { select: { key: true, name: true } } },
     orderBy: { updatedAt: "desc" },
+    take: 5,
+  });
+}
+
+async function getUpcomingDueDates(userId: string) {
+  const now = new Date();
+  const soon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // next 7 days
+  return prisma.issue.findMany({
+    where: {
+      project: { members: { some: { userId } } },
+      status: { not: "DONE" },
+      dueDate: { not: null, lte: soon },
+    },
+    include: { project: { select: { key: true, name: true } } },
+    orderBy: { dueDate: "asc" },
     take: 5,
   });
 }
@@ -64,9 +79,10 @@ export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const [projects, assignedIssues, recentActivity] = await Promise.all([
+  const [projects, assignedIssues, upcomingDueDates, recentActivity] = await Promise.all([
     getUserProjects(session.user.id),
     getAssignedIssues(session.user.id),
+    getUpcomingDueDates(session.user.id),
     getRecentActivity(session.user.id),
   ]);
 
@@ -178,25 +194,60 @@ export default async function DashboardPage() {
                 const status = statusConfig[issue.status];
                 const priority = priorityConfig[issue.priority];
                 return (
-                  <div
+                  <Link
                     key={issue.id}
-                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                    href={`/projects/${issue.project.key}/issues/${issue.key}`}
+                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-zinc-900 dark:text-zinc-100 truncate">{issue.title}</p>
+                      <p className="text-sm text-zinc-900 dark:text-zinc-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{issue.title}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs text-zinc-500">{issue.project.key}-{issue.key.split("-")[1]}</span>
                         <span className={`text-xs px-1.5 py-0.5 rounded ${status.color}`}>{status.label}</span>
                         <span className={`text-xs px-1.5 py-0.5 rounded ${priority.color}`}>{priority.label}</span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Upcoming Due Dates */}
+      {upcomingDueDates.length > 0 && (
+        <Card className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-amber-500" />
+              Due Soon
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {upcomingDueDates.map((issue) => {
+              const due = new Date(issue.dueDate!);
+              const isOverdue = due < new Date();
+              return (
+                <Link
+                  key={issue.id}
+                  href={`/projects/${issue.project.key}/issues/${issue.key}`}
+                  className="flex items-center justify-between p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-zinc-900 dark:text-zinc-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{issue.title}</p>
+                    <span className="text-xs text-zinc-500">{issue.project.key}-{issue.key.split("-")[1]}</span>
+                  </div>
+                  <span className={`text-xs font-medium ml-3 whitespace-nowrap flex items-center gap-1 ${isOverdue ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
+                    {isOverdue && <AlertCircle className="w-3 h-3" />}
+                    {isOverdue ? "Overdue" : due.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  </span>
+                </Link>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent Activity */}
       <Card className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">

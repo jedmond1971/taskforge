@@ -17,12 +17,14 @@ const KNOWN_FIELDS = [
   "labels",
   "createdAt",
   "updatedAt",
+  "dueDate",
   "key",
 ];
 
 const ORDERABLE_FIELDS = [
   "createdAt",
   "updatedAt",
+  "dueDate",
   "priority",
   "status",
   "key",
@@ -43,6 +45,7 @@ const FIELD_OPERATORS: Record<string, Operator[]> = {
   labels: ["=", "!=", "~", "IN", "NOT IN"],
   createdAt: ["=", "!=", ">", "<", ">=", "<="],
   updatedAt: ["=", "!=", ">", "<", ">=", "<="],
+  dueDate: ["=", "!=", ">", "<", ">=", "<="],
 };
 
 const STATUS_VALUES = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"];
@@ -50,7 +53,7 @@ const PRIORITY_VALUES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
 const TYPE_VALUES = ["BUG", "TASK", "STORY", "EPIC"];
 
 const DATE_FUNCTIONS = ["now", "startOfDay", "startOfWeek", "startOfMonth"];
-const NULLABLE_FIELDS = ["assignee", "description", "labels"];
+const NULLABLE_FIELDS = ["assignee", "description", "labels", "dueDate"];
 
 function levenshtein(a: string, b: string): number {
   const m = a.length;
@@ -109,9 +112,9 @@ function validateValue(
         });
       }
     } else if (DATE_FUNCTIONS.includes(name)) {
-      if (field !== "createdAt" && field !== "updatedAt") {
+      if (field !== "createdAt" && field !== "updatedAt" && field !== "dueDate") {
         errors.push({
-          message: `${name}() can only be used with 'createdAt' or 'updatedAt' fields, not '${field}'`,
+          message: `${name}() can only be used with 'createdAt', 'updatedAt', or 'dueDate' fields, not '${field}'`,
         });
       }
     }

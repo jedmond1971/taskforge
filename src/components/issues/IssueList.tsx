@@ -6,7 +6,7 @@ import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
 import { StatusBadge } from "./StatusBadge";
 import { PriorityBadge } from "./PriorityBadge";
 import { TYPE_CONFIG } from "@/lib/issue-utils";
-import { ChevronUp, ChevronDown, MessageSquare, CheckSquare } from "lucide-react";
+import { ChevronUp, ChevronDown, MessageSquare, CheckSquare, AlertCircle } from "lucide-react";
 
 type IssueWithRelations = {
   id: string;
@@ -15,13 +15,14 @@ type IssueWithRelations = {
   status: IssueStatus;
   priority: IssuePriority;
   type: IssueType;
+  dueDate?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   assignee: { id: string; name: string; avatarUrl: string | null } | null;
   _count: { comments: number };
 };
 
-type SortField = "key" | "priority" | "createdAt" | "updatedAt";
+type SortField = "key" | "priority" | "createdAt" | "updatedAt" | "dueDate";
 type SortOrder = "asc" | "desc";
 
 interface IssueListProps {
@@ -58,6 +59,11 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
       const aNum = parseInt(a.key.split("-")[1] ?? "0", 10);
       const bNum = parseInt(b.key.split("-")[1] ?? "0", 10);
       return (aNum - bNum) * dir;
+    }
+    if (sortField === "dueDate") {
+      const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+      const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+      return (aTime - bTime) * dir;
     }
     return (new Date(a[sortField]).getTime() - new Date(b[sortField]).getTime()) * dir;
   });
@@ -100,6 +106,12 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
             </th>
             <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-20">Type</th>
             <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-32 hidden sm:table-cell">Assignee</th>
+            <th
+              className="text-left px-4 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 w-28 hidden md:table-cell"
+              onClick={() => handleSort("dueDate")}
+            >
+              <span className="flex items-center gap-1">Due <SortIcon field="dueDate" /></span>
+            </th>
             <th
               className="text-left px-4 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 w-28 hidden sm:table-cell"
               onClick={() => handleSort("createdAt")}
@@ -157,6 +169,20 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
                   </div>
                 ) : (
                   <span className="text-zinc-400 dark:text-zinc-600 text-xs">Unassigned</span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-xs hidden md:table-cell">
+                {issue.dueDate ? (() => {
+                  const due = new Date(issue.dueDate);
+                  const isOverdue = due < new Date() && issue.status !== "DONE";
+                  return (
+                    <span className={`flex items-center gap-1 ${isOverdue ? "text-red-600 dark:text-red-400 font-medium" : "text-zinc-500"}`}>
+                      {isOverdue && <AlertCircle className="w-3 h-3" />}
+                      {due.toLocaleDateString()}
+                    </span>
+                  );
+                })() : (
+                  <span className="text-zinc-300 dark:text-zinc-700">—</span>
                 )}
               </td>
               <td className="px-4 py-3 text-zinc-500 text-xs hidden sm:table-cell">

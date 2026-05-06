@@ -31,6 +31,7 @@ type CardIssue = {
   priority: IssuePriority;
   type: IssueType;
   position: number;
+  dueDate?: Date | null;
   assignee: { id: string; name: string; avatarUrl: string | null } | null;
 };
 

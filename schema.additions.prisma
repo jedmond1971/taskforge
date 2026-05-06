@@ -1,0 +1,116 @@
+// ============================================================
+// JedForge — Schema additions for multi-tenant SaaS
+// Add these models to your existing prisma/schema.prisma
+// ============================================================
+
+// 1. New enums
+// ------------------------------------------------------------
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum Plan {
+  FREE
+  PRO
+  TEAM
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+// 2. New models
+// ------------------------------------------------------------
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      Plan     @default(FREE)
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner        User           @relation("OwnedOrgs", fields: [ownerId], references: [id])
+  members      OrgMember[]
+  invites      OrgInvite[]
+  subscription Subscription?
+  projects     Project[]
+}
+
+model OrgMember {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      OrgRole  @default(MEMBER)
+  createdAt DateTime @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+}
+
+model OrgInvite {
+  id        String   @id @default(cuid())
+  orgId     String
+  email     String
+  token     String   @unique @default(cuid())
+  role      OrgRole  @default(MEMBER)
+  accepted  Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, email])
+  @@index([token])
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  orgId                  String             @unique
+  stripeCustomerId       String             @unique
+  stripeSubscriptionId   String?            @unique
+  stripePriceId          String?
+  status                 SubscriptionStatus @default(TRIALING)
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// 3. Changes to EXISTING models
+// Apply these diffs manually to your current schema.prisma
+// ============================================================
+
+// --- User model: add these two relation fields ---
+//
+// ownedOrgs  Organization[] @relation("OwnedOrgs")
+// orgMembers OrgMember[]
+//
+// (No new columns — these are relation-only fields, zero migration cost)
+
+// --- Project model: replace userId with orgId ---
+//
+// REMOVE:
+//   userId  String
+//   user    User   @relation(fields: [userId], references: [id])
+//
+// ADD:
+//   orgId   String
+//   org     Organization @relation(fields: [orgId], references: [id])
+//
+// NOTE: Do NOT run `prisma migrate dev` until after the data
+// migration script below has been executed. Use a multi-step
+// migration (see migration script) to avoid constraint errors.

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Paperclip,
   FileText,
@@ -71,6 +72,7 @@ export function AttachmentsPanel({
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<UploadingFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AttachmentItem | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -149,18 +151,24 @@ export function AttachmentsPanel({
     handleFiles(e.dataTransfer.files);
   }
 
-  async function handleDelete(attachment: AttachmentItem) {
-    if (!confirm(`Remove attachment "${attachment.fileName}"?`)) return;
+  function handleDelete(attachment: AttachmentItem) {
+    setDeleteTarget(attachment);
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
     try {
-      const res = await fetch(`/api/attachments/${attachment.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/attachments/${deleteTarget.id}`, { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json() as { error: string };
         throw new Error(err.error);
       }
-      setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+      setAttachments((prev) => prev.filter((a) => a.id !== deleteTarget.id));
       toast.success("Attachment removed");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setDeleteTarget(null);
     }
   }
 
@@ -168,6 +176,15 @@ export function AttachmentsPanel({
     canEdit || attachment.uploader.id === currentUserId;
 
   return (
+    <>
+    <ConfirmDialog
+      open={deleteTarget !== null}
+      onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+      title={`Remove "${deleteTarget?.fileName}"?`}
+      description="This attachment will be permanently deleted."
+      confirmLabel="Remove"
+      onConfirm={handleConfirmDelete}
+    />
     <div>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
@@ -300,5 +317,6 @@ export function AttachmentsPanel({
         </>
       )}
     </div>
+    </>
   );
 }

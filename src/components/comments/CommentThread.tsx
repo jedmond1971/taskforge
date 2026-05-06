@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { updateComment, deleteComment } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { Pencil, Trash2, Check, X, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type Comment = {
   id: string;
@@ -44,6 +45,7 @@ function CommentItem({
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(comment.body);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function handleSave() {
@@ -61,7 +63,10 @@ function CommentItem({
   }
 
   function handleDelete() {
-    if (!confirm("Delete this comment?")) return;
+    setConfirmOpen(true);
+  }
+
+  function handleConfirmDelete() {
     startTransition(async () => {
       try {
         await deleteComment(projectKey, comment.id);
@@ -76,6 +81,15 @@ function CommentItem({
   const initial = comment.author.name.charAt(0).toUpperCase();
 
   return (
+    <>
+    <ConfirmDialog
+      open={confirmOpen}
+      onOpenChange={setConfirmOpen}
+      title="Delete comment?"
+      description="This action cannot be undone."
+      confirmLabel="Delete"
+      onConfirm={handleConfirmDelete}
+    />
     <div className="flex gap-3 group animate-fade-in">
       <div className="w-7 h-7 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0 mt-0.5">
         <span className="text-xs text-zinc-700 dark:text-zinc-300 font-medium">{initial}</span>
@@ -136,6 +150,7 @@ function CommentItem({
         )}
       </div>
     </div>
+    </>
   );
 }
 

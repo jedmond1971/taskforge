@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 160" width="640" height="160" role="img">
+  <title>JedForge</title>
+  <desc>JedForge full logo — gear bolt icon with wordmark, dark-mode aware</desc>
+
+  <defs>
+    <style>
+      @media (prefers-color-scheme: dark) {
+        .jf-gear { fill: #d4d4d4; }
+        .jf-hole { fill: transparent; }
+        .jf-word { fill: #f0f0f0; }
+        .jf-sub  { fill: #777777; }
+        .jf-div  { stroke: #444444; }
+      }
+      @media (prefers-color-scheme: light) {
+        .jf-gear { fill: #1a1a1a; }
+        .jf-hole { fill: white; }
+        .jf-word { fill: #111111; }
+        .jf-sub  { fill: #888888; }
+        .jf-div  { stroke: #dddddd; }
+      }
+    </style>
+  </defs>
+
+  <!-- Gear centered at 80, 80 -->
+  <g transform="translate(80,80)">
+    <!-- 12 teeth -->
+    <rect x="-7" y="-58" width="14" height="14" rx="3" class="jf-gear" transform="rotate(0)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" class="jf-gear" transform="rotate(30)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" class="jf-gear" transform="rotate(60)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" class="jf-gear" transform="rotate(90)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" class="jf-gear" transform="rotate(120)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" class="jf-gear" transform="rotate(150)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" class="jf-gear" transform="rotate(180)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" class="jf-gear" transform="rotate(210)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" class="jf-gear" transform="rotate(240)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" class="jf-gear" transform="rotate(270)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" class="jf-gear" transform="rotate(300)"/>
+    <rect x="-7" y="-58" width="14" height="14" rx="3" class="jf-gear" transform="rotate(330)"/>
+    <!-- Gear body -->
+    <circle r="47" class="jf-gear"/>
+    <!-- Center hole -->
+    <circle r="20" class="jf-hole" fill="#ffffff"/>
+    <!-- Bolt — orange always -->
+    <polygon points="6,-18 -7,2 0,2 -6,18 9,0 2,0" fill="#e85d2f"/>
+  </g>
+
+  <!-- Divider -->
+  <line x1="158" y1="36" x2="158" y2="124" class="jf-div" stroke-width="1"/>
+
+  <!-- Wordmark -->
+  <text
+    x="178" y="104"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
+    font-size="58"
+    font-weight="500"
+    letter-spacing="-1"
+    class="jf-word">JedForge</text>
+
+  <!-- Subtext -->
+  <text
+    x="180" y="128"
+    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
+    font-size="13"
+    font-weight="400"
+    letter-spacing="4"
+    class="jf-sub">PROJECT MANAGEMENT</text>
+
+</svg>

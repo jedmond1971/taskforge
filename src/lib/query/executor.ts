@@ -14,6 +14,7 @@ export interface QueryResult {
     status: string;
     priority: string;
     type: string;
+    dueDate: Date | null;
     createdAt: Date;
     updatedAt: Date;
     assignee: { id: string; name: string; avatarUrl: string | null } | null;
@@ -292,6 +293,7 @@ async function buildNodeWhere(
 
         case "createdAt":
         case "updatedAt":
+        case "dueDate":
           return buildDateComparison(field, operator, value);
 
         default:
@@ -364,6 +366,7 @@ export async function executeQuery(
       status: issue.status,
       priority: issue.priority,
       type: issue.type,
+      dueDate: (issue as Record<string, unknown>).dueDate as Date | null ?? null,
       createdAt: issue.createdAt,
       updatedAt: issue.updatedAt,
       assignee: issue.assignee

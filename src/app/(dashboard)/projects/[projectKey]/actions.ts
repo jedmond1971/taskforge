@@ -55,6 +55,7 @@ export async function createIssue(projectKey: string, formData: {
   type?: IssueType;
   assigneeId?: string;
   labels?: string[];
+  dueDate?: Date | null;
 }) {
   const { userId, projectId, projectKey: key } = await requireProjectRole(projectKey, canEditIssues);
 
@@ -88,6 +89,7 @@ export async function createIssue(projectKey: string, formData: {
           reporterId: userId,
           labels: formData.labels ?? [],
           position: issueCount,
+          dueDate: formData.dueDate ?? null,
         },
       });
       break;
@@ -121,6 +123,7 @@ export async function updateIssue(
     type: IssueType;
     assigneeId: string | null;
     labels: string[];
+    dueDate: Date | null;
   }>
 ) {
   const { userId, projectId } = await requireProjectRole(projectKey, canEditIssues);
@@ -154,6 +157,7 @@ export async function updateIssue(
     title: "title",
     description: "description",
     labels: "labels",
+    dueDate: "due date",
   };
 
   for (const [field, label] of Object.entries(fieldLabels)) {

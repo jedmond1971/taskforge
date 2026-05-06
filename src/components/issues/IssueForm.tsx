@@ -23,6 +23,7 @@ type ExistingIssue = {
   type: IssueType;
   assigneeId: string | null;
   labels: string[];
+  dueDate?: Date | null;
 };
 
 interface IssueFormProps {
@@ -46,6 +47,9 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
   const [type, setType] = useState<IssueType>(issue?.type ?? "TASK");
   const [assigneeId, setAssigneeId] = useState<string>(issue?.assigneeId ?? "");
   const [labels, setLabels] = useState<string[]>(issue?.labels ?? []);
+  const [dueDate, setDueDate] = useState<string>(
+    issue?.dueDate ? new Date(issue.dueDate).toISOString().split("T")[0] : ""
+  );
 
   const selectClass = "w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
@@ -53,6 +57,8 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
     e.preventDefault();
     setError(null);
     if (!title.trim()) { setError("Title is required"); return; }
+
+    const dueDateValue = dueDate ? new Date(dueDate) : null;
 
     const formData = {
       title: title.trim(),
@@ -62,6 +68,7 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
       type,
       assigneeId: assigneeId || undefined,
       labels,
+      dueDate: dueDateValue ?? undefined,
     };
 
     startTransition(async () => {
@@ -71,6 +78,7 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
             ...formData,
             description: description.trim() || null,
             assigneeId: assigneeId || null,
+            dueDate: dueDateValue,
           });
           toast.success("Issue updated");
         } else {
@@ -169,6 +177,16 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
             ))}
           </select>
         </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Due Date</label>
+        <input
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+          className={selectClass}
+        />
       </div>
 
       <div className="space-y-1.5">

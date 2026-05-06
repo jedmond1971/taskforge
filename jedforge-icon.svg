@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img">
+  <title>JedForge</title>
+  <desc>JedForge icon — gear with lightning bolt</desc>
+
+  <!-- Orange background -->
+  <rect width="512" height="512" rx="112" fill="#e85d2f"/>
+
+  <!-- Gear + bolt centered at 256,256 -->
+  <g transform="translate(256,256)">
+    <!-- 12 teeth -->
+    <rect x="-22" y="-168" width="44" height="44" rx="8" fill="white" transform="rotate(0)"/>
+    <rect x="-22" y="-168" width="44" height="44" rx="8" fill="white" transform="rotate(30)"/>
+    <rect x="-22" y="-168" width="44" height="44" rx="8" fill="white" transform="rotate(60)"/>
+    <rect x="-22" y="-168" width="44" height="44" rx="8" fill="white" transform="rotate(90)"/>
+    <rect x="-22" y="-168" width="44" height="44" rx="8" fill="white" transform="rotate(120)"/>
+    <rect x="-22" y="-168" width="44" height="44" rx="8" fill="white" transform="rotate(150)"/>
+    <rect x="-22" y="-168" width="44" height="44" rx="8" fill="white" transform="rotate(180)"/>
+    <rect x="-22" y="-168" width="44" height="44" rx="8" fill="white" transform="rotate(210)"/>
+    <rect x="-22" y="-168" width="44" height="44" rx="8" fill="white" transform="rotate(240)"/>
+    <rect x="-22" y="-168" width="44" height="44" rx="8" fill="white" transform="rotate(270)"/>
+    <rect x="-22" y="-168" width="44" height="44" rx="8" fill="white" transform="rotate(300)"/>
+    <rect x="-22" y="-168" width="44" height="44" rx="8" fill="white" transform="rotate(330)"/>
+    <!-- Gear body -->
+    <circle r="140" fill="white"/>
+    <!-- Center hole -->
+    <circle r="60" fill="#e85d2f"/>
+    <!-- Lightning bolt -->
+    <polygon points="18,-54 -22,6 0,6 -18,54 28,0 6,0" fill="#e85d2f"/>
+  </g>
+</svg>
