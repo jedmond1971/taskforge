@@ -205,9 +205,20 @@ export function QueryBar({
   const validationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Load history on mount
+  // Load history and auto-focus on mount
   useEffect(() => {
     setHistory(loadHistory());
+    inputRef.current?.focus();
+  }, []);
+
+  // Focus input when "/" shortcut fires from DashboardShell
+  useEffect(() => {
+    function onFocusSearch() {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+    window.addEventListener("jedforge:focus-search", onFocusSearch);
+    return () => window.removeEventListener("jedforge:focus-search", onFocusSearch);
   }, []);
 
   // Close dropdowns on outside click
@@ -454,10 +465,16 @@ export function QueryBar({
               onKeyDown={handleKeyDown}
               onFocus={handleFocus}
               placeholder='e.g. status = "TODO" AND priority = "HIGH"'
-              className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm font-mono text-transparent caret-zinc-900 dark:caret-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 h-10 leading-6 placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
+              className="w-full pl-3 pr-10 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm font-mono text-transparent caret-zinc-900 dark:caret-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 h-10 leading-6 placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
               spellCheck={false}
               autoComplete="off"
             />
+            {/* / shortcut hint */}
+            {!query && (
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-xs font-mono text-zinc-400 dark:text-zinc-600 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded px-1.5 py-0.5">
+                /
+              </span>
+            )}
             {/* Autocomplete dropdown */}
             {showAutocomplete && suggestions.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">

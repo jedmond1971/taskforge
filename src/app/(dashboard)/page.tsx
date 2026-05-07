@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FolderKanban, CheckCircle2, Clock, AlertCircle, CalendarClock } from "lucide-react";
+import { FolderKanban, CheckCircle2, Clock, AlertCircle, CalendarClock, Plus } from "lucide-react";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
 
 async function getUserProjects(userId: string) {
@@ -155,7 +155,17 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {projects.length === 0 ? (
-              <p className="text-zinc-500 text-sm py-4 text-center">No projects yet</p>
+              <div className="flex flex-col items-center gap-2 py-8">
+                <FolderKanban className="w-10 h-10 text-zinc-300 dark:text-zinc-700" />
+                <p className="text-sm font-medium text-zinc-500">No projects yet</p>
+                <Link
+                  href="/projects"
+                  className="mt-1 inline-flex items-center gap-1.5 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Create your first project
+                </Link>
+              </div>
             ) : (
               projects.map((project) => (
                 <Link

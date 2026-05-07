@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
 import { ProjectNav } from "@/components/projects/ProjectNav";
+import { ProjectShortcuts } from "@/components/projects/ProjectShortcuts";
 
 async function getProject(key: string, userId: string) {
   return prisma.project.findFirst({
@@ -44,6 +45,7 @@ export default async function ProjectLayout({
         <ProjectNav projectKey={params.projectKey} />
       </div>
       <div className="p-4 sm:p-6">{children}</div>
+      <ProjectShortcuts projectKey={params.projectKey} />
     </div>
   );
 }

@@ -80,7 +80,13 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
       <div className="flex flex-col items-center gap-3 py-16">
         <CheckSquare className="w-12 h-12 text-zinc-300 dark:text-zinc-700" />
         <p className="text-lg font-medium text-zinc-500">No issues found</p>
-        <p className="text-sm text-zinc-400 dark:text-zinc-600">Create your first issue to get started</p>
+        <p className="text-sm text-zinc-400 dark:text-zinc-600">
+          Press{" "}
+          <kbd className="px-1.5 py-0.5 text-xs font-mono bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded">
+            N
+          </kbd>{" "}
+          to create your first issue
+        </p>
       </div>
     );
   }

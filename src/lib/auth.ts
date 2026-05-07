@@ -39,7 +39,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
@@ -49,6 +49,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
         token.orgId = membership?.orgId;
       }
+      if (trigger === "update" && (session as { image?: string })?.image) {
+        token.picture = (session as { image?: string }).image;
+      }
       return token;
     },
     session({ session, token }) {
@@ -56,6 +59,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.orgId = token.orgId as string;
+        if (token.picture) session.user.image = token.picture as string;
       }
       return session;
     },

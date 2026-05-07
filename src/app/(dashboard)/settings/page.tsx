@@ -1,16 +1,30 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 import { ChangePasswordForm } from "./ChangePasswordForm";
+import { AvatarUpload } from "@/components/settings/AvatarUpload";
 
 export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { name: true, email: true, avatarUrl: true },
+  });
 
   return (
     <div className="max-w-2xl space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Settings</h1>
         <p className="text-zinc-500 text-sm mt-1">Manage your account preferences</p>
+      </div>
+
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Profile picture</h2>
+        </div>
+        <AvatarUpload currentImage={user?.avatarUrl} userName={user?.name} />
       </div>
 
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 space-y-4">
