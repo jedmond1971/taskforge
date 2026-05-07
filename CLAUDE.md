@@ -26,3 +26,52 @@ Every project belongs to exactly one organization, and every user-to-project rel
 - Billing/subscription changes
 - Broad project membership role redesign
 - Cascading project deletion on org delete
+
+---
+
+## UI component library
+
+This project uses **`@base-ui/react`** (NOT Radix UI). Standard shadcn components that depend on Radix (e.g. AlertDialog) do not exist here. Custom equivalents are built on Base UI primitives.
+
+- `src/components/ui/confirm-dialog.tsx` — reusable confirmation dialog (wraps Base UI Dialog). Use this for all destructive action confirmations instead of `window.confirm()`.
+- `src/components/ui/rich-text-editor.tsx` — TipTap v2 editor with toolbar (bold, italic, strike, H2/H3, bullet/numbered/task lists, code, blockquote, link, HR).
+- `src/components/ui/rich-text-display.tsx` — read-only HTML renderer for TipTap content. Handles plain-text fallback gracefully.
+
+---
+
+## Rich text (TipTap)
+
+Issue descriptions and comment bodies are stored as **HTML strings** in the database (the existing `String` fields handle this without schema changes).
+
+- Empty editor state is normalized to `""` (not `"<p></p>"`), so existing `|| null` / `|| undefined` checks continue to work.
+- Existing plain-text content is rendered correctly by `RichTextDisplay` via a `toSafeHtml()` fallback that wraps non-HTML strings in `<p>` tags.
+- ProseMirror + prose styles are in `src/app/globals.css` under the `/* Rich text editor */` comment block.
+- TipTap packages: `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-link`, `@tiptap/extension-task-list`, `@tiptap/extension-task-item`, `@tiptap/extension-placeholder`.
+
+---
+
+## Adding npm packages
+
+The bash sandbox cannot access `P:\TaskForge`, so `npm install` cannot be run from within a Cowork session. To add packages:
+1. Edit `package.json` manually (add to `dependencies`).
+2. Ask Jamie to run `npm install` locally — this updates `package-lock.json`.
+3. Commit both files and push. Railway uses `npm ci` which requires the lockfile to be in sync.
+
+---
+
+## Database migrations
+
+The Prisma CLI is not available in the bash sandbox. To add columns:
+- Run raw SQL via Python + psycopg2 against the Railway PostgreSQL URL (stored in Railway environment variables).
+- Example: `ALTER TABLE "Issue" ADD COLUMN IF NOT EXISTS "dueDate" TIMESTAMP(3);`
+- Also update `prisma/schema.prisma` to keep it in sync (Prisma will pick up the column on next query generation).
+
+---
+
+## Roadmap tracking
+
+All planned improvements are tracked as issues in the **JFR** project (JedForge Roadmap) at jedforge.com. When implementing a roadmap item:
+1. Look up the JFR issue for full context before starting.
+2. Set the JFR issue status to "In Progress" when work begins.
+3. Add a comment to the JFR issue documenting what was shipped.
+4. Set status to "Done" when deployed and verified.

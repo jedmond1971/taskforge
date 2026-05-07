@@ -32,11 +32,12 @@ interface IssueFormProps {
   members: ProjectMember[];
   issue?: ExistingIssue;
   defaultStatus?: IssueStatus;
+  parentId?: string | null;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
-export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess, onCancel }: IssueFormProps) {
+export function IssueForm({ projectKey, members, issue, defaultStatus, parentId, onSuccess, onCancel }: IssueFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +84,7 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, onSuccess
           });
           toast.success("Issue updated");
         } else {
-          await createIssue(projectKey, formData);
+          await createIssue(projectKey, { ...formData, parentId: parentId ?? null });
           toast.success("Issue created");
         }
         onSuccess?.();

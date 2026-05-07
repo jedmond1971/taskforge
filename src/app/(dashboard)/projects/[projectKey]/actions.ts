@@ -56,6 +56,7 @@ export async function createIssue(projectKey: string, formData: {
   assigneeId?: string;
   labels?: string[];
   dueDate?: Date | null;
+  parentId?: string | null;
 }) {
   const { userId, projectId, projectKey: key } = await requireProjectRole(projectKey, canEditIssues);
 
@@ -90,6 +91,7 @@ export async function createIssue(projectKey: string, formData: {
           labels: formData.labels ?? [],
           position: issueCount,
           dueDate: formData.dueDate ?? null,
+          parentId: formData.parentId ?? null,
         },
       });
       break;
@@ -286,6 +288,18 @@ export async function getIssue(projectKey: string, issueKey: string) {
     include: {
       assignee: { select: { id: true, name: true, avatarUrl: true } },
       reporter: { select: { id: true, name: true, avatarUrl: true } },
+      parent: { select: { id: true, key: true, title: true, status: true } },
+      children: {
+        select: {
+          id: true,
+          key: true,
+          title: true,
+          status: true,
+          priority: true,
+          assignee: { select: { id: true, name: true, avatarUrl: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
       comments: {
         include: { author: { select: { id: true, name: true, avatarUrl: true } } },
         orderBy: { createdAt: "asc" },

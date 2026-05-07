@@ -2,10 +2,11 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
 import { updateIssue, deleteIssue } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { STATUS_CONFIG, PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
-import { Pencil, Trash2, Check, X } from "lucide-react";
+import { Pencil, Trash2, Check, X, ChevronRight, Plus } from "lucide-react";
 import { LabelInput } from "@/components/issues/LabelInput";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { ActivityFeed } from "@/components/activity/ActivityFeed";
 import { AttachmentsPanel } from "@/components/attachments/AttachmentsPanel";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { RichTextDisplay } from "@/components/ui/rich-text-display";
+import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
 
 type User = { id: string; name: string; avatarUrl: string | null };
 type ActivityLog = {
@@ -34,6 +36,20 @@ type Comment = {
   updatedAt: Date;
   author: User;
 };
+type SubIssue = {
+  id: string;
+  key: string;
+  title: string;
+  status: IssueStatus;
+  priority: IssuePriority;
+  assignee: User | null;
+};
+type ParentIssue = {
+  id: string;
+  key: string;
+  title: string;
+  status: IssueStatus;
+};
 type Issue = {
   id: string;
   key: string;
@@ -43,12 +59,15 @@ type Issue = {
   priority: IssuePriority;
   type: IssueType;
   assigneeId: string | null;
+  parentId: string | null;
   labels: string[];
   dueDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
   assignee: User | null;
   reporter: User & { avatarUrl: string | null };
+  parent: ParentIssue | null;
+  children: SubIssue[];
   comments: Comment[];
   activityLogs: ActivityLog[];
   project: { id: string; key: string; name: string };
@@ -154,6 +173,30 @@ function InlineSelect<T extends string>({ label, value, options, issueId, projec
   );
 }
 
+function SubIssueRow({ subIssue, projectKey }: { subIssue: SubIssue; projectKey: string }) {
+  const statusCfg = STATUS_CONFIG[subIssue.status];
+  const priorityCfg = PRIORITY_CONFIG[subIssue.priority];
+
+  return (
+    <Link
+      href={`/projects/${projectKey}/issues/${subIssue.key}`}
+      className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors group"
+    >
+      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${statusCfg.color} ${statusCfg.bg} whitespace-nowrap`}>
+        {statusCfg.label}
+      </span>
+      <span className="font-mono text-xs text-indigo-500 dark:text-indigo-400 shrink-0">{subIssue.key}</span>
+      <span className="text-sm text-zinc-700 dark:text-zinc-300 flex-1 truncate group-hover:text-zinc-900 dark:group-hover:text-zinc-100">
+        {subIssue.title}
+      </span>
+      <span className="text-xs text-zinc-400 dark:text-zinc-600 shrink-0">{priorityCfg.label}</span>
+      {subIssue.assignee && (
+        <span className="text-xs text-zinc-400 dark:text-zinc-500 shrink-0 hidden sm:block">{subIssue.assignee.name}</span>
+      )}
+    </Link>
+  );
+}
+
 export function IssueDetail({ issue, members, projectKey, currentUserId, currentUserName, canEdit }: IssueDetailProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -161,6 +204,7 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
   const [description, setDescription] = useState(issue.description ?? "");
   const [labels, setLabels] = useState<string[]>(issue.labels);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [subIssueDialogOpen, setSubIssueDialogOpen] = useState(false);
   const [dueDate, setDueDate] = useState<string>(
     issue.dueDate ? new Date(issue.dueDate).toISOString().split("T")[0] : ""
   );
@@ -227,9 +271,32 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
       confirmLabel="Delete"
       onConfirm={handleConfirmDelete}
     />
+    <CreateIssueDialog
+      projectKey={projectKey}
+      open={subIssueDialogOpen}
+      onOpenChange={(open) => {
+        setSubIssueDialogOpen(open);
+        if (!open) refresh();
+      }}
+      parentId={issue.id}
+    />
     <div className="max-w-5xl min-w-0">
-      <div className="flex items-center gap-2 text-sm text-zinc-500 mb-4">
-        <span className="font-mono text-indigo-600 dark:text-indigo-400">{issue.key}</span>
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-sm text-zinc-500 mb-4 flex-wrap">
+        {issue.parent ? (
+          <>
+            <Link
+              href={`/projects/${projectKey}/issues/${issue.parent.key}`}
+              className="font-mono text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:underline"
+            >
+              {issue.parent.key}
+            </Link>
+            <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+            <span className="font-mono text-indigo-600 dark:text-indigo-400">{issue.key}</span>
+          </>
+        ) : (
+          <span className="font-mono text-indigo-600 dark:text-indigo-400">{issue.key}</span>
+        )}
         <span>·</span>
         <span>{issue.project.name}</span>
       </div>
@@ -306,6 +373,42 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
                 )}
               </div>
             )}
+          </div>
+
+          {/* Sub-Issues */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                Sub-Issues
+                {issue.children.length > 0 && (
+                  <span className="ml-2 text-xs text-zinc-400 dark:text-zinc-600 bg-zinc-100 dark:bg-zinc-800 rounded px-1.5 py-0.5 font-mono">
+                    {issue.children.length}
+                  </span>
+                )}
+              </h3>
+              {canEdit && (
+                <button
+                  onClick={() => setSubIssueDialogOpen(true)}
+                  className="flex items-center gap-1 text-xs text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add sub-issue
+                </button>
+              )}
+            </div>
+            <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+              {issue.children.length === 0 ? (
+                <p className="text-sm text-zinc-400 dark:text-zinc-600 italic px-3 py-3">
+                  No sub-issues yet.{canEdit ? " Click \"Add sub-issue\" to create one." : ""}
+                </p>
+              ) : (
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {issue.children.map((child) => (
+                    <SubIssueRow key={child.id} subIssue={child} projectKey={projectKey} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Labels */}
