@@ -62,9 +62,28 @@ The bash sandbox cannot access `P:\TaskForge`, so `npm install` cannot be run fr
 ## Database migrations
 
 The Prisma CLI is not available in the bash sandbox. To add columns:
-- Run raw SQL via Python + psycopg2 against the Railway PostgreSQL URL (stored in Railway environment variables).
+- Connect using the `DATABASE_PUBLIC_URL` from `railway variables --service Postgres`.
+- Run raw SQL via a `node -e` script using `@prisma/client` with the public URL, or psycopg2 if available.
 - Example: `ALTER TABLE "Issue" ADD COLUMN IF NOT EXISTS "dueDate" TIMESTAMP(3);`
 - Also update `prisma/schema.prisma` to keep it in sync (Prisma will pick up the column on next query generation).
+
+---
+
+## Keyboard shortcuts
+
+Global shortcuts registered in `DashboardShell`:
+- `/` — navigate to `/search` (or focus the QueryBar if already there, via `jedforge:focus-search` custom event)
+
+Project-context shortcuts registered via `ProjectShortcuts` (injected into the project layout):
+- `N` — open CreateIssueDialog for the current project
+
+Both shortcuts are suppressed when focus is inside an `INPUT`, `TEXTAREA`, or a `contenteditable` element.
+
+---
+
+## Avatar upload
+
+User avatars are uploaded to Railway S3 under the key `avatars/{userId}.jpg` and served through the proxy route `/api/avatar?key=avatars/{userId}.jpg`, which redirects to a fresh presigned S3 download URL (1-hour browser cache). The full proxy URL is stored in `User.avatarUrl`. After upload the client calls `useSession().update({ image: url })` to refresh the session token immediately without requiring sign-out.
 
 ---
 
