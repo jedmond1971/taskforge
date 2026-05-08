@@ -3,7 +3,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { getPresignedUploadUrl } from "@/lib/s3";
 
 export async function changePassword(
   currentPassword: string,
@@ -36,24 +35,3 @@ export async function changePassword(
   return { success: true };
 }
 
-export async function getAvatarUploadUrl(): Promise<{ uploadUrl: string; key: string }> {
-  const session = await auth();
-  if (!session?.user) throw new Error("Unauthorized");
-
-  const key = `avatars/${session.user.id}.jpg`;
-  const uploadUrl = await getPresignedUploadUrl(key, "image/jpeg", 512 * 1024);
-  return { uploadUrl, key };
-}
-
-export async function saveAvatar(key: string): Promise<{ avatarUrl: string }> {
-  const session = await auth();
-  if (!session?.user) throw new Error("Unauthorized");
-  if (key !== `avatars/${session.user.id}.jpg`) throw new Error("Invalid key");
-
-  const avatarUrl = `/api/avatar?key=${key}`;
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: { avatarUrl },
-  });
-  return { avatarUrl };
-}

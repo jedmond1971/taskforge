@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Camera, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getAvatarUploadUrl, saveAvatar } from "@/app/(dashboard)/settings/actions";
 
 interface AvatarUploadProps {
   currentImage: string | null | undefined;
@@ -67,16 +66,14 @@ export function AvatarUpload({ currentImage, userName }: AvatarUploadProps) {
     try {
       const resized = await resizeToJpeg(file);
 
-      const { uploadUrl, key } = await getAvatarUploadUrl();
-
-      const uploadRes = await fetch(uploadUrl, {
+      const uploadRes = await fetch("/api/avatar", {
         method: "PUT",
         body: resized,
         headers: { "Content-Type": "image/jpeg" },
       });
       if (!uploadRes.ok) throw new Error("Upload failed");
 
-      const { avatarUrl } = await saveAvatar(key);
+      const { avatarUrl } = await uploadRes.json();
 
       setPreviewUrl(avatarUrl + "&t=" + Date.now());
       await update({ image: avatarUrl });
