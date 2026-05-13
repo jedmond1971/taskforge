@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canEditIssues } from "@/lib/permissions";
+import { notificationService } from "@/lib/notifications";
 
 export async function PATCH(
   request: NextRequest,
@@ -82,6 +83,36 @@ export async function PATCH(
 
     if (logs.length > 0) {
       await prisma.activityLog.createMany({ data: logs });
+    }
+
+    if (
+      "assigneeId" in updates &&
+      updates.assigneeId != null &&
+      updates.assigneeId !== issue.assigneeId
+    ) {
+      await notificationService.issueAssigned({
+        assigneeId: updates.assigneeId as string,
+        issueKey: issue.key,
+        issueTitle: issue.title,
+        issueId: issue.id,
+        actorId: session.user.id,
+      });
+    }
+
+    if (
+      "status" in updates &&
+      updates.status !== undefined &&
+      updates.status !== issue.status
+    ) {
+      await notificationService.statusChanged({
+        issueKey: issue.key,
+        issueTitle: issue.title,
+        issueId: issue.id,
+        newStatus: updates.status as string,
+        assigneeId: issue.assigneeId,
+        reporterId: issue.reporterId,
+        actorId: session.user.id,
+      });
     }
 
     return NextResponse.json({ issue: updated });

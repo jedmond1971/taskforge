@@ -15,6 +15,7 @@ import {
 } from "@/lib/permissions";
 import { IssueStatus, IssuePriority, IssueType, ProjectMemberRole, Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { notificationService } from "@/lib/notifications";
 
 // Helper: verify user is a project member, returns { userId, projectId }
 async function requireProjectMember(projectKey: string) {
@@ -109,6 +110,16 @@ export async function createIssue(projectKey: string, formData: {
     action: "created",
   });
 
+  if (issue.assigneeId) {
+    await notificationService.issueAssigned({
+      assigneeId: issue.assigneeId,
+      issueKey: issue.key,
+      issueTitle: issue.title,
+      issueId: issue.id,
+      actorId: userId,
+    });
+  }
+
   revalidatePath(`/projects/${projectKey}/issues`);
   revalidatePath(`/projects/${projectKey}/board`);
   return { success: true, issue };
@@ -181,6 +192,36 @@ export async function updateIssue(
         });
       }
     }
+  }
+
+  if (
+    "assigneeId" in updates &&
+    updates.assigneeId != null &&
+    updates.assigneeId !== existing.assigneeId
+  ) {
+    await notificationService.issueAssigned({
+      assigneeId: updates.assigneeId,
+      issueKey: existing.key,
+      issueTitle: existing.title,
+      issueId: issueId,
+      actorId: userId,
+    });
+  }
+
+  if (
+    "status" in updates &&
+    updates.status !== undefined &&
+    updates.status !== existing.status
+  ) {
+    await notificationService.statusChanged({
+      issueKey: existing.key,
+      issueTitle: existing.title,
+      issueId: issueId,
+      newStatus: updates.status,
+      assigneeId: existing.assigneeId,
+      reporterId: existing.reporterId,
+      actorId: userId,
+    });
   }
 
   revalidatePath(`/projects/${projectKey}/issues`);
@@ -422,7 +463,7 @@ export async function addComment(projectKey: string, issueId: string, body: stri
 
   const issue = await prisma.issue.findFirst({
     where: { id: issueId, projectId },
-    select: { id: true },
+    select: { id: true, key: true, title: true, assigneeId: true, reporterId: true },
   });
   if (!issue) throw new Error("Issue not found");
 
@@ -435,6 +476,15 @@ export async function addComment(projectKey: string, issueId: string, body: stri
     issueId,
     userId,
     action: "commented",
+  });
+
+  await notificationService.commentAdded({
+    issueKey: issue.key,
+    issueTitle: issue.title,
+    issueId: issue.id,
+    assigneeId: issue.assigneeId,
+    reporterId: issue.reporterId,
+    actorId: userId,
   });
 
   revalidatePath(`/projects/${projectKey}/issues/${issueId}`);
