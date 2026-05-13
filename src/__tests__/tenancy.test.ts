@@ -97,46 +97,13 @@ function mockProjectWithOrg(projectId = "proj-1", orgId = "org-1") {
 describe("POST /api/auth/register", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPrisma.$transaction.mockImplementation((fn: (tx: typeof mockPrisma) => Promise<unknown>) =>
-      fn(mockPrisma)
-    );
   });
 
-  it("creates user, organization, and OWNER OrgMember in a transaction", async () => {
-    mockPrisma.user.findUnique.mockResolvedValue(null);
-    mockPrisma.organization.findUnique.mockResolvedValue(null);
-    mockPrisma.user.create.mockResolvedValue({ id: "u1", name: "Alice", email: "alice@example.com" });
-    mockPrisma.organization.create.mockResolvedValue({ id: "o1" });
-    mockPrisma.orgMember.create.mockResolvedValue({});
-
-    const res = await POST(makeRequest({ name: "Alice", email: "alice@example.com", password: "secret" }));
-    expect(res.status).toBe(201);
-
-    expect(mockPrisma.$transaction).toHaveBeenCalled();
-    expect(mockPrisma.user.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ email: "alice@example.com" }) })
-    );
-    expect(mockPrisma.organization.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ ownerId: "u1" }) })
-    );
-    expect(mockPrisma.orgMember.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ orgId: "o1", userId: "u1", role: "OWNER" }),
-      })
-    );
-  });
-
-  it("returns 409 when email is already in use", async () => {
-    mockPrisma.user.findUnique.mockResolvedValue({ id: "existing" });
-
-    const res = await POST(makeRequest({ name: "Alice", email: "taken@example.com", password: "secret" }));
-    expect(res.status).toBe(409);
+  it("returns 403 — self-registration is disabled", async () => {
+    const res = await POST();
+    expect(res.status).toBe(403);
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
-  });
-
-  it("returns 400 when required fields are missing", async () => {
-    const res = await POST(makeRequest({ name: "Alice", email: "alice@example.com" }));
-    expect(res.status).toBe(400);
+    expect(mockPrisma.user.create).not.toHaveBeenCalled();
   });
 });
 

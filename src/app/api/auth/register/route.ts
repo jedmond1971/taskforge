@@ -1,61 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 
-function generateSlug(name: string): string {
-  return (
-    name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50) || "org"
+export async function POST() {
+  return NextResponse.json(
+    { error: "Account registration is not available. Please contact your administrator." },
+    { status: 403 }
   );
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const { name, email, password } = await request.json();
-
-    if (!name || !email || !password) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
-
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return NextResponse.json({ error: "Email already in use" }, { status: 409 });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 12);
-
-    const baseSlug = generateSlug(name);
-
-    const user = await prisma.$transaction(async (tx) => {
-      const newUser = await tx.user.create({
-        data: { name, email, passwordHash },
-        select: { id: true, name: true, email: true },
-      });
-
-      // Resolve a unique slug deterministically inside the transaction
-      let slug = baseSlug;
-      let counter = 2;
-      while (await tx.organization.findUnique({ where: { slug }, select: { id: true } })) {
-        slug = `${baseSlug}-${counter++}`;
-      }
-
-      const org = await tx.organization.create({
-        data: {
-          name: `${name}'s Organization`,
-          slug,
-          ownerId: newUser.id,
-        },
-      });
-
-      await tx.orgMember.create({
-        data: { orgId: org.id, userId: newUser.id, role: "OWNER" },
-      });
-
-      return newUser;
-    });
-
-    return NextResponse.json({ user }, { status: 201 });
-  } catch (error) {
-    console.error("Registration error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
 }

@@ -10,9 +10,8 @@ export default auth((req) => {
 
   const isAuthRoute = nextUrl.pathname.startsWith("/login") || nextUrl.pathname.startsWith("/register");
   const isApiRoute = nextUrl.pathname.startsWith("/api");
-  const isPublicApiRoute = nextUrl.pathname === "/api/auth/register";
 
-  if (isApiRoute && !isPublicApiRoute) return NextResponse.next();
+  if (isApiRoute) return NextResponse.next();
 
   if (isAuthRoute) {
     if (isLoggedIn) return NextResponse.redirect(new URL("/", nextUrl));
