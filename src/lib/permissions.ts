@@ -2,27 +2,27 @@ import { ProjectMemberRole } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// Role hierarchy: OWNER > ADMIN > MEMBER > VIEWER
+// Role hierarchy: PROJECT_LEAD > TEAM_MEMBER > VIEWER
 export type ProjectRole = ProjectMemberRole;
 
-/** OWNER only — delete project, transfer ownership */
+/** PROJECT_LEAD only — delete project */
 export function canManageProject(role: ProjectRole): boolean {
-  return role === "OWNER";
+  return role === "PROJECT_LEAD";
 }
 
-/** OWNER + ADMIN — rename, description, manage members */
+/** PROJECT_LEAD only — rename, description, manage members */
 export function canEditSettings(role: ProjectRole): boolean {
-  return role === "OWNER" || role === "ADMIN";
+  return role === "PROJECT_LEAD";
 }
 
-/** OWNER + ADMIN — invite, remove, change roles */
+/** PROJECT_LEAD only — invite, remove, change roles */
 export function canManageMembers(role: ProjectRole): boolean {
-  return role === "OWNER" || role === "ADMIN";
+  return role === "PROJECT_LEAD";
 }
 
-/** OWNER + ADMIN + MEMBER — create, edit, delete issues and comments */
+/** PROJECT_LEAD + TEAM_MEMBER — create, edit, delete issues and comments */
 export function canEditIssues(role: ProjectRole): boolean {
-  return role === "OWNER" || role === "ADMIN" || role === "MEMBER";
+  return role === "PROJECT_LEAD" || role === "TEAM_MEMBER";
 }
 
 /** All roles can view */

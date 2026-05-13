@@ -57,8 +57,8 @@ export default async function ProjectsPage() {
                       </div>
                     </div>
                     {myRole && (
-                      <Badge variant="outline" className="text-xs border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 capitalize">
-                        {myRole.toLowerCase()}
+                      <Badge variant="outline" className="text-xs border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400">
+                        {{ PROJECT_LEAD: "Project Lead", TEAM_MEMBER: "Team Member", VIEWER: "Viewer" }[myRole] ?? myRole}
                       </Badge>
                     )}
                   </div>

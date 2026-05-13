@@ -4,6 +4,7 @@ import { useState, useTransition, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Search, Plus, Pencil, Trash2 } from "lucide-react";
+import type { UserRole } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +29,7 @@ type AdminUser = {
   name: string;
   email: string;
   avatarUrl: string | null;
-  role: "ADMIN" | "MEMBER";
+  role: UserRole;
   createdAt: Date;
   _count: { projectMembers: number };
 };
@@ -57,13 +58,13 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
   const [createName, setCreateName] = useState("");
   const [createEmail, setCreateEmail] = useState("");
   const [createPassword, setCreatePassword] = useState("");
-  const [createRole, setCreateRole] = useState<"ADMIN" | "MEMBER">("MEMBER");
+  const [createRole, setCreateRole] = useState<"ADMIN" | "TEAM_MEMBER">("TEAM_MEMBER");
   const [creating, setCreating] = useState(false);
 
   // Edit form
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
-  const [editRole, setEditRole] = useState<"ADMIN" | "MEMBER">("MEMBER");
+  const [editRole, setEditRole] = useState<"ADMIN" | "TEAM_MEMBER">("TEAM_MEMBER");
   const [editing, setEditing] = useState(false);
 
   // Delete
@@ -93,7 +94,7 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
     setEditUser(user);
     setEditName(user.name);
     setEditEmail(user.email);
-    setEditRole(user.role);
+    setEditRole(user.role === "ADMIN" ? "ADMIN" : "TEAM_MEMBER");
   }, []);
 
   const handleCreate = async () => {
@@ -114,7 +115,7 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
       setCreateName("");
       setCreateEmail("");
       setCreatePassword("");
-      setCreateRole("MEMBER");
+      setCreateRole("TEAM_MEMBER");
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create user");
@@ -297,10 +298,10 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
               <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Role</label>
               <select
                 value={createRole}
-                onChange={(e) => setCreateRole(e.target.value as "ADMIN" | "MEMBER")}
+                onChange={(e) => setCreateRole(e.target.value as "ADMIN" | "TEAM_MEMBER")}
                 className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               >
-                <option value="MEMBER">Member</option>
+                <option value="TEAM_MEMBER">Team Member</option>
                 <option value="ADMIN">Admin</option>
               </select>
             </div>
@@ -347,10 +348,10 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
               <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Role</label>
               <select
                 value={editRole}
-                onChange={(e) => setEditRole(e.target.value as "ADMIN" | "MEMBER")}
+                onChange={(e) => setEditRole(e.target.value as "ADMIN" | "TEAM_MEMBER")}
                 className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               >
-                <option value="MEMBER">Member</option>
+                <option value="TEAM_MEMBER">Team Member</option>
                 <option value="ADMIN">Admin</option>
               </select>
             </div>

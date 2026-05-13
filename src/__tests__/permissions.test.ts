@@ -14,33 +14,29 @@ import {
 } from "@/lib/permissions";
 import type { ProjectRole } from "@/lib/permissions";
 
-const ALL_ROLES: ProjectRole[] = ["OWNER", "ADMIN", "MEMBER", "VIEWER"];
+const ALL_ROLES: ProjectRole[] = ["PROJECT_LEAD", "TEAM_MEMBER", "VIEWER"];
 
-describe("canManageProject — OWNER only", () => {
-  it("allows OWNER", () => expect(canManageProject("OWNER")).toBe(true));
-  it("denies ADMIN", () => expect(canManageProject("ADMIN")).toBe(false));
-  it("denies MEMBER", () => expect(canManageProject("MEMBER")).toBe(false));
+describe("canManageProject — PROJECT_LEAD only", () => {
+  it("allows PROJECT_LEAD", () => expect(canManageProject("PROJECT_LEAD")).toBe(true));
+  it("denies TEAM_MEMBER", () => expect(canManageProject("TEAM_MEMBER")).toBe(false));
   it("denies VIEWER", () => expect(canManageProject("VIEWER")).toBe(false));
 });
 
-describe("canEditSettings — OWNER and ADMIN", () => {
-  it("allows OWNER", () => expect(canEditSettings("OWNER")).toBe(true));
-  it("allows ADMIN", () => expect(canEditSettings("ADMIN")).toBe(true));
-  it("denies MEMBER", () => expect(canEditSettings("MEMBER")).toBe(false));
+describe("canEditSettings — PROJECT_LEAD only", () => {
+  it("allows PROJECT_LEAD", () => expect(canEditSettings("PROJECT_LEAD")).toBe(true));
+  it("denies TEAM_MEMBER", () => expect(canEditSettings("TEAM_MEMBER")).toBe(false));
   it("denies VIEWER", () => expect(canEditSettings("VIEWER")).toBe(false));
 });
 
-describe("canManageMembers — OWNER and ADMIN", () => {
-  it("allows OWNER", () => expect(canManageMembers("OWNER")).toBe(true));
-  it("allows ADMIN", () => expect(canManageMembers("ADMIN")).toBe(true));
-  it("denies MEMBER", () => expect(canManageMembers("MEMBER")).toBe(false));
+describe("canManageMembers — PROJECT_LEAD only", () => {
+  it("allows PROJECT_LEAD", () => expect(canManageMembers("PROJECT_LEAD")).toBe(true));
+  it("denies TEAM_MEMBER", () => expect(canManageMembers("TEAM_MEMBER")).toBe(false));
   it("denies VIEWER", () => expect(canManageMembers("VIEWER")).toBe(false));
 });
 
-describe("canEditIssues — OWNER, ADMIN, and MEMBER", () => {
-  it("allows OWNER", () => expect(canEditIssues("OWNER")).toBe(true));
-  it("allows ADMIN", () => expect(canEditIssues("ADMIN")).toBe(true));
-  it("allows MEMBER", () => expect(canEditIssues("MEMBER")).toBe(true));
+describe("canEditIssues — PROJECT_LEAD and TEAM_MEMBER", () => {
+  it("allows PROJECT_LEAD", () => expect(canEditIssues("PROJECT_LEAD")).toBe(true));
+  it("allows TEAM_MEMBER", () => expect(canEditIssues("TEAM_MEMBER")).toBe(true));
   it("denies VIEWER", () => expect(canEditIssues("VIEWER")).toBe(false));
 });
 
@@ -53,10 +49,10 @@ describe("canComment — all roles", () => {
 });
 
 describe("role hierarchy consistency", () => {
-  it("OWNER can do everything ADMIN can", () => {
+  it("PROJECT_LEAD can do everything TEAM_MEMBER can", () => {
     const checks = [canEditSettings, canManageMembers, canEditIssues, canViewProject, canComment];
     for (const check of checks) {
-      expect(check("OWNER")).toBe(check("ADMIN") || true);
+      expect(check("PROJECT_LEAD")).toBe(check("TEAM_MEMBER") || true);
     }
   });
 

@@ -9,7 +9,8 @@ datasource db {
 
 enum UserRole {
   ADMIN
-  MEMBER
+  TEAM_MEMBER
+  VIEWER
 }
 
 enum OrgRole {
@@ -33,9 +34,8 @@ enum SubscriptionStatus {
 }
 
 enum ProjectMemberRole {
-  OWNER
-  ADMIN
-  MEMBER
+  PROJECT_LEAD
+  TEAM_MEMBER
   VIEWER
 }
 
@@ -66,7 +66,7 @@ model User {
   email        String   @unique
   passwordHash String
   avatarUrl    String?
-  role         UserRole @default(MEMBER)
+  role         UserRole @default(TEAM_MEMBER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -100,7 +100,7 @@ model ProjectMember {
   id        String            @id @default(cuid())
   userId    String
   projectId String
-  role      ProjectMemberRole @default(MEMBER)
+  role      ProjectMemberRole @default(TEAM_MEMBER)
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)

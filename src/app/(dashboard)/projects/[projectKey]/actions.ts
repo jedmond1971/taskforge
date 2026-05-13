@@ -547,7 +547,7 @@ export async function removeProjectMember(
     where: { id: membershipId, projectId },
   });
   if (!membership) throw new Error("Membership not found");
-  if (membership.role === "OWNER") throw new Error("Cannot remove the project owner");
+  if (membership.role === "PROJECT_LEAD") throw new Error("Cannot remove a project lead");
 
   await prisma.projectMember.delete({ where: { id: membershipId } });
 
@@ -567,7 +567,7 @@ export async function changeMemberRole(
     where: { id: membershipId, projectId },
   });
   if (!membership) throw new Error("Membership not found");
-  if (membership.role === "OWNER") throw new Error("Cannot change the owner's role");
+  if (membership.role === "PROJECT_LEAD") throw new Error("Cannot change a project lead's role");
 
   await prisma.projectMember.update({
     where: { id: membershipId },

@@ -34,10 +34,10 @@ import { createIssue, moveIssue, reorderIssues } from "@/app/(dashboard)/project
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function mockSession(userId = "user-1") {
-  mockAuthFn.mockResolvedValue({ user: { id: userId, role: "MEMBER" } });
+  mockAuthFn.mockResolvedValue({ user: { id: userId, role: "TEAM_MEMBER" } });
 }
 
-function mockProjectMembership(projectId = "proj-1", orgId = "org-1", role = "OWNER") {
+function mockProjectMembership(projectId = "proj-1", orgId = "org-1", role = "PROJECT_LEAD") {
   mockPrisma.project.findUnique.mockResolvedValue({ id: projectId, key: "PRJ", orgId });
   mockPrisma.projectMember.findUnique.mockResolvedValue({ role });
 }

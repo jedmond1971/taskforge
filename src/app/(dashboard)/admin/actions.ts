@@ -120,7 +120,7 @@ export async function getAdminProjects(search?: string) {
       createdAt: true,
       _count: { select: { members: true, issues: true } },
       members: {
-        where: { role: "OWNER" },
+        where: { role: "PROJECT_LEAD" },
         select: { user: { select: { name: true } } },
         take: 1,
       },

@@ -43,6 +43,7 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
     },
     activityLog: {
       create: vi.fn(),
+      createMany: vi.fn(),
     },
     $transaction: vi.fn(),
   };
@@ -83,12 +84,12 @@ function makeRequest(body: unknown): NextRequest {
 }
 
 function mockSession(userId = "user-1", orgId = "org-1") {
-  mockAuthFn.mockResolvedValue({ user: { id: userId, role: "MEMBER", orgId } });
+  mockAuthFn.mockResolvedValue({ user: { id: userId, role: "TEAM_MEMBER", orgId } });
 }
 
 function mockProjectWithOrg(projectId = "proj-1", orgId = "org-1") {
   mockPrisma.project.findUnique.mockResolvedValue({ id: projectId, key: "PRJ", orgId });
-  mockPrisma.projectMember.findUnique.mockResolvedValue({ role: "OWNER" });
+  mockPrisma.projectMember.findUnique.mockResolvedValue({ role: "PROJECT_LEAD" });
 }
 
 // ─── 1. Registration ──────────────────────────────────────────────────────────
@@ -195,7 +196,7 @@ describe("addProjectMember", () => {
   it("rejects a user from another org", async () => {
     mockPrisma.orgMember.findUnique.mockResolvedValue(null); // not in org
 
-    await expect(addProjectMember("PRJ", "outsider-id", "MEMBER")).rejects.toThrow(
+    await expect(addProjectMember("PRJ", "outsider-id", "TEAM_MEMBER")).rejects.toThrow(
       "not a member of this organization"
     );
     expect(mockPrisma.projectMember.create).not.toHaveBeenCalled();
@@ -204,21 +205,21 @@ describe("addProjectMember", () => {
   it("rejects a user already in the project", async () => {
     mockPrisma.orgMember.findUnique.mockResolvedValue({ role: "MEMBER" });
     mockPrisma.projectMember.findUnique
-      .mockResolvedValueOnce({ role: "OWNER" }) // caller's requireProjectRole check
-      .mockResolvedValueOnce({ role: "MEMBER" }); // already a project member
+      .mockResolvedValueOnce({ role: "PROJECT_LEAD" }) // caller's requireProjectRole check
+      .mockResolvedValueOnce({ role: "TEAM_MEMBER" }); // already a project member
 
-    await expect(addProjectMember("PRJ", "user-2", "MEMBER")).rejects.toThrow("already a project member");
+    await expect(addProjectMember("PRJ", "user-2", "TEAM_MEMBER")).rejects.toThrow("already a project member");
     expect(mockPrisma.projectMember.create).not.toHaveBeenCalled();
   });
 
   it("succeeds for a valid org member not yet in the project", async () => {
     mockPrisma.orgMember.findUnique.mockResolvedValue({ role: "MEMBER" });
     mockPrisma.projectMember.findUnique
-      .mockResolvedValueOnce({ role: "OWNER" }) // caller is project owner
+      .mockResolvedValueOnce({ role: "PROJECT_LEAD" }) // caller is project lead
       .mockResolvedValueOnce(null); // target not yet in project
     mockPrisma.projectMember.create.mockResolvedValue({});
 
-    const result = await addProjectMember("PRJ", "user-2", "MEMBER");
+    const result = await addProjectMember("PRJ", "user-2", "TEAM_MEMBER");
     expect(result).toEqual({ success: true });
     expect(mockPrisma.projectMember.create).toHaveBeenCalled();
   });
@@ -246,7 +247,7 @@ describe("createUserAndAddToProject", () => {
       name: "Carol",
       email: "carol@org.com",
       password: "pass",
-      role: "MEMBER",
+      role: "TEAM_MEMBER",
     });
 
     expect(result).toEqual({ success: true });
@@ -269,7 +270,7 @@ describe("createUserAndAddToProject", () => {
         name: "Carol",
         email: "taken@org.com",
         password: "pass",
-        role: "MEMBER",
+        role: "TEAM_MEMBER",
       })
     ).rejects.toThrow("already exists");
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
@@ -288,7 +289,7 @@ describe("createIssue", () => {
 
   it("rejects an assignee who is not a project member", async () => {
     mockPrisma.projectMember.findUnique
-      .mockResolvedValueOnce({ role: "OWNER" }) // caller check
+      .mockResolvedValueOnce({ role: "PROJECT_LEAD" }) // caller check
       .mockResolvedValueOnce(null); // assignee not in project
 
     await expect(createIssue("PRJ", { title: "Bug", assigneeId: "outsider" })).rejects.toThrow(
@@ -297,7 +298,7 @@ describe("createIssue", () => {
   });
 
   it("allows null assignee without validation", async () => {
-    mockPrisma.projectMember.findUnique.mockResolvedValueOnce({ role: "OWNER" });
+    mockPrisma.projectMember.findUnique.mockResolvedValueOnce({ role: "PROJECT_LEAD" });
     mockPrisma.issue.create.mockResolvedValue({ id: "i1", key: "PRJ-1" });
 
     const result = await createIssue("PRJ", { title: "Task" });
@@ -314,7 +315,7 @@ describe("updateIssue", () => {
 
   it("rejects an assignee who is not a project member", async () => {
     mockPrisma.projectMember.findUnique
-      .mockResolvedValueOnce({ role: "OWNER" }) // caller check
+      .mockResolvedValueOnce({ role: "PROJECT_LEAD" }) // caller check
       .mockResolvedValueOnce(null); // assignee not in project
 
     await expect(updateIssue("PRJ", "issue-1", { assigneeId: "outsider" })).rejects.toThrow(
@@ -323,7 +324,7 @@ describe("updateIssue", () => {
   });
 
   it("allows null assigneeId to unassign", async () => {
-    mockPrisma.projectMember.findUnique.mockResolvedValueOnce({ role: "OWNER" });
+    mockPrisma.projectMember.findUnique.mockResolvedValueOnce({ role: "PROJECT_LEAD" });
     mockPrisma.issue.findFirst.mockResolvedValue({
       id: "issue-1",
       title: "T",
@@ -423,14 +424,14 @@ describe("PATCH /api/issues/[issueId]", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAuthFn.mockResolvedValue({ user: { id: "user-1", role: "MEMBER", orgId: "org-1" } });
+    mockAuthFn.mockResolvedValue({ user: { id: "user-1", role: "TEAM_MEMBER", orgId: "org-1" } });
     mockPrisma.issue.findUnique.mockResolvedValue(mockIssue);
-    mockPrisma.projectMember.findUnique.mockResolvedValue({ role: "MEMBER" }); // caller is a member
+    mockPrisma.projectMember.findUnique.mockResolvedValue({ role: "TEAM_MEMBER" }); // caller is a member
   });
 
   it("returns 400 when assigneeId is not a project member", async () => {
     mockPrisma.projectMember.findUnique
-      .mockResolvedValueOnce({ role: "MEMBER" }) // caller check
+      .mockResolvedValueOnce({ role: "TEAM_MEMBER" }) // caller check
       .mockResolvedValueOnce(null); // assignee check
 
     const res = await patchIssue(
@@ -455,8 +456,8 @@ describe("PATCH /api/issues/[issueId]", () => {
 
   it("accepts a valid assigneeId that is a project member", async () => {
     mockPrisma.projectMember.findUnique
-      .mockResolvedValueOnce({ role: "MEMBER" }) // caller check
-      .mockResolvedValueOnce({ role: "MEMBER" }); // assignee is a member
+      .mockResolvedValueOnce({ role: "TEAM_MEMBER" }) // caller check
+      .mockResolvedValueOnce({ role: "TEAM_MEMBER" }); // assignee is a member
     mockPrisma.issue.update.mockResolvedValue({ ...mockIssue, assigneeId: "user-2" });
     mockPrisma.activityLog.createMany = vi.fn().mockResolvedValue({});
 

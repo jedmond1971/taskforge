@@ -33,7 +33,7 @@ export async function DELETE(
     });
 
     const isUploader = attachment.uploaderId === session.user.id;
-    const isPrivileged = member && ["OWNER", "ADMIN"].includes(member.role);
+    const isPrivileged = member && member.role === "PROJECT_LEAD";
 
     if (!isUploader && !isPrivileged) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

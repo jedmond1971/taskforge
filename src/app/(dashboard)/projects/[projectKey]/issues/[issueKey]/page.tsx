@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { getIssue, getProjectMembers } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { IssueDetail } from "@/components/issues/IssueDetail";
+import { canEditIssues } from "@/lib/permissions";
 
 interface PageProps {
   params: { projectKey: string; issueKey: string };
@@ -19,9 +20,7 @@ export default async function IssueDetailPage({ params }: PageProps) {
   if (!issue) notFound();
 
   const currentMember = members.find((m) => m.userId === session.user.id);
-  const canEdit = currentMember
-    ? ["OWNER", "ADMIN", "MEMBER"].includes(currentMember.role)
-    : false;
+  const canEdit = currentMember ? canEditIssues(currentMember.role) : false;
 
   return (
     <IssueDetail

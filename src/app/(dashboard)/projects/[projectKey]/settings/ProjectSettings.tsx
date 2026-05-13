@@ -61,10 +61,15 @@ interface ProjectSettingsProps {
 }
 
 const roleColors: Record<string, string> = {
-  OWNER: "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30",
-  ADMIN: "bg-amber-500/20 text-amber-400 border border-amber-500/30",
-  MEMBER: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30",
+  PROJECT_LEAD: "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30",
+  TEAM_MEMBER: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30",
   VIEWER: "bg-zinc-500/20 text-zinc-400 border border-zinc-500/30",
+};
+
+const roleLabels: Record<string, string> = {
+  PROJECT_LEAD: "Project Lead",
+  TEAM_MEMBER: "Team Member",
+  VIEWER: "Viewer",
 };
 
 const selectStyles =
@@ -93,7 +98,7 @@ export function ProjectSettings({
   const tabs = [
     { id: "general", label: "General" },
     { id: "members", label: "Members" },
-    ...(currentUserRole === "OWNER"
+    ...(currentUserRole === "PROJECT_LEAD"
       ? [{ id: "danger", label: "Danger Zone" }]
       : []),
   ];
@@ -134,7 +139,7 @@ export function ProjectSettings({
           projectKey={projectKey}
         />
       )}
-      {activeTab === "danger" && currentUserRole === "OWNER" && (
+      {activeTab === "danger" && currentUserRole === "PROJECT_LEAD" && (
         <DangerZoneTab project={project} projectKey={projectKey} />
       )}
     </div>
@@ -290,8 +295,7 @@ function MembersTab({
     }
   }
 
-  const canManage =
-    currentUserRole === "OWNER" || currentUserRole === "ADMIN";
+  const canManage = currentUserRole === "PROJECT_LEAD";
 
   return (
     <div className="space-y-8">
@@ -302,7 +306,7 @@ function MembersTab({
         </h3>
         <div className="divide-y divide-zinc-200 dark:divide-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
           {members.map((member) => {
-            const isOwner = member.role === "OWNER";
+            const isOwner = member.role === "PROJECT_LEAD";
             const isSelf = member.userId === currentUserId;
 
             return (
@@ -344,8 +348,7 @@ function MembersTab({
                     disabled={changingRoleId === member.id}
                     className={selectStyles}
                   >
-                    <option value="ADMIN">Admin</option>
-                    <option value="MEMBER">Member</option>
+                    <option value="TEAM_MEMBER">Team Member</option>
                     <option value="VIEWER">Viewer</option>
                   </select>
                 ) : (
@@ -355,7 +358,7 @@ function MembersTab({
                       roleColors[member.role]
                     )}
                   >
-                    {member.role}
+                    {roleLabels[member.role] ?? member.role}
                   </span>
                 )}
 
@@ -434,7 +437,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
   const [searchResults, setSearchResults] = useState<SearchedUser[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedUser, setSelectedUser] = useState<SearchedUser | null>(null);
-  const [addRole, setAddRole] = useState<ProjectMemberRole>("MEMBER");
+  const [addRole, setAddRole] = useState<ProjectMemberRole>("TEAM_MEMBER");
   const [adding, setAdding] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -442,7 +445,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [createRole, setCreateRole] = useState<ProjectMemberRole>("MEMBER");
+  const [createRole, setCreateRole] = useState<ProjectMemberRole>("TEAM_MEMBER");
   const [creating, setCreating] = useState(false);
 
   const handleSearch = useCallback(
@@ -488,7 +491,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
       setSelectedUser(null);
       setSearchQuery("");
       setSearchResults([]);
-      setAddRole("MEMBER");
+      setAddRole("TEAM_MEMBER");
       router.refresh();
     } catch (err) {
       toast.error(
@@ -516,7 +519,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
       setNewName("");
       setNewEmail("");
       setNewPassword("");
-      setCreateRole("MEMBER");
+      setCreateRole("TEAM_MEMBER");
       router.refresh();
     } catch (err) {
       toast.error(
@@ -620,8 +623,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
                 }
                 className={selectStyles}
               >
-                <option value="ADMIN">Admin</option>
-                <option value="MEMBER">Member</option>
+                <option value="TEAM_MEMBER">Team Member</option>
                 <option value="VIEWER">Viewer</option>
               </select>
               <Button
@@ -679,8 +681,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
               }
               className={cn(selectStyles, "w-full")}
             >
-              <option value="ADMIN">Admin</option>
-              <option value="MEMBER">Member</option>
+              <option value="TEAM_MEMBER">Team Member</option>
               <option value="VIEWER">Viewer</option>
             </select>
           </div>

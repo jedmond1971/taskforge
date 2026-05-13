@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         userId_projectId: { userId: session.user.id, projectId: issue.projectId },
       },
     });
-    if (!member || !["OWNER", "ADMIN", "MEMBER"].includes(member.role)) {
+    if (!member || !["PROJECT_LEAD", "TEAM_MEMBER"].includes(member.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

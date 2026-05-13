@@ -25,13 +25,13 @@ async function main() {
     data: { email: "admin@jedforge.dev", name: "Alice Chen", passwordHash: hashedPassword, role: UserRole.ADMIN },
   });
   const bob = await prisma.user.create({
-    data: { email: "member@jedforge.dev", name: "Bob Martinez", passwordHash: hashedPassword, role: UserRole.MEMBER },
+    data: { email: "member@jedforge.dev", name: "Bob Martinez", passwordHash: hashedPassword, role: UserRole.TEAM_MEMBER },
   });
   const carol = await prisma.user.create({
-    data: { email: "carol@jedforge.dev", name: "Carol Singh", passwordHash: hashedPassword, role: UserRole.MEMBER },
+    data: { email: "carol@jedforge.dev", name: "Carol Singh", passwordHash: hashedPassword, role: UserRole.TEAM_MEMBER },
   });
   const dave = await prisma.user.create({
-    data: { email: "dave@jedforge.dev", name: "Dave Kim", passwordHash: hashedPassword, role: UserRole.MEMBER },
+    data: { email: "dave@jedforge.dev", name: "Dave Kim", passwordHash: hashedPassword, role: UserRole.TEAM_MEMBER },
   });
 
   // Alice's organization — all seed projects live here
@@ -56,9 +56,9 @@ async function main() {
   });
   await prisma.projectMember.createMany({
     data: [
-      { userId: alice.id, projectId: pl.id, role: ProjectMemberRole.OWNER },
-      { userId: bob.id, projectId: pl.id, role: ProjectMemberRole.MEMBER },
-      { userId: carol.id, projectId: pl.id, role: ProjectMemberRole.MEMBER },
+      { userId: alice.id, projectId: pl.id, role: ProjectMemberRole.PROJECT_LEAD },
+      { userId: bob.id, projectId: pl.id, role: ProjectMemberRole.TEAM_MEMBER },
+      { userId: carol.id, projectId: pl.id, role: ProjectMemberRole.TEAM_MEMBER },
     ],
   });
 
@@ -73,9 +73,9 @@ async function main() {
   });
   await prisma.projectMember.createMany({
     data: [
-      { userId: alice.id, projectId: ma.id, role: ProjectMemberRole.OWNER },
-      { userId: bob.id, projectId: ma.id, role: ProjectMemberRole.MEMBER },
-      { userId: dave.id, projectId: ma.id, role: ProjectMemberRole.MEMBER },
+      { userId: alice.id, projectId: ma.id, role: ProjectMemberRole.PROJECT_LEAD },
+      { userId: bob.id, projectId: ma.id, role: ProjectMemberRole.TEAM_MEMBER },
+      { userId: dave.id, projectId: ma.id, role: ProjectMemberRole.TEAM_MEMBER },
     ],
   });
 
@@ -90,9 +90,9 @@ async function main() {
   });
   await prisma.projectMember.createMany({
     data: [
-      { userId: alice.id, projectId: wr.id, role: ProjectMemberRole.OWNER },
-      { userId: carol.id, projectId: wr.id, role: ProjectMemberRole.MEMBER },
-      { userId: dave.id, projectId: wr.id, role: ProjectMemberRole.MEMBER },
+      { userId: alice.id, projectId: wr.id, role: ProjectMemberRole.PROJECT_LEAD },
+      { userId: carol.id, projectId: wr.id, role: ProjectMemberRole.TEAM_MEMBER },
+      { userId: dave.id, projectId: wr.id, role: ProjectMemberRole.TEAM_MEMBER },
     ],
   });
 

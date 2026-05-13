@@ -32,10 +32,7 @@ export default async function SettingsPage({
   const currentMember = project.members.find(
     (m) => m.userId === session.user.id
   );
-  if (
-    !currentMember ||
-    (currentMember.role !== "OWNER" && currentMember.role !== "ADMIN")
-  ) {
+  if (!currentMember || currentMember.role !== "PROJECT_LEAD") {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
@@ -50,7 +47,7 @@ export default async function SettingsPage({
     );
   }
 
-  const owner = project.members.find((m) => m.role === "OWNER");
+  const owner = project.members.find((m) => m.role === "PROJECT_LEAD");
 
   return (
     <ProjectSettings

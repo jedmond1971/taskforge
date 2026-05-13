@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
         members: {
           create: {
             userId: session.user.id,
-            role: "OWNER",
+            role: "PROJECT_LEAD",
           },
         },
       },

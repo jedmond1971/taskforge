@@ -24,7 +24,7 @@ import { saveFilter, updateFilter, deleteFilter } from "@/app/(dashboard)/search
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function mockSession(role: "ADMIN" | "MEMBER" | "OWNER" = "MEMBER", userId = "user-1") {
+function mockSession(role: "ADMIN" | "TEAM_MEMBER" = "TEAM_MEMBER", userId = "user-1") {
   mockAuthFn.mockResolvedValue({ user: { id: userId, role } });
 }
 
@@ -45,13 +45,13 @@ describe("saveFilter — global flag permission", () => {
   });
 
   it("denies MEMBER from creating a global filter", async () => {
-    mockSession("MEMBER");
+    mockSession("TEAM_MEMBER");
     await expect(saveFilter("My filter", "status = TODO", true)).rejects.toThrow("Forbidden");
     expect(mockPrisma.savedFilter.create).not.toHaveBeenCalled();
   });
 
   it("allows MEMBER to create a personal (non-global) filter", async () => {
-    mockSession("MEMBER");
+    mockSession("TEAM_MEMBER");
     await expect(saveFilter("My filter", "status = TODO", false)).resolves.toBeDefined();
     expect(mockPrisma.savedFilter.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ isGlobal: false }) })
@@ -68,7 +68,7 @@ describe("updateFilter — global flag and ownership permission", () => {
   });
 
   it("denies MEMBER from editing an existing global filter", async () => {
-    mockSession("MEMBER", "user-1");
+    mockSession("TEAM_MEMBER", "user-1");
     mockPrisma.savedFilter.findUnique.mockResolvedValue({
       id: "f1",
       userId: "user-1",
@@ -80,7 +80,7 @@ describe("updateFilter — global flag and ownership permission", () => {
   });
 
   it("denies MEMBER from promoting a personal filter to global", async () => {
-    mockSession("MEMBER", "user-1");
+    mockSession("TEAM_MEMBER", "user-1");
     mockPrisma.savedFilter.findUnique.mockResolvedValue({
       id: "f1",
       userId: "user-1",
@@ -116,7 +116,7 @@ describe("updateFilter — global flag and ownership permission", () => {
   });
 
   it("denies editing another user's filter regardless of role", async () => {
-    mockSession("MEMBER", "user-2");
+    mockSession("TEAM_MEMBER", "user-2");
     mockPrisma.savedFilter.findUnique.mockResolvedValue({
       id: "f1",
       userId: "user-1",
@@ -137,7 +137,7 @@ describe("deleteFilter — ownership check", () => {
   });
 
   it("allows the owner to delete their own filter", async () => {
-    mockSession("MEMBER", "user-1");
+    mockSession("TEAM_MEMBER", "user-1");
     mockPrisma.savedFilter.findUnique.mockResolvedValue({ id: "f1", userId: "user-1" });
 
     await expect(deleteFilter("f1")).resolves.toMatchObject({ success: true });
@@ -145,7 +145,7 @@ describe("deleteFilter — ownership check", () => {
   });
 
   it("denies deleting another user's filter", async () => {
-    mockSession("MEMBER", "user-2");
+    mockSession("TEAM_MEMBER", "user-2");
     mockPrisma.savedFilter.findUnique.mockResolvedValue({ id: "f1", userId: "user-1" });
 
     await expect(deleteFilter("f1")).rejects.toThrow("Forbidden");
