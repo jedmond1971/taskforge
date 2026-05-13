@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Plus, ChevronRight } from "lucide-react";
 import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 function segmentLabel(segment: string): string {
   // Issue keys like TF-1, MYPROJECT-42 — preserve as-is
@@ -89,6 +90,7 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2">
+        <NotificationBell />
         <ThemeToggle />
         {projectKey ? (
           <>
