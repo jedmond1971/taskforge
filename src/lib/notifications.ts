@@ -39,7 +39,7 @@ async function createNotifications({
   issueId?: string;
   actorId?: string;
 }) {
-  const targets = [...new Set(userIds.filter(Boolean))] as string[];
+  const targets = Array.from(new Set(userIds.filter(Boolean))) as string[];
   const filtered = actorId ? targets.filter((id) => id !== actorId) : targets;
   if (filtered.length === 0) return;
 

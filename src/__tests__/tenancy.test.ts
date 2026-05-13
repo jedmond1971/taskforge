@@ -45,6 +45,10 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
       create: vi.fn(),
       createMany: vi.fn(),
     },
+    notification: {
+      create: vi.fn(),
+      createMany: vi.fn(),
+    },
     $transaction: vi.fn(),
   };
   const mockAuthFn = vi.fn();
