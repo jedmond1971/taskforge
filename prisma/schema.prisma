@@ -60,6 +60,13 @@ enum IssueType {
   EPIC
 }
 
+enum NotificationType {
+  ISSUE_ASSIGNED
+  COMMENT_ADDED
+  STATUS_CHANGED
+  MENTION
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -79,6 +86,7 @@ model User {
   attachments    Attachment[]
   ownedOrgs      Organization[]  @relation("OwnedOrgs")
   orgMembers     OrgMember[]
+  notifications  Notification[]
 }
 
 model Project {
@@ -136,9 +144,10 @@ model Issue {
   parent   Issue?   @relation("SubIssues", fields: [parentId], references: [id])
   children Issue[]  @relation("SubIssues")
 
-  comments     Comment[]
-  activityLogs ActivityLog[]
-  attachments  Attachment[]
+  comments      Comment[]
+  activityLogs  ActivityLog[]
+  attachments   Attachment[]
+  notifications Notification[]
 
   @@index([projectId])
   @@index([assigneeId])
@@ -288,4 +297,20 @@ model Subscription {
   updatedAt            DateTime           @updatedAt
 
   org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  message   String
+  userId    String
+  issueId   String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issue Issue? @relation(fields: [issueId], references: [id], onDelete: SetNull)
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
 }
