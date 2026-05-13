@@ -61,11 +61,14 @@ The bash sandbox cannot access `P:\TaskForge`, so `npm install` cannot be run fr
 
 ## Database migrations
 
-The Prisma CLI is not available in the bash sandbox. To add columns:
-- Connect using the `DATABASE_PUBLIC_URL` from `railway variables --service Postgres`.
-- Run raw SQL via a `node -e` script using `@prisma/client` with the public URL, or psycopg2 if available.
-- Example: `ALTER TABLE "Issue" ADD COLUMN IF NOT EXISTS "dueDate" TIMESTAMP(3);`
-- Also update `prisma/schema.prisma` to keep it in sync (Prisma will pick up the column on next query generation).
+`psql` is available locally and is the most reliable way to apply migrations to production:
+```bash
+psql "$(railway variables --service Postgres --json | python3 -c "import sys,json; print(json.load(sys.stdin)['DATABASE_PUBLIC_URL'])")" -f prisma/migrations/<name>/migration.sql
+```
+
+For local dev (Docker Postgres on port 5433): `npx prisma migrate dev`
+
+Always write the migration SQL file manually into `prisma/migrations/<timestamp_name>/migration.sql` and update `prisma/schema.prisma` in the same commit. Run `npx prisma generate` after schema changes to regenerate the Prisma client types (does not require a DB connection).
 
 ---
 
@@ -84,6 +87,30 @@ Both shortcuts are suppressed when focus is inside an `INPUT`, `TEXTAREA`, or a 
 ## Avatar upload
 
 User avatars are uploaded to Railway S3 under the key `avatars/{userId}.jpg` and served through the proxy route `/api/avatar?key=avatars/{userId}.jpg`, which redirects to a fresh presigned S3 download URL (1-hour browser cache). The full proxy URL is stored in `User.avatarUrl`. After upload the client calls `useSession().update({ image: url })` to refresh the session token immediately without requiring sign-out.
+
+---
+
+## In-app notifications
+
+Notifications are stored in the `Notification` table and created via `src/lib/notifications.ts`. The service is the only place notifications should be written — do not insert directly.
+
+**Trigger points** (all fire-and-forget, never throw):
+- `createIssue` / `updateIssue` in `src/app/(dashboard)/projects/[projectKey]/actions.ts` — assignment and status changes
+- `PATCH /api/issues/[issueId]` in `src/app/api/issues/[issueId]/route.ts` — same two events via the REST path
+- `addComment` in the same actions file — notifies assignee and reporter
+
+**Known gaps to wire up when touched:**
+- `moveIssue` (drag-and-drop board) does not fire status-change notifications
+- @mention notifications: `notificationService.mention()` exists but is never called — wire it in `addComment` once a TipTap mention extension is added
+
+**UI entry points:**
+- `src/components/notifications/NotificationBell.tsx` — bell icon in the header, fetches unread count on mount
+- `src/components/notifications/NotificationDropdown.tsx` — 10 most recent, fetched on dropdown open
+- `src/app/(dashboard)/notifications/page.tsx` — full list at `/notifications`
+
+**Reading notifications** — use the server actions in `src/app/(dashboard)/notifications/actions.ts`: `getNotifications`, `getUnreadCount`, `markNotificationRead`, `markAllNotificationsRead`.
+
+**No real-time push** — notifications appear on next page load or dropdown open. SSE delivery is a separate planned feature.
 
 ---
 
