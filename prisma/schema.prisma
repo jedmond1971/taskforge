@@ -87,6 +87,8 @@ model Project {
   key         String   @unique
   description String?
   orgId       String
+  isPrivate   Boolean  @default(false)
+  isArchived  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

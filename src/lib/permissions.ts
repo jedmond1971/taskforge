@@ -57,9 +57,18 @@ export async function requireProjectRole(
 
   const project = await prisma.project.findUnique({
     where: { key: projectKey.toUpperCase() },
-    select: { id: true, key: true, orgId: true },
+    select: { id: true, key: true, orgId: true, isPrivate: true },
   });
   if (!project) throw new Error("Project not found");
+
+  // Private projects are only accessible to explicit members (admins bypass)
+  if (project.isPrivate && session.user.role !== "ADMIN") {
+    const privacyCheck = await prisma.projectMember.findUnique({
+      where: { userId_projectId: { userId: session.user.id, projectId: project.id } },
+      select: { id: true },
+    });
+    if (!privacyCheck) throw new Error("You do not have access to this project.");
+  }
 
   const membership = await prisma.projectMember.findUnique({
     where: {

@@ -22,6 +22,8 @@ import {
   removeProjectMember,
   changeMemberRole,
   deleteProject,
+  archiveProject,
+  setProjectPrivacy,
   searchUsers,
   createUserAndAddToProject,
 } from "../actions";
@@ -52,12 +54,15 @@ interface ProjectSettingsProps {
     key: string;
     description: string | null;
     createdAt: string;
+    isPrivate: boolean;
+    isArchived: boolean;
   };
   members: Member[];
   currentUserId: string;
   currentUserRole: ProjectMemberRole;
   ownerName: string;
   projectKey: string;
+  isAdmin: boolean;
 }
 
 const roleColors: Record<string, string> = {
@@ -92,6 +97,7 @@ export function ProjectSettings({
   currentUserRole,
   ownerName,
   projectKey,
+  isAdmin,
 }: ProjectSettingsProps) {
   const [activeTab, setActiveTab] = useState("general");
 
@@ -140,7 +146,7 @@ export function ProjectSettings({
         />
       )}
       {activeTab === "danger" && currentUserRole === "PROJECT_LEAD" && (
-        <DangerZoneTab project={project} projectKey={projectKey} />
+        <DangerZoneTab project={project} projectKey={projectKey} isAdmin={isAdmin} />
       )}
     </div>
   );
@@ -706,13 +712,18 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
 function DangerZoneTab({
   project,
   projectKey,
+  isAdmin,
 }: {
   project: ProjectSettingsProps["project"];
   projectKey: string;
+  isAdmin: boolean;
 }) {
+  const router = useRouter();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [confirmInput, setConfirmInput] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [togglingPrivacy, setTogglingPrivacy] = useState(false);
 
   async function handleDelete() {
     setDeleting(true);
@@ -727,8 +738,82 @@ function DangerZoneTab({
     }
   }
 
+  async function handleArchive() {
+    setArchiving(true);
+    try {
+      await archiveProject(projectKey);
+      // archiveProject calls redirect() on the server side
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to archive project"
+      );
+      setArchiving(false);
+    }
+  }
+
+  async function handlePrivacyToggle() {
+    setTogglingPrivacy(true);
+    try {
+      await setProjectPrivacy(projectKey, !project.isPrivate);
+      toast.success(project.isPrivate ? "Project is now public" : "Project is now private");
+      router.refresh();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update privacy"
+      );
+    } finally {
+      setTogglingPrivacy(false);
+    }
+  }
+
   return (
-    <div className="max-w-xl">
+    <div className="max-w-xl space-y-4">
+      {/* Archive project */}
+      <div className="border border-amber-500/30 rounded-xl p-6 bg-amber-500/5">
+        <h3 className="text-lg font-semibold text-amber-400 mb-2">
+          Archive Project
+        </h3>
+        <p className="text-sm text-zinc-400 mb-4">
+          Archiving hides this project from the default project list. All data
+          is preserved and the project can be restored by an admin.
+        </p>
+        <Button
+          variant="outline"
+          onClick={handleArchive}
+          disabled={archiving}
+          className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+        >
+          {archiving ? "Archiving..." : "Archive this project"}
+        </Button>
+      </div>
+
+      {/* Private project toggle — Admin only */}
+      {isAdmin && (
+        <div className="border border-zinc-500/30 rounded-xl p-6 bg-zinc-500/5">
+          <h3 className="text-lg font-semibold text-zinc-300 mb-2">
+            Project Visibility
+          </h3>
+          <p className="text-sm text-zinc-400 mb-4">
+            {project.isPrivate
+              ? "This project is private — only members can see it."
+              : "This project is public — all org members can find it."}
+          </p>
+          <Button
+            variant="outline"
+            onClick={handlePrivacyToggle}
+            disabled={togglingPrivacy}
+            className="border-zinc-500/40 text-zinc-300 hover:bg-zinc-500/10"
+          >
+            {togglingPrivacy
+              ? "Updating..."
+              : project.isPrivate
+              ? "Make public"
+              : "Make private"}
+          </Button>
+        </div>
+      )}
+
+      {/* Delete project */}
       <div className="border border-red-500/30 rounded-xl p-6 bg-red-500/5">
         <h3 className="text-lg font-semibold text-red-400 mb-2">
           Delete Project

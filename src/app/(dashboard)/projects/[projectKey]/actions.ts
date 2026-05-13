@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { generateIssueKeyWithRetry } from "@/lib/issue-keys";
 import {
   requireProjectRole,
+  requireAdmin,
   canEditIssues,
   canEditSettings,
   canManageMembers,
@@ -634,6 +635,38 @@ export async function createUserAndAddToProject(
     await tx.projectMember.create({
       data: { userId: user.id, projectId, role: data.role },
     });
+  });
+
+  revalidatePath(`/projects/${projectKey}/settings`);
+  return { success: true };
+}
+
+// --- ARCHIVE PROJECT ---
+export async function archiveProject(projectKey: string) {
+  const { projectId } = await requireProjectRole(projectKey, canManageProject);
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { isArchived: true },
+  });
+
+  revalidatePath("/projects");
+  redirect("/projects");
+}
+
+// --- SET PROJECT PRIVACY --- (Admin only per spec Section 2)
+export async function setProjectPrivacy(projectKey: string, isPrivate: boolean) {
+  await requireAdmin();
+
+  const project = await prisma.project.findUnique({
+    where: { key: projectKey.toUpperCase() },
+    select: { id: true },
+  });
+  if (!project) throw new Error("Project not found");
+
+  await prisma.project.update({
+    where: { id: project.id },
+    data: { isPrivate },
   });
 
   revalidatePath(`/projects/${projectKey}/settings`);

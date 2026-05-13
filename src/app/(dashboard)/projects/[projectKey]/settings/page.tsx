@@ -57,6 +57,8 @@ export default async function SettingsPage({
         key: project.key,
         description: project.description,
         createdAt: project.createdAt.toISOString(),
+        isPrivate: project.isPrivate,
+        isArchived: project.isArchived,
       }}
       members={project.members.map((m) => ({
         id: m.id,
@@ -68,6 +70,7 @@ export default async function SettingsPage({
       currentUserRole={currentMember.role}
       ownerName={owner?.user.name ?? "Unknown"}
       projectKey={params.projectKey}
+      isAdmin={session.user.role === "ADMIN"}
     />
   );
 }
