@@ -7,7 +7,7 @@ This is an internal API used by Claude Code to create, read, update, and delete 
 | Environment | URL |
 |---|---|
 | Local dev | `http://localhost:3000/api/v1` |
-| Production | `https://jedforge.com/api/v1` |
+| Production | `https://taskforge-production-099b.up.railway.app/api/v1` |
 
 ---
 
