@@ -38,6 +38,7 @@ Every project belongs to exactly one organization, and every user-to-project rel
 5. **Issue assignees** (`createIssue`, `updateIssue`) — Assignee must have a `ProjectMember` row for the same project. Null/unassigned always allowed.
 6. **Admin org deletion** (`adminDeleteOrg`) — Blocked if the org has any projects. No silent cascade.
 7. **Admin org-member removal** (`adminRemoveOrgMember`) — Blocked if the user still has `ProjectMember` rows in that org. Do not cascade-delete project memberships.
+8. **Admin add-user-to-project** (`adminAddUserToProject`) — Admin override that upserts an `OrgMember` (MEMBER role) for the project's org if the user isn't already in it, then creates `ProjectMember`. This is the only place the org-membership pre-check is bypassed; it is replaced by an upsert so the invariant is still satisfied after the call.
 
 **Non-goals (do not implement without a separate product decision):**
 Org switching UI, full invite system, billing changes, broad project membership role redesign, cascading project deletion on org delete.
@@ -52,7 +53,7 @@ This project uses **`@base-ui/react`** (NOT Radix UI). Standard shadcn component
 - `src/components/ui/rich-text-editor.tsx` — TipTap v2 editor
 - `src/components/ui/rich-text-display.tsx` — read-only HTML renderer for TipTap content
 
-See @docs/rich-text.md for TipTap packages, storage format, and empty-state behavior.
+See `.context-docs/rich-text.md` for TipTap packages, storage format, and empty-state behavior.
 
 ---
 
@@ -88,6 +89,8 @@ An internal API for Claude Code to track work in JedForge. No authentication req
 - **Reference:** see `CLAUDE_API.md` for full route docs and working convention
 
 Routes: `GET/POST /api/v1/issues`, `GET/PATCH/DELETE /api/v1/issues/[key]`, `GET /api/v1/projects`, `GET /api/v1/projects/[id]`
+
+**No comments endpoint exists.** Do not attempt to POST to `/api/v1/issues/[key]/comments` — the route returns a 404 HTML page, not JSON. To update an issue after completing work, use `PATCH /api/v1/issues/[key]` with `statusId` (not `status`) to mark it done.
 
 **Schema notes:** `IssueStatus` and `IssuePriority` are enums, not database tables. Priority values are `CRITICAL | HIGH | MEDIUM | LOW` (URGENT is accepted as an alias for CRITICAL). Statuses are synthesised from the enum in API responses.
 
