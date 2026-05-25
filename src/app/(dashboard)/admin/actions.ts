@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
-import { UserRole, OrgRole, Plan } from "@prisma/client";
+import { UserRole, OrgRole, Plan, ProjectMemberRole } from "@prisma/client";
 
 async function requireAdmin() {
   const session = await auth();
@@ -85,6 +85,61 @@ export async function adminUpdateUser(
 
   revalidatePath("/admin/users");
   return user;
+}
+
+// Reset any user's password (admin override — no current password required)
+export async function adminResetUserPassword(userId: string, newPassword: string) {
+  await requireAdmin();
+
+  if (newPassword.length < 8) throw new Error("Password must be at least 8 characters");
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+  revalidatePath("/admin/users");
+  return { success: true };
+}
+
+// Add any user to any project (admin override)
+// Ensures the user is also an OrgMember of the project's org to maintain invariants.
+export async function adminAddUserToProject(
+  userId: string,
+  projectId: string,
+  role: ProjectMemberRole
+) {
+  await requireAdmin();
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { orgId: true },
+  });
+  if (!project) throw new Error("Project not found");
+
+  const existing = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+  });
+  if (existing) throw new Error("User is already a member of this project");
+
+  await prisma.orgMember.upsert({
+    where: { orgId_userId: { orgId: project.orgId, userId } },
+    create: { orgId: project.orgId, userId, role: "MEMBER" },
+    update: {},
+  });
+
+  await prisma.projectMember.create({ data: { userId, projectId, role } });
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/projects");
+  return { success: true };
+}
+
+// Lightweight project list for admin dropdowns
+export async function adminGetProjectsForSelect() {
+  await requireAdmin();
+  return prisma.project.findMany({
+    select: { id: true, name: true, key: true },
+    orderBy: { name: "asc" },
+  });
 }
 
 // Delete user
