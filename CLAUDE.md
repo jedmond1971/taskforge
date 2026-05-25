@@ -1,5 +1,30 @@
 # TaskForge / JedForge — Codebase Notes
 
+## Session workflow
+
+### Startup checklist (run at the beginning of every session)
+1. `git status` — confirm the working tree is clean before starting. Commit or stash any pre-existing changes first.
+2. `docker start taskforge-db 2>/dev/null; docker ps --filter name=taskforge-db --format "{{.Status}}"` — confirm Postgres is running.
+3. Create a JedForge issue for the work ahead. See `CLAUDE_API.md` → Working Convention.
+
+### Pre-commit checklist (run before every commit)
+1. `npm run lint` — zero errors required. Pre-existing warnings are acceptable; new ones are not.
+2. `npx tsc --noEmit` — zero type errors required.
+3. `git diff --name-only --cached` — verify only files changed in this session are staged.
+
+### After pushing
+Monitor CI to completion before closing the session:
+```bash
+until gh run list --repo jedmond1971/taskforge --limit 1 2>&1 | grep -qE "completed|failure|success"; do sleep 5; done
+gh run list --repo jedmond1971/taskforge --limit 1
+```
+If CI fails, fix and push before ending the session. Do not leave main in a broken state.
+
+### End-of-session CLAUDE.md update
+Before closing every session, review what was discovered and update this file. Add only durable facts that will matter in future sessions — environment quirks, schema discoveries, tooling workarounds, corrected URLs. Do not add summaries of completed work.
+
+---
+
 ## Organization tenancy invariants
 
 Every project belongs to exactly one organization, and every user-to-project relationship must be valid inside that organization. JedForge is a multi-tenant product where each client organization experiences the app as its own instance.
@@ -33,7 +58,7 @@ See @docs/rich-text.md for TipTap packages, storage format, and empty-state beha
 
 ## Adding npm packages
 
-The bash sandbox cannot access the local project, so `npm install` cannot be run from within a Cowork session. To add packages:
+Claude Code cannot run `npm install` directly. To add packages:
 1. Edit `package.json` manually.
 2. Ask Jamie to run `npm install` locally to update `package-lock.json`.
 3. Commit both files and push. Railway uses `npm ci` which requires the lockfile to be in sync.
@@ -49,6 +74,8 @@ psql "$(railway variables --service Postgres --json | python3 -c "import sys,jso
 For local dev (Docker Postgres on port 5433): `npx prisma migrate dev`
 
 Always write the migration SQL manually into `prisma/migrations/<timestamp_name>/migration.sql` and update `prisma/schema.prisma` in the same commit. Run `npx prisma generate` after schema changes.
+
+**Before writing any route or server action that queries Prisma, verify every field referenced exists in the current `schema.prisma`.** If a field is absent, note it and either adapt the query or plan a migration before proceeding.
 
 ---
 
@@ -70,7 +97,7 @@ Routes: `GET/POST /api/v1/issues`, `GET/PATCH/DELETE /api/v1/issues/[key]`, `GET
 
 ## Local dev environment
 
-- Docker Postgres on port 5433 — start with `docker start taskforge-db` if not running
+- Docker Postgres on port 5433 — start with `docker start taskforge-db` if not running (see startup checklist above)
 - Railway CLI auth is broken in this environment (interactive login hangs, browserless produces no output). Workaround: curl the production URL directly. Fix: generate a token at railway.app → Account Settings → Tokens and use `RAILWAY_TOKEN=<token>` or `railway login --token <token>`. (Tracked: TFEN-19)
 - Production URL: `https://taskforge-production-099b.up.railway.app` — `jedforge.com` has no DNS records
 
