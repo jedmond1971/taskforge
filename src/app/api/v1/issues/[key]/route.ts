@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { IssueStatus, IssuePriority } from "@prisma/client";
-import { STATUS_MAP, PRIORITY_MAP, statusToObject, formatIssue } from "../../_helpers";
+import { IssueStatus } from "@prisma/client";
+import { STATUS_MAP, PRIORITY_MAP, formatIssue } from "../../_helpers";
 
 export async function GET(
   _request: NextRequest,
