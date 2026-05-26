@@ -29,9 +29,10 @@ interface DocPageEditorProps {
   initialRevisions: Revision[];
   projectKey: string;
   projectName: string;
+  readOnly?: boolean;
 }
 
-export function DocPageEditor({ page, initialRevisions, projectKey }: DocPageEditorProps) {
+export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = false }: DocPageEditorProps) {
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [title, setTitle] = useState(page.title);
@@ -118,7 +119,7 @@ export function DocPageEditor({ page, initialRevisions, projectKey }: DocPageEdi
             <span className="hidden sm:inline">History</span>
           </button>
 
-          {mode === "view" ? (
+          {mode === "view" && !readOnly ? (
             <button
               onClick={() => setMode("edit")}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
@@ -126,7 +127,7 @@ export function DocPageEditor({ page, initialRevisions, projectKey }: DocPageEdi
               <Edit2 className="w-3.5 h-3.5" />
               Edit
             </button>
-          ) : (
+          ) : mode === "edit" ? (
             <div className="flex items-center gap-2">
               {saveError && (
                 <span className="text-xs text-red-500">{saveError}</span>
@@ -153,7 +154,7 @@ export function DocPageEditor({ page, initialRevisions, projectKey }: DocPageEdi
                 {saving ? "Saving…" : "Save"}
               </button>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 

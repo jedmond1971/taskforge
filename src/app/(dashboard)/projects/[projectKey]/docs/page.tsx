@@ -4,16 +4,23 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, FileText, FolderOpen, FileArchive } from "lucide-react";
 import { CreateDocItemButtons } from "@/components/docs/create-doc-item-buttons";
+import { DocsSearchBar } from "@/components/docs/docs-search-bar";
+import { DocVisibilityToggle } from "@/components/docs/doc-visibility-toggle";
+import { canEditIssues, canManageProject } from "@/lib/permissions";
+import { ProjectMemberRole } from "@prisma/client";
 
 async function getDocSpaceData(projectKey: string, userId: string) {
   const project = await prisma.project.findFirst({
-    where: {
-      key: projectKey.toUpperCase(),
-      members: { some: { userId } },
-    },
+    where: { key: projectKey.toUpperCase() },
     select: { id: true, key: true, name: true },
   });
   if (!project) return null;
+
+  const member = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId: project.id } },
+    select: { role: true },
+  });
+  if (!member) return null;
 
   const docSpace = await prisma.docSpace.upsert({
     where: { projectId: project.id },
@@ -37,7 +44,7 @@ async function getDocSpaceData(projectKey: string, userId: string) {
     },
   });
 
-  return { project, docSpace };
+  return { project, docSpace, role: member.role as ProjectMemberRole };
 }
 
 export default async function ProjectDocsPage({ params }: { params: { projectKey: string } }) {
@@ -47,7 +54,10 @@ export default async function ProjectDocsPage({ params }: { params: { projectKey
   const data = await getDocSpaceData(params.projectKey, session.user.id);
   if (!data) redirect("/projects");
 
-  const { project, docSpace } = data;
+  const { project, docSpace, role } = data;
+  const canEdit = canEditIssues(role);
+  const canManage = canManageProject(role);
+
   const totalPages = docSpace.sections.reduce((sum, s) => sum + s.pages.length, 0) + docSpace.pages.length;
   const isEmpty = totalPages === 0 && docSpace.sections.length === 0;
 
@@ -58,19 +68,22 @@ export default async function ProjectDocsPage({ params }: { params: { projectKey
         <div className="text-center">
           <p className="text-lg font-semibold text-zinc-700 dark:text-zinc-300">No docs yet</p>
           <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1">
-            {project.name}&apos;s documentation space is ready. Add a section or page to get started.
+            {project.name}&apos;s documentation space is ready.{" "}
+            {canEdit ? "Add a section or page to get started." : "Check back later for documentation."}
           </p>
         </div>
-        <div className="mt-2">
-          <CreateDocItemButtons projectKey={project.key.toLowerCase()} />
-        </div>
+        {canEdit && (
+          <div className="mt-2">
+            <CreateDocItemButtons projectKey={project.key.toLowerCase()} />
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Docs</h2>
           <p className="text-zinc-500 text-sm">
@@ -78,7 +91,18 @@ export default async function ProjectDocsPage({ params }: { params: { projectKey
             {docSpace.sections.length > 0 && ` across ${docSpace.sections.length} section${docSpace.sections.length !== 1 ? "s" : ""}`}
           </p>
         </div>
-        <CreateDocItemButtons projectKey={project.key.toLowerCase()} variant="icon-only" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <DocsSearchBar projectKey={project.key.toLowerCase()} />
+          {canManage && (
+            <DocVisibilityToggle
+              projectKey={project.key.toLowerCase()}
+              initialIsPublic={docSpace.isPublic}
+            />
+          )}
+          {canEdit && (
+            <CreateDocItemButtons projectKey={project.key.toLowerCase()} variant="icon-only" />
+          )}
+        </div>
       </div>
 
       {/* Unsectioned pages */}

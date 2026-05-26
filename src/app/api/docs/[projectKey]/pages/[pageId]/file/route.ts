@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { putObject, getPresignedDownloadUrl, deleteObject } from "@/lib/s3";
+import { resolveDocCtx } from "@/app/api/docs/_helpers";
+import { canEditIssues } from "@/lib/permissions";
 
 export const maxDuration = 60;
 
@@ -24,21 +26,15 @@ function sanitizeFileName(name: string): string {
 }
 
 async function resolvePage(projectKey: string, pageId: string, userId: string) {
-  const project = await prisma.project.findFirst({
-    where: { key: projectKey.toUpperCase(), members: { some: { userId } } },
-    select: { id: true },
-  });
-  if (!project) return null;
+  const ctx = await resolveDocCtx(projectKey, userId);
+  if (!ctx) return null;
 
-  const docSpace = await prisma.docSpace.findUnique({
-    where: { projectId: project.id },
-    select: { id: true },
+  const page = await prisma.docPage.findFirst({
+    where: { id: pageId, docSpaceId: ctx.docSpaceId },
   });
-  if (!docSpace) return null;
+  if (!page) return null;
 
-  return prisma.docPage.findFirst({
-    where: { id: pageId, docSpaceId: docSpace.id },
-  });
+  return { page, role: ctx.role };
 }
 
 // GET /api/docs/[projectKey]/pages/[pageId]/file — return a presigned download URL
@@ -50,19 +46,19 @@ export async function GET(
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const page = await resolvePage(params.projectKey, params.pageId, session.user.id);
-    if (!page) return NextResponse.json({ error: "Page not found" }, { status: 404 });
-    if (!page.fileKey) return NextResponse.json({ error: "No file attached" }, { status: 404 });
+    const result = await resolvePage(params.projectKey, params.pageId, session.user.id);
+    if (!result) return NextResponse.json({ error: "Page not found" }, { status: 404 });
+    if (!result.page.fileKey) return NextResponse.json({ error: "No file attached" }, { status: 404 });
 
-    const url = await getPresignedDownloadUrl(page.fileKey);
-    return NextResponse.json({ url, mimeType: page.mimeType, fileName: page.title });
+    const url = await getPresignedDownloadUrl(result.page.fileKey);
+    return NextResponse.json({ url, mimeType: result.page.mimeType, fileName: result.page.title });
   } catch (error) {
     console.error("GET /api/docs/.../file error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// POST /api/docs/[projectKey]/pages/[pageId]/file — upload or replace the file
+// POST /api/docs/[projectKey]/pages/[pageId]/file — upload or replace the file (TEAM_MEMBER+)
 export async function POST(
   req: NextRequest,
   { params }: { params: { projectKey: string; pageId: string } }
@@ -71,8 +67,12 @@ export async function POST(
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const page = await resolvePage(params.projectKey, params.pageId, session.user.id);
-    if (!page) return NextResponse.json({ error: "Page not found" }, { status: 404 });
+    const result = await resolvePage(params.projectKey, params.pageId, session.user.id);
+    if (!result) return NextResponse.json({ error: "Page not found" }, { status: 404 });
+
+    if (!result.role || !canEditIssues(result.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -85,17 +85,16 @@ export async function POST(
       return NextResponse.json({ error: "File exceeds 50 MB limit" }, { status: 400 });
     }
 
-    // Delete old file from S3 if replacing
-    if (page.fileKey) {
-      await deleteObject(page.fileKey).catch(() => {});
+    if (result.page.fileKey) {
+      await deleteObject(result.page.fileKey).catch(() => {});
     }
 
-    const fileKey = `docs/${page.docSpaceId}/${page.id}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
+    const fileKey = `docs/${result.page.docSpaceId}/${result.page.id}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
     const buffer = Buffer.from(await file.arrayBuffer());
     await putObject(fileKey, buffer, file.type);
 
     const updated = await prisma.docPage.update({
-      where: { id: page.id },
+      where: { id: result.page.id },
       data: {
         type: "DOCUMENT",
         fileKey,

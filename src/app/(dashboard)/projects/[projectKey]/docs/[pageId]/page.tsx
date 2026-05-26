@@ -3,16 +3,21 @@ import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
 import { DocPageEditor } from "@/components/docs/doc-page-editor";
 import { DocDocumentView } from "@/components/docs/doc-document-view";
+import { canEditIssues } from "@/lib/permissions";
+import { ProjectMemberRole } from "@prisma/client";
 
 async function getPageData(projectKey: string, pageId: string, userId: string) {
   const project = await prisma.project.findFirst({
-    where: {
-      key: projectKey.toUpperCase(),
-      members: { some: { userId } },
-    },
+    where: { key: projectKey.toUpperCase() },
     select: { id: true, key: true, name: true },
   });
   if (!project) return null;
+
+  const member = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId: project.id } },
+    select: { role: true },
+  });
+  if (!member) return null;
 
   const docSpace = await prisma.docSpace.findUnique({
     where: { projectId: project.id },
@@ -36,7 +41,7 @@ async function getPageData(projectKey: string, pageId: string, userId: string) {
     },
   });
 
-  return { project, page, revisions };
+  return { project, page, revisions, role: member.role as ProjectMemberRole };
 }
 
 export default async function DocPagePage({
@@ -50,7 +55,8 @@ export default async function DocPagePage({
   const data = await getPageData(params.projectKey, params.pageId, session.user.id);
   if (!data) notFound();
 
-  const { project, page, revisions } = data;
+  const { project, page, revisions, role } = data;
+  const readOnly = !canEditIssues(role);
 
   const serializedPage = {
     ...page,
@@ -63,6 +69,7 @@ export default async function DocPagePage({
       <DocDocumentView
         page={serializedPage}
         projectKey={project.key.toLowerCase()}
+        readOnly={readOnly}
       />
     );
   }
@@ -78,6 +85,7 @@ export default async function DocPagePage({
       initialRevisions={serializedRevisions}
       projectKey={project.key.toLowerCase()}
       projectName={project.name}
+      readOnly={readOnly}
     />
   );
 }

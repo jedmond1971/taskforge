@@ -15,6 +15,7 @@ interface DocDocumentViewProps {
     author: { id: string; name: string; avatarUrl: string | null };
   };
   projectKey: string;
+  readOnly?: boolean;
 }
 
 function formatBytes(bytes: number): string {
@@ -27,7 +28,7 @@ function isPdf(mimeType: string | null): boolean {
   return mimeType === "application/pdf";
 }
 
-export function DocDocumentView({ page, projectKey }: DocDocumentViewProps) {
+export function DocDocumentView({ page, projectKey, readOnly = false }: DocDocumentViewProps) {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,18 +101,20 @@ export function DocDocumentView({ page, projectKey }: DocDocumentViewProps) {
           {replaceError && (
             <span className="text-xs text-red-500">{replaceError}</span>
           )}
-          <label className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer ${replacing ? "opacity-50 pointer-events-none" : ""}`}>
-            {replacing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{replacing ? "Uploading…" : "Replace"}</span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              className="sr-only"
-              onChange={handleReplace}
-              disabled={replacing}
-            />
-          </label>
+          {!readOnly && (
+            <label className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer ${replacing ? "opacity-50 pointer-events-none" : ""}`}>
+              {replacing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{replacing ? "Uploading…" : "Replace"}</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="sr-only"
+                onChange={handleReplace}
+                disabled={replacing}
+              />
+            </label>
+          )}
           {fileUrl && (
             <a
               href={fileUrl}
