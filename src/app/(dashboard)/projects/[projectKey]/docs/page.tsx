@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { BookOpen, FileText, FolderOpen } from "lucide-react";
+import { BookOpen, FileText, FolderOpen, FileArchive } from "lucide-react";
 import { CreateDocItemButtons } from "@/components/docs/create-doc-item-buttons";
 
 async function getDocSpaceData(projectKey: string, userId: string) {
@@ -127,7 +127,11 @@ function PageRow({
       href={`/projects/${projectKey}/docs/${page.id}`}
       className={`flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors group ${indent ? "ml-5" : ""}`}
     >
-      <FileText className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+      {page.type === "DOCUMENT" ? (
+        <FileArchive className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+      ) : (
+        <FileText className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+      )}
       <span className="flex-1 text-sm text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 truncate">
         {page.title}
       </span>

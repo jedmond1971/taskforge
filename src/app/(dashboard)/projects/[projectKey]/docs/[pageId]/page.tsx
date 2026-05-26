@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
 import { DocPageEditor } from "@/components/docs/doc-page-editor";
+import { DocDocumentView } from "@/components/docs/doc-document-view";
 
 async function getPageData(projectKey: string, pageId: string, userId: string) {
   const project = await prisma.project.findFirst({
@@ -56,6 +57,15 @@ export default async function DocPagePage({
     updatedAt: page.updatedAt.toISOString(),
     createdAt: page.createdAt.toISOString(),
   };
+
+  if (page.type === "DOCUMENT") {
+    return (
+      <DocDocumentView
+        page={serializedPage}
+        projectKey={project.key.toLowerCase()}
+      />
+    );
+  }
 
   const serializedRevisions = revisions.map((r) => ({
     ...r,

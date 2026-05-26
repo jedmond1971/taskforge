@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { deleteObject } from "@/lib/s3";
 
 async function resolvePage(projectKey: string, pageId: string, userId: string) {
   const project = await prisma.project.findFirst({
@@ -105,6 +106,9 @@ export async function DELETE(
     const page = await resolvePage(params.projectKey, params.pageId, session.user.id);
     if (!page) return NextResponse.json({ error: "Page not found" }, { status: 404 });
 
+    if (page.fileKey) {
+      await deleteObject(page.fileKey).catch(() => {});
+    }
     await prisma.docPage.delete({ where: { id: page.id } });
 
     return NextResponse.json({ deleted: true, id: page.id });

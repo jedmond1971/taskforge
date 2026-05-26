@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, FileText, FolderOpen } from "lucide-react";
+import { Plus, FileText, FolderOpen, Upload, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,9 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
   const [sectionTitle, setSectionTitle] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleCreatePage(e: React.FormEvent) {
     e.preventDefault();
@@ -74,9 +77,53 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
     }
   }
 
+  async function handleDocumentUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+
+    // Derive a page title from the filename (strip extension)
+    const baseName = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+
+    try {
+      // 1. Create the DOCUMENT page stub
+      const createRes = await fetch(`/api/docs/${projectKey}/pages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: baseName || file.name, type: "DOCUMENT" }),
+      });
+      if (!createRes.ok) throw new Error("Failed to create page");
+      const { page } = await createRes.json() as { page: { id: string } };
+
+      // 2. Upload the file
+      const formData = new FormData();
+      formData.append("file", file);
+      const uploadRes = await fetch(`/api/docs/${projectKey}/pages/${page.id}/file`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!uploadRes.ok) {
+        const data = await uploadRes.json() as { error?: string };
+        throw new Error(data.error ?? "Upload failed");
+      }
+
+      router.push(`/projects/${projectKey}/docs/${page.id}`);
+      router.refresh();
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   if (variant === "icon-only") {
     return (
       <>
+        {uploadError && (
+          <span className="text-xs text-red-500">{uploadError}</span>
+        )}
         <button
           onClick={() => { setError(null); setPageDialogOpen(true); }}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
@@ -93,6 +140,16 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
           onSubmit={handleCreatePage}
           creating={creating}
           error={error}
+          onUploadDocument={() => fileInputRef.current?.click()}
+          uploading={uploading}
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          className="sr-only"
+          onChange={handleDocumentUpload}
+          disabled={uploading}
         />
       </>
     );
@@ -116,6 +173,9 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
           New Page
         </button>
       </div>
+      {uploadError && (
+        <p className="text-xs text-red-500 mt-1">{uploadError}</p>
+      )}
 
       <PageDialog
         open={pageDialogOpen}
@@ -125,6 +185,8 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
         onSubmit={handleCreatePage}
         creating={creating}
         error={error}
+        onUploadDocument={() => fileInputRef.current?.click()}
+        uploading={uploading}
       />
 
       <Dialog open={sectionDialogOpen} onOpenChange={(o) => { setSectionDialogOpen(o); if (!o) setError(null); }}>
@@ -155,6 +217,15 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
           </form>
         </DialogContent>
       </Dialog>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        className="sr-only"
+        onChange={handleDocumentUpload}
+        disabled={uploading}
+      />
     </>
   );
 }
@@ -167,6 +238,8 @@ function PageDialog({
   onSubmit,
   creating,
   error,
+  onUploadDocument,
+  uploading,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -175,16 +248,18 @@ function PageDialog({
   onSubmit: (e: React.FormEvent) => void;
   creating: boolean;
   error: string | null;
+  onUploadDocument: () => void;
+  uploading: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>New Page</DialogTitle>
-          <DialogDescription>Give your page a title. You can edit the content after creating it.</DialogDescription>
+          <DialogDescription>Give your page a title, or upload a PDF / Word document.</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit}>
-          <div className="py-3">
+          <div className="py-3 space-y-3">
             <Input
               autoFocus
               placeholder="Page title"
@@ -192,7 +267,21 @@ function PageDialog({
               onChange={(e) => onTitleChange(e.target.value)}
               maxLength={200}
             />
-            {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+            {error && <p className="text-xs text-red-500">{error}</p>}
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+              <span className="text-xs text-zinc-400">or</span>
+              <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+            </div>
+            <button
+              type="button"
+              onClick={() => { onOpenChange(false); onUploadDocument(); }}
+              disabled={uploading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm border border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg text-zinc-500 dark:text-zinc-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors disabled:opacity-50"
+            >
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              Upload PDF or Word document
+            </button>
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
