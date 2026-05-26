@@ -108,6 +108,7 @@ To update an issue after completing work, use `PATCH /api/v1/issues/[key]` with 
 - Railway CLI auth is broken in this environment (interactive login hangs, browserless produces no output). Workaround: curl the production URL directly. Fix: generate a token at railway.app → Account Settings → Tokens and use `RAILWAY_TOKEN=<token>` or `railway login --token <token>`. (Tracked: TFEN-19)
 - Production URL: `https://taskforge-production-099b.up.railway.app` — `jedforge.com` has no DNS records
 - Seeded test users (all password `password123`): `admin@taskforge.dev` (Alice Chen, PROJECT_LEAD on all 4 projects), `member@taskforge.dev`, `carol@taskforge.dev`, `dave@taskforge.dev`
+- Seeded local projects (keys): `PL` (Product Launch), `MA` (Mobile App), `WR` (Website Redesign), `JFR` (JedForge Roadmap). Production has additional projects (`TFEN`, `JFDOCS`, `WEQUIZ`, etc.) that do not exist in local dev.
 - Playwright v1.59.1 is installed in `node_modules` only (not global). In CJS scripts: `require('/home/jamie/Projects/TaskForge/node_modules/playwright')`. Chromium must be downloaded once with `npx playwright install chromium`. `tmux` is not available — start the dev server in the background: `npm run dev > /tmp/nextdev.log 2>&1 &` then `sleep 8` before driving it.
 
 ---
@@ -118,7 +119,7 @@ The Docs module lives under `src/app/(dashboard)/projects/[projectKey]/docs/` (p
 
 **Rules enforced in code:**
 
-1. **DocSpace is lazy-upserted** — there is no DocSpace creation endpoint. A `DocSpace` row is upserted automatically on any member's call to the docs API. The shared helper `resolveDocCtx` in `src/app/api/docs/_helpers.ts` handles this; all docs route files import it. Do not try to pre-create DocSpaces at project creation time.
+1. **DocSpace is lazy-upserted** — there is no DocSpace creation endpoint. A `DocSpace` row is upserted automatically on any member's call to the docs API. The shared helper `resolveDocCtx` in `src/app/api/docs/_helpers.ts` handles this; all docs route files import it. The docs Next.js layout (`src/app/(dashboard)/projects/[projectKey]/docs/layout.tsx`) also upserts the DocSpace directly to fetch sidebar data — both upsert paths are intentional. Do not try to pre-create DocSpaces at project creation time.
 2. **DocPageType** — two values: `NATIVE` (TipTap HTML stored in the `content` field — same format as issue descriptions/comments, not raw Markdown) and `DOCUMENT` (file upload; `fileKey`, `fileSize`, `mimeType` fields used instead). Do not add intermediate types without a product decision.
 3. **`DocSpace.isPublic`** — when true, any authenticated JedForge user can read that project's docs even without a `ProjectMember` row. Only `PROJECT_LEAD` can toggle this via `PATCH /api/docs/[projectKey]` with `{ isPublic: boolean }`. `resolveDocCtx` returns `role: null` for non-member public readers; write operations (POST/PATCH/DELETE) still require a member role.
 4. **Docs role enforcement** — enforced in all API routes via `resolveDocCtx` + permission helpers from `src/lib/permissions.ts`:
