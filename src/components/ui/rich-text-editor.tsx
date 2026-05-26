@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
@@ -67,6 +69,15 @@ function Divider() {
   return <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-0.5" />;
 }
 
+async function uploadEditorImage(file: File): Promise<string> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch("/api/editor-images", { method: "POST", body: fd });
+  if (!res.ok) throw new Error("Image upload failed");
+  const { url } = await res.json() as { url: string };
+  return url;
+}
+
 export function RichTextEditor({
   value,
   onChange,
@@ -75,11 +86,14 @@ export function RichTextEditor({
   className = "",
   disabled = false,
 }: RichTextEditorProps) {
+  const [isUploading, setIsUploading] = useState(false);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
       }),
+      Image.configure({ inline: false, allowBase64: false }),
       Link.configure({
         openOnClick: false,
         HTMLAttributes: { rel: "noopener noreferrer" },
@@ -92,6 +106,33 @@ export function RichTextEditor({
     editable: !disabled,
     onUpdate({ editor }) {
       onChange(editor.isEmpty ? "" : editor.getHTML());
+    },
+    editorProps: {
+      handlePaste(view, event) {
+        const items = Array.from(event.clipboardData?.items ?? []);
+        const imageItems = items.filter((item) => item.type.startsWith("image/"));
+        if (imageItems.length === 0) return false;
+
+        event.preventDefault();
+        imageItems.forEach((item) => {
+          const file = item.getAsFile();
+          if (!file) return;
+
+          setIsUploading(true);
+          uploadEditorImage(file)
+            .then((url) => {
+              const { schema } = view.state;
+              const node = schema.nodes.image.create({ src: url });
+              const tr = view.state.tr.replaceSelectionWith(node);
+              view.dispatch(tr);
+            })
+            .catch(() => {
+              // Upload failed — paste event was already consumed, nothing to revert
+            })
+            .finally(() => setIsUploading(false));
+        });
+        return true;
+      },
     },
   });
 
@@ -206,6 +247,13 @@ export function RichTextEditor({
         >
           <Minus className="w-3.5 h-3.5" />
         </ToolbarButton>
+
+        {isUploading && (
+          <>
+            <Divider />
+            <span className="text-xs text-zinc-400 dark:text-zinc-500 px-1">Uploading image…</span>
+          </>
+        )}
       </div>
 
       {/* Editor area — clicking empty space focuses editor */}

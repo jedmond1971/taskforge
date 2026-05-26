@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
+    "@tiptap/extension-image": "^2.0.0",
     "@tiptap/extension-link": "^2.0.0",
     "@tiptap/extension-placeholder": "^2.0.0",
     "@tiptap/extension-task-item": "^2.0.0",

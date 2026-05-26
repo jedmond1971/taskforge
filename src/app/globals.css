@@ -130,6 +130,7 @@
 .dark .rich-prose a { color: oklch(0.7 0.18 264); }
 .rich-prose hr { border: none; border-top: 1px solid oklch(0.88 0 0); margin: 0.75rem 0; }
 .dark .rich-prose hr { border-color: oklch(0.3 0 0); }
+.rich-prose img { max-width: 100%; height: auto; border-radius: 0.375rem; margin: 0.5rem 0; display: block; }
 
 /* Task list */
 .rich-prose ul[data-type="taskList"] { list-style: none; padding-left: 0.25rem; }
