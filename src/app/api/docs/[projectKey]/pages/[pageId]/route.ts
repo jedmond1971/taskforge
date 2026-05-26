@@ -66,6 +66,17 @@ export async function PATCH(
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
+    // Snapshot current content as a revision before overwriting
+    if (content !== undefined && page.content) {
+      await prisma.pageRevision.create({
+        data: {
+          pageId: page.id,
+          content: page.content,
+          authorId: session.user.id,
+        },
+      });
+    }
+
     const updated = await prisma.docPage.update({
       where: { id: page.id },
       data,

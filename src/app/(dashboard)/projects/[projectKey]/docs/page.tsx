@@ -2,7 +2,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { BookOpen, FileText, FolderOpen, Plus } from "lucide-react";
+import { BookOpen, FileText, FolderOpen } from "lucide-react";
+import { CreateDocItemButtons } from "@/components/docs/create-doc-item-buttons";
 
 async function getDocSpaceData(projectKey: string, userId: string) {
   const project = await prisma.project.findFirst({
@@ -60,27 +61,9 @@ export default async function ProjectDocsPage({ params }: { params: { projectKey
             {project.name}&apos;s documentation space is ready. Add a section or page to get started.
           </p>
         </div>
-        <div className="flex items-center gap-3 mt-2">
-          <button
-            disabled
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg opacity-50 cursor-not-allowed"
-            title="Coming in Phase 2"
-          >
-            <Plus className="w-4 h-4" />
-            New Section
-          </button>
-          <button
-            disabled
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-lg opacity-50 cursor-not-allowed"
-            title="Coming in Phase 2"
-          >
-            <FileText className="w-4 h-4" />
-            New Page
-          </button>
+        <div className="mt-2">
+          <CreateDocItemButtons projectKey={project.key.toLowerCase()} />
         </div>
-        <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-1">
-          Full editor coming in Phase 2
-        </p>
       </div>
     );
   }
@@ -95,14 +78,7 @@ export default async function ProjectDocsPage({ params }: { params: { projectKey
             {docSpace.sections.length > 0 && ` across ${docSpace.sections.length} section${docSpace.sections.length !== 1 ? "s" : ""}`}
           </p>
         </div>
-        <button
-          disabled
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg opacity-50 cursor-not-allowed"
-          title="Coming in Phase 2"
-        >
-          <Plus className="w-4 h-4" />
-          New
-        </button>
+        <CreateDocItemButtons projectKey={project.key.toLowerCase()} variant="icon-only" />
       </div>
 
       {/* Unsectioned pages */}
