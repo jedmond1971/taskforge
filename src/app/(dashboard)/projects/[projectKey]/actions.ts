@@ -351,8 +351,61 @@ export async function getIssue(projectKey: string, issueKey: string) {
         orderBy: { createdAt: "asc" },
       },
       project: { select: { id: true, key: true, name: true } },
+      docLinks: {
+        include: {
+          page: { select: { id: true, title: true, type: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
+}
+
+// --- DOC LINK MANAGEMENT ---
+export async function linkDocPage(projectKey: string, issueId: string, pageId: string) {
+  const { userId, projectId } = await requireProjectMember(projectKey);
+
+  // Verify issue belongs to this project
+  const issue = await prisma.issue.findFirst({
+    where: { id: issueId, projectId },
+    select: { id: true },
+  });
+  if (!issue) throw new Error("Issue not found");
+
+  // Verify page belongs to this project's doc space
+  const docSpace = await prisma.docSpace.findUnique({
+    where: { projectId },
+    select: { id: true },
+  });
+  if (!docSpace) throw new Error("Doc space not found");
+
+  const page = await prisma.docPage.findFirst({
+    where: { id: pageId, docSpaceId: docSpace.id },
+    select: { id: true },
+  });
+  if (!page) throw new Error("Page not found");
+
+  await prisma.issueDocLink.upsert({
+    where: { issueId_pageId: { issueId, pageId } },
+    create: { issueId, pageId, createdById: userId },
+    update: {},
+  });
+
+  revalidatePath(`/projects/${projectKey}/issues`);
+}
+
+export async function unlinkDocPage(projectKey: string, issueId: string, pageId: string) {
+  const { projectId } = await requireProjectMember(projectKey);
+
+  const issue = await prisma.issue.findFirst({
+    where: { id: issueId, projectId },
+    select: { id: true },
+  });
+  if (!issue) throw new Error("Issue not found");
+
+  await prisma.issueDocLink.deleteMany({ where: { issueId, pageId } });
+
+  revalidatePath(`/projects/${projectKey}/issues`);
 }
 
 // --- GET PROJECT MEMBERS (for assignee select) ---

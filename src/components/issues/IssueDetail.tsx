@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
+import { IssueStatus, IssuePriority, IssueType, DocPageType } from "@prisma/client";
 import { updateIssue, deleteIssue } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { STATUS_CONFIG, PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
 import { Pencil, Trash2, Check, X, ChevronRight, Plus } from "lucide-react";
@@ -18,6 +18,7 @@ import { AttachmentsPanel } from "@/components/attachments/AttachmentsPanel";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { RichTextDisplay } from "@/components/ui/rich-text-display";
 import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
+import { RelatedDocsSection } from "@/components/issues/RelatedDocsSection";
 
 type User = { id: string; name: string; avatarUrl: string | null };
 type ActivityLog = {
@@ -50,6 +51,12 @@ type ParentIssue = {
   title: string;
   status: IssueStatus;
 };
+type DocLink = {
+  id: string;
+  pageId: string;
+  page: { id: string; title: string; type: DocPageType };
+};
+
 type Issue = {
   id: string;
   key: string;
@@ -71,6 +78,7 @@ type Issue = {
   comments: Comment[];
   activityLogs: ActivityLog[];
   project: { id: string; key: string; name: string };
+  docLinks: DocLink[];
 };
 
 interface IssueDetailProps {
@@ -410,6 +418,14 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
               )}
             </div>
           </div>
+
+          {/* Related Docs */}
+          <RelatedDocsSection
+            issueId={issue.id}
+            projectKey={projectKey}
+            initialLinks={issue.docLinks}
+            canEdit={canEdit}
+          />
 
           {/* Labels */}
           <div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download, Upload, FileText, AlertCircle, Loader2 } from "lucide-react";
+import { ReferencedIssuesPanel } from "@/components/docs/referenced-issues-panel";
 
 interface DocDocumentViewProps {
   page: {
@@ -136,6 +137,9 @@ export function DocDocumentView({ page, projectKey }: DocDocumentViewProps) {
           <span>· Updated {new Date(page.updatedAt).toLocaleDateString()} by {page.author.name}</span>
         </div>
       </div>
+
+      {/* Referenced issues */}
+      <ReferencedIssuesPanel projectKey={projectKey} pageId={page.id} />
 
       {/* Viewer area */}
       <div className="flex-1 min-h-0 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">

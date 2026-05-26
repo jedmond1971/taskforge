@@ -94,6 +94,7 @@ model User {
   notifications  Notification[]
   docPages       DocPage[]
   pageRevisions  PageRevision[]
+  issueDocLinks  IssueDocLink[]
 }
 
 model Project {
@@ -156,6 +157,7 @@ model Issue {
   activityLogs  ActivityLog[]
   attachments   Attachment[]
   notifications Notification[]
+  docLinks      IssueDocLink[]
 
   @@index([projectId])
   @@index([assigneeId])
@@ -364,10 +366,11 @@ model DocPage {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
-  docSpace  DocSpace      @relation(fields: [docSpaceId], references: [id], onDelete: Cascade)
-  section   DocSection?   @relation(fields: [sectionId], references: [id], onDelete: SetNull)
-  author    User          @relation(fields: [authorId], references: [id])
-  revisions PageRevision[]
+  docSpace   DocSpace       @relation(fields: [docSpaceId], references: [id], onDelete: Cascade)
+  section    DocSection?    @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  author     User           @relation(fields: [authorId], references: [id])
+  revisions  PageRevision[]
+  issueLinks IssueDocLink[]
 
   @@index([docSpaceId])
   @@index([sectionId])
@@ -384,5 +387,21 @@ model PageRevision {
   page   DocPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
   author User    @relation(fields: [authorId], references: [id])
 
+  @@index([pageId])
+}
+
+model IssueDocLink {
+  id          String   @id @default(cuid())
+  issueId     String
+  pageId      String
+  createdById String
+  createdAt   DateTime @default(now())
+
+  issue     Issue   @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  page      DocPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  createdBy User    @relation(fields: [createdById], references: [id])
+
+  @@unique([issueId, pageId])
+  @@index([issueId])
   @@index([pageId])
 }

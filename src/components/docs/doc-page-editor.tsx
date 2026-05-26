@@ -7,6 +7,7 @@ import { ArrowLeft, Edit2, Save, X, History, Check } from "lucide-react";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { RichTextDisplay } from "@/components/ui/rich-text-display";
 import { VersionHistoryPanel } from "@/components/docs/version-history-panel";
+import { ReferencedIssuesPanel } from "@/components/docs/referenced-issues-panel";
 
 interface Revision {
   id: string;
@@ -202,6 +203,7 @@ export function DocPageEditor({ page, initialRevisions, projectKey }: DocPageEdi
                   Last updated {new Date(page.updatedAt).toLocaleDateString()} by {page.author.name}
                 </p>
               </div>
+              <ReferencedIssuesPanel projectKey={projectKey} pageId={page.id} />
             </div>
           )}
         </div>
