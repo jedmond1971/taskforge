@@ -192,6 +192,94 @@ Delete an issue permanently.
 
 ---
 
+### GET /api/v1/issues/:key/comments
+
+List all comments on an issue, ordered oldest-first.
+
+**Response 200:**
+```json
+{
+  "comments": [
+    {
+      "id": "cuid",
+      "issueId": "cuid",
+      "body": "...",
+      "authorId": "cuid",
+      "author": { "id": "cuid", "name": "Maximus" },
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+**Response 404:** `{ "error": "Issue not found" }`
+
+---
+
+### POST /api/v1/issues/:key/comments
+
+Create a comment on an issue.
+
+**Request body:**
+```json
+{
+  "body": "string (required)",
+  "authorId": "user cuid (required)"
+}
+```
+
+Use `cmo365psl000vdrd0p63lirlz` as `authorId` to post as the Claude Code account (Maximus).
+
+**Response 201:**
+```json
+{
+  "id": "cuid",
+  "issueId": "cuid",
+  "body": "...",
+  "authorId": "cuid",
+  "author": { "id": "cuid", "name": "Maximus" },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}
+```
+
+**Response 400:** `{ "error": "..." }` (missing/invalid fields, author not found)
+
+**Response 404:** `{ "error": "Issue not found" }`
+
+---
+
+### PATCH /api/v1/issues/:key/comments/:commentId
+
+Update a comment's body.
+
+**Request body:**
+```json
+{ "body": "string (required)" }
+```
+
+**Response 200:** Full updated comment object (same shape as POST response).
+
+**Response 400:** `{ "error": "body must be a non-empty string" }`
+
+**Response 404:** `{ "error": "Comment not found" }`
+
+---
+
+### DELETE /api/v1/issues/:key/comments/:commentId
+
+Delete a comment permanently.
+
+**Response 200:**
+```json
+{ "deleted": true, "id": "cuid" }
+```
+
+**Response 404:** `{ "error": "Comment not found" }`
+
+---
+
 ## Status Values
 
 Statuses are enum values. Both enum names and human-readable names are accepted in filter/request params:
