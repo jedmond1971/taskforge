@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   FolderKanban,
   Search,
+  BookOpen,
   ShieldCheck,
   LogOut,
   Settings,
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/search", label: "Search", icon: Search },
   { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/docs", label: "Docs", icon: BookOpen },
 ];
 
 interface SidebarProps {

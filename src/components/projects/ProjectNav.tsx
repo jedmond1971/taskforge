@@ -15,6 +15,7 @@ export function ProjectNav({ projectKey }: ProjectNavProps) {
   const tabs = [
     { href: `${base}/board`, label: "Board" },
     { href: `${base}/issues`, label: "Issues" },
+    { href: `${base}/docs`, label: "Docs" },
     { href: `${base}/activity`, label: "Activity" },
     { href: `${base}/settings`, label: "Settings" },
   ];

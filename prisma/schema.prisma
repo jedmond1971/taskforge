@@ -67,6 +67,11 @@ enum NotificationType {
   MENTION
 }
 
+enum DocPageType {
+  NATIVE
+  DOCUMENT
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -87,6 +92,8 @@ model User {
   ownedOrgs      Organization[]  @relation("OwnedOrgs")
   orgMembers     OrgMember[]
   notifications  Notification[]
+  docPages       DocPage[]
+  pageRevisions  PageRevision[]
 }
 
 model Project {
@@ -100,10 +107,11 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  org     Organization  @relation(fields: [orgId], references: [id])
-  members ProjectMember[]
-  issues  Issue[]
-  boards  Board[]
+  org      Organization @relation(fields: [orgId], references: [id])
+  members  ProjectMember[]
+  issues   Issue[]
+  boards   Board[]
+  docSpace DocSpace?
 }
 
 model ProjectMember {
@@ -313,4 +321,68 @@ model Notification {
 
   @@index([userId, read])
   @@index([userId, createdAt])
+}
+
+model DocSpace {
+  id        String   @id @default(cuid())
+  projectId String   @unique
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sections DocSection[]
+  pages    DocPage[]
+}
+
+model DocSection {
+  id         String   @id @default(cuid())
+  docSpaceId String
+  title      String
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  docSpace DocSpace  @relation(fields: [docSpaceId], references: [id], onDelete: Cascade)
+  pages    DocPage[]
+
+  @@index([docSpaceId])
+}
+
+model DocPage {
+  id         String      @id @default(cuid())
+  docSpaceId String
+  sectionId  String?
+  title      String
+  type       DocPageType @default(NATIVE)
+  content    String?
+  fileKey    String?
+  fileSize   Int?
+  mimeType   String?
+  authorId   String
+  position   Int         @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  docSpace  DocSpace      @relation(fields: [docSpaceId], references: [id], onDelete: Cascade)
+  section   DocSection?   @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  author    User          @relation(fields: [authorId], references: [id])
+  revisions PageRevision[]
+
+  @@index([docSpaceId])
+  @@index([sectionId])
+  @@index([authorId])
+}
+
+model PageRevision {
+  id        String   @id @default(cuid())
+  pageId    String
+  content   String
+  authorId  String
+  createdAt DateTime @default(now())
+
+  page   DocPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  author User    @relation(fields: [authorId], references: [id])
+
+  @@index([pageId])
 }
