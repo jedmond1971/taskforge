@@ -353,6 +353,29 @@ Markdown is supported. Be concise but informative.
 - MEDIUM: standard enhancements (default)
 - LOW: minor polish, documentation, cleanup
 
+### Posting comments
+
+After completing work on an issue, post a comment summarising what was done. Use the
+Claude Code account as the author:
+
+```
+POST /api/v1/issues/:key/comments
+{
+  "authorId": "cmo365psl000vdrd0p63lirlz",
+  "body": "..."
+}
+```
+
+The comment body should cover:
+- What was implemented or changed
+- Key decisions made
+- Files added or modified (brief, not exhaustive)
+- Any follow-up issues created or still needed
+
+This is separate from the description field. The description captures intent and design
+decisions at the time the issue was created; comments capture what actually happened and
+any discoveries made along the way.
+
 ### Self-referential work
 
 When building or improving the JedForge API itself (this file's subject), always create an

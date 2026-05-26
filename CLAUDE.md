@@ -20,6 +20,8 @@ gh run list --repo jedmond1971/taskforge --limit 1
 ```
 If CI fails, fix and push before ending the session. Do not leave main in a broken state.
 
+**Railway deploy lag:** CI passing does not mean the production deployment is live. Railway takes an additional ~2–3 minutes after CI success to build and swap the deployment. New API routes will 404 until the deploy completes. If you need to verify a new endpoint is live, poll with `until curl -s -o /dev/null -w "%{http_code}" <url> | grep -q "200"; do sleep 15; done`.
+
 ### End-of-session CLAUDE.md update
 Before closing every session, review what was discovered and update this file. Add only durable facts that will matter in future sessions — environment quirks, schema discoveries, tooling workarounds, corrected URLs. Do not add summaries of completed work.
 
@@ -90,7 +92,7 @@ An internal API for Claude Code to track work in JedForge. No authentication req
 - **Production:** `https://taskforge-production-099b.up.railway.app/api/v1`
 - **Reference:** see `CLAUDE_API.md` for full route docs and working convention
 
-Routes: `GET/POST /api/v1/issues`, `GET/PATCH/DELETE /api/v1/issues/[key]`, `GET /api/v1/projects`, `GET /api/v1/projects/[id]`
+Routes: `GET/POST /api/v1/issues`, `GET/PATCH/DELETE /api/v1/issues/[key]`, `GET/POST /api/v1/issues/[key]/comments`, `PATCH/DELETE /api/v1/issues/[key]/comments/[commentId]`, `GET /api/v1/projects`, `GET /api/v1/projects/[id]`
 
 To update an issue after completing work, use `PATCH /api/v1/issues/[key]` with `statusId` (not `status`) to mark it done. To post a comment, use `POST /api/v1/issues/[key]/comments` with `body` and `authorId`. Use `cmo365psl000vdrd0p63lirlz` as `authorId` to post as Maximus (Claude Code account). See `CLAUDE_API.md` for the full comments API.
 
