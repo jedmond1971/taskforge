@@ -31,7 +31,7 @@ const cellBorder = {
   right:  { style: BorderStyle.SINGLE, size: 4, color: BORDER_CLR },
 };
 
-function pt(n) { return n * 20; }   // points → half-points (twips for font size)
+function pt(n) { return n * 2; }    // points → half-points (docx size unit)
 function dxa(inches) { return Math.round(inches * 1440); }
 
 function run(text, opts = {}) {
