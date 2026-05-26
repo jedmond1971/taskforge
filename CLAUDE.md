@@ -76,6 +76,8 @@ For local dev (Docker Postgres on port 5433): `npx prisma migrate dev`
 
 Always write the migration SQL manually into `prisma/migrations/<timestamp_name>/migration.sql` and update `prisma/schema.prisma` in the same commit. Run `npx prisma generate` after schema changes.
 
+**Production migrations are NOT auto-applied on deploy.** The `start` script is plain `next start` — there is no `prisma migrate deploy` in the build pipeline. Every migration must be applied to the production database manually with the psql command above before (or immediately after) pushing. Railway's `npm ci` triggers `@prisma/client`'s postinstall hook which auto-generates the client, so `prisma generate` is handled automatically on deploy — but the SQL schema change is not.
+
 **Before writing any route or server action that queries Prisma, verify every field referenced exists in the current `schema.prisma`.** If a field is absent, note it and either adapt the query or plan a migration before proceeding.
 
 ---
@@ -103,6 +105,19 @@ Routes: `GET/POST /api/v1/issues`, `GET/PATCH/DELETE /api/v1/issues/[key]`, `GET
 - Docker Postgres on port 5433 — start with `docker start taskforge-db` if not running (see startup checklist above)
 - Railway CLI auth is broken in this environment (interactive login hangs, browserless produces no output). Workaround: curl the production URL directly. Fix: generate a token at railway.app → Account Settings → Tokens and use `RAILWAY_TOKEN=<token>` or `railway login --token <token>`. (Tracked: TFEN-19)
 - Production URL: `https://taskforge-production-099b.up.railway.app` — `jedforge.com` has no DNS records
+
+---
+
+## Docs module invariants
+
+The Docs module lives under `src/app/(dashboard)/projects/[projectKey]/docs/` (project view) and `src/app/(dashboard)/docs/` (global view). API routes are at `/api/docs/[projectKey]/...`.
+
+**Rules enforced in code:**
+
+1. **DocSpace is lazy-upserted** — there is no DocSpace creation endpoint. A `DocSpace` row is created automatically (via `upsert`) the first time a user visits `/projects/[key]/docs` or calls `GET /api/docs/[projectKey]`. Do not try to pre-create DocSpaces at project creation time.
+2. **DocPageType** — two values: `NATIVE` (Markdown/TipTap content stored in the `content` field) and `DOCUMENT` (file upload; `fileKey`, `fileSize`, `mimeType` fields used instead). Do not add intermediate types without a product decision.
+3. **`DocSpace.isPublic`** — reserved for the Phase 5 visibility toggle (makes a project's docs readable by all authenticated users). Do not repurpose this field.
+4. **Page revisions** — `PageRevision` rows are snapshot-only (created on save, never mutated). Restoring a revision means writing its content back to `DocPage.content` and creating a new revision from the current content first.
 
 ---
 
