@@ -107,6 +107,8 @@ To update an issue after completing work, use `PATCH /api/v1/issues/[key]` with 
 - Docker Postgres on port 5433 — start with `docker start taskforge-db` if not running (see startup checklist above)
 - Railway CLI auth is broken in this environment (interactive login hangs, browserless produces no output). Workaround: curl the production URL directly. Fix: generate a token at railway.app → Account Settings → Tokens and use `RAILWAY_TOKEN=<token>` or `railway login --token <token>`. (Tracked: TFEN-19)
 - Production URL: `https://taskforge-production-099b.up.railway.app` — `jedforge.com` has no DNS records
+- Seeded test users (all password `password123`): `admin@taskforge.dev` (Alice Chen, PROJECT_LEAD on all 4 projects), `member@taskforge.dev`, `carol@taskforge.dev`, `dave@taskforge.dev`
+- Playwright v1.59.1 is installed in `node_modules` only (not global). In CJS scripts: `require('/home/jamie/Projects/TaskForge/node_modules/playwright')`. Chromium must be downloaded once with `npx playwright install chromium`. `tmux` is not available — start the dev server in the background: `npm run dev > /tmp/nextdev.log 2>&1 &` then `sleep 8` before driving it.
 
 ---
 
@@ -116,11 +118,31 @@ The Docs module lives under `src/app/(dashboard)/projects/[projectKey]/docs/` (p
 
 **Rules enforced in code:**
 
-1. **DocSpace is lazy-upserted** — there is no DocSpace creation endpoint. A `DocSpace` row is created automatically (via `upsert`) the first time a user visits `/projects/[key]/docs` or calls `GET /api/docs/[projectKey]`. Do not try to pre-create DocSpaces at project creation time.
+1. **DocSpace is lazy-upserted** — there is no DocSpace creation endpoint. A `DocSpace` row is created automatically (via `upsert`) on any authenticated call to the docs API (all handlers call `resolveDocSpace` which does the upsert). Do not try to pre-create DocSpaces at project creation time.
 2. **DocPageType** — two values: `NATIVE` (TipTap HTML stored in the `content` field — same format as issue descriptions/comments, not raw Markdown) and `DOCUMENT` (file upload; `fileKey`, `fileSize`, `mimeType` fields used instead). Do not add intermediate types without a product decision.
 3. **`DocSpace.isPublic`** — reserved for the Phase 5 visibility toggle (makes a project's docs readable by all authenticated users). Do not repurpose this field.
 4. **Page revisions** — `PageRevision` rows are snapshot-only (created on save, never mutated). The PATCH handler for `/api/docs/[projectKey]/pages/[pageId]` automatically snapshots the previous content into a new `PageRevision` whenever `content` is included in the update body — do not break this side-effect when modifying that handler. Restoring a revision means writing its content back to `DocPage.content` and creating a new revision from the current content first (the auto-snapshot in PATCH handles this).
-5. **DOCUMENT page file lifecycle** — files are uploaded via `POST /api/docs/[projectKey]/pages/[pageId]/file` (multipart `file` field; PDF and DOCX only, 50 MB max). That endpoint also sets `type = DOCUMENT` on the page, so posting a file to an existing NATIVE page converts it. `GET` on the same route returns `{ url, mimeType, fileName }` with a 1-hour presigned S3 URL. Files are stored at `docs/[docSpaceId]/[pageId]/[uuid]-[sanitized-filename]` in S3. The DELETE handler for a page removes the S3 object automatically; replacing a file via POST also deletes the previous object. PDFs render inline via `<iframe>`; DOCX files get a download-only prompt (no browser-native Word viewer). The UI creates the page stub first then uploads — a failed upload leaves an orphaned DOCUMENT page with no file (known edge case).
+5. **Issue↔DocPage cross-links** — `IssueDocLink` is the junction table (cascade-deletes when either side is deleted). Both issue and page must belong to the same project — enforced in the `linkDocPage` server action. Manage links via `linkDocPage` / `unlinkDocPage` in `actions.ts`; read linked issues for a page via `GET /api/docs/[projectKey]/pages/[pageId]/links`.
+
+6. **DOCUMENT page file lifecycle** — files are uploaded via `POST /api/docs/[projectKey]/pages/[pageId]/file` (multipart `file` field; PDF and DOCX only, 50 MB max). That endpoint also sets `type = DOCUMENT` on the page, so posting a file to an existing NATIVE page converts it. `GET` on the same route returns `{ url, mimeType, fileName }` with a 1-hour presigned S3 URL. Files are stored at `docs/[docSpaceId]/[pageId]/[uuid]-[sanitized-filename]` in S3. The DELETE handler for a page removes the S3 object automatically; replacing a file via POST also deletes the previous object. PDFs render inline via `<iframe>`; DOCX files get a download-only prompt (no browser-native Word viewer). The UI creates the page stub first then uploads — a failed upload leaves an orphaned DOCUMENT page with no file (known edge case).
+
+---
+
+## Functional specification
+
+The functional spec lives at `.context-docs/JedForge-FunctionalSpec-v2.0.docx`. Regenerate it with:
+```bash
+node scripts/generate-spec-v2.mjs
+```
+
+Then commit both `.context-docs/JedForge-FunctionalSpec-v2.0.docx` and `scripts/generate-spec-v2.mjs` if the script was also changed.
+
+**Tooling notes for working with .docx files:**
+- `extract-text` command does not exist on this machine. Use `python3` + `python-docx` to read .docx content.
+- `python-docx` is not installed by default: `pip3 install python-docx --break-system-packages`
+- `docx` npm package is installed globally at `/home/jamie/.npm-global/lib/node_modules/docx`. Import via `dist/index.mjs` (not `dist/index.js`). `NumberingConfig` is not exported — pass the numbering config object directly to `Document`.
+- In the `docx` package, font `size` is in half-points: 10pt = `size: 20`, not `size: 200`. Use `n * 2`.
+- `scripts/office/` directory and `validate.py` do not exist in this repo.
 
 ---
 
