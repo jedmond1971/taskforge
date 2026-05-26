@@ -5,7 +5,7 @@
 ### Startup checklist (run at the beginning of every session)
 1. `git status` — confirm the working tree is clean before starting. Commit or stash any pre-existing changes first.
 2. `docker start taskforge-db 2>/dev/null; docker ps --filter name=taskforge-db --format "{{.Status}}"` — confirm Postgres is running.
-3. Create a JedForge issue for the work ahead. See `CLAUDE_API.md` → Working Convention.
+3. Find or create a JedForge issue for the work ahead. Check the relevant project (JFDOCS, TFEN, JFR) for an existing issue before creating a new one. See `CLAUDE_API.md` → Working Convention.
 
 ### Pre-commit checklist (run before every commit)
 1. `npm run lint` — zero errors required. Pre-existing warnings are acceptable; new ones are not.
@@ -117,9 +117,9 @@ The Docs module lives under `src/app/(dashboard)/projects/[projectKey]/docs/` (p
 **Rules enforced in code:**
 
 1. **DocSpace is lazy-upserted** — there is no DocSpace creation endpoint. A `DocSpace` row is created automatically (via `upsert`) the first time a user visits `/projects/[key]/docs` or calls `GET /api/docs/[projectKey]`. Do not try to pre-create DocSpaces at project creation time.
-2. **DocPageType** — two values: `NATIVE` (Markdown/TipTap content stored in the `content` field) and `DOCUMENT` (file upload; `fileKey`, `fileSize`, `mimeType` fields used instead). Do not add intermediate types without a product decision.
+2. **DocPageType** — two values: `NATIVE` (TipTap HTML stored in the `content` field — same format as issue descriptions/comments, not raw Markdown) and `DOCUMENT` (file upload; `fileKey`, `fileSize`, `mimeType` fields used instead). Do not add intermediate types without a product decision.
 3. **`DocSpace.isPublic`** — reserved for the Phase 5 visibility toggle (makes a project's docs readable by all authenticated users). Do not repurpose this field.
-4. **Page revisions** — `PageRevision` rows are snapshot-only (created on save, never mutated). Restoring a revision means writing its content back to `DocPage.content` and creating a new revision from the current content first.
+4. **Page revisions** — `PageRevision` rows are snapshot-only (created on save, never mutated). The PATCH handler for `/api/docs/[projectKey]/pages/[pageId]` automatically snapshots the previous content into a new `PageRevision` whenever `content` is included in the update body — do not break this side-effect when modifying that handler. Restoring a revision means writing its content back to `DocPage.content` and creating a new revision from the current content first (the auto-snapshot in PATCH handles this).
 
 ---
 
