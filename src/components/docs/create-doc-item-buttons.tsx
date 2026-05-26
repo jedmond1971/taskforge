@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 
 interface CreateDocItemButtonsProps {
   projectKey: string;
-  variant?: "full" | "icon-only";
+  variant?: "full" | "icon-only" | "sidebar";
 }
 
 export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDocItemButtonsProps) {
@@ -143,6 +143,82 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
           onUploadDocument={() => fileInputRef.current?.click()}
           uploading={uploading}
         />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          className="sr-only"
+          onChange={handleDocumentUpload}
+          disabled={uploading}
+        />
+      </>
+    );
+  }
+
+  if (variant === "sidebar") {
+    return (
+      <>
+        {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => { setError(null); setSectionDialogOpen(true); }}
+            title="New Section"
+            className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-md transition-colors"
+          >
+            <FolderOpen className="w-3.5 h-3.5" />
+            Section
+          </button>
+          <button
+            onClick={() => { setError(null); setPageDialogOpen(true); }}
+            title="New Page"
+            className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-md transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Page
+          </button>
+        </div>
+
+        <PageDialog
+          open={pageDialogOpen}
+          onOpenChange={(o) => { setPageDialogOpen(o); if (!o) setError(null); }}
+          title={pageTitle}
+          onTitleChange={setPageTitle}
+          onSubmit={handleCreatePage}
+          creating={creating}
+          error={error}
+          onUploadDocument={() => fileInputRef.current?.click()}
+          uploading={uploading}
+        />
+
+        <Dialog open={sectionDialogOpen} onOpenChange={(o) => { setSectionDialogOpen(o); if (!o) setError(null); }}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>New Section</DialogTitle>
+              <DialogDescription>Give this section a name. You can add pages to it afterward.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleCreateSection}>
+              <div className="py-3">
+                <Input
+                  autoFocus
+                  placeholder="Section name"
+                  value={sectionTitle}
+                  onChange={(e) => setSectionTitle(e.target.value)}
+                  maxLength={100}
+                />
+                {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => setSectionDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={creating || !sectionTitle.trim()}>
+                  {creating ? "Creating…" : "Create"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
         <input
           ref={fileInputRef}
           type="file"
