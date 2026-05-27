@@ -48,7 +48,7 @@ const FIELD_OPERATORS: Record<string, Operator[]> = {
   dueDate: ["=", "!=", ">", "<", ">=", "<="],
 };
 
-const STATUS_VALUES = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"];
+const STATUS_VALUES = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"];
 const PRIORITY_VALUES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
 const TYPE_VALUES = ["BUG", "TASK", "STORY", "EPIC"];
 

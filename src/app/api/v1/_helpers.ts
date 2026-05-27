@@ -5,10 +5,12 @@ export const STATUS_MAP: Record<string, IssueStatus> = {
   IN_PROGRESS: IssueStatus.IN_PROGRESS,
   IN_REVIEW: IssueStatus.IN_REVIEW,
   DONE: IssueStatus.DONE,
+  CANCELLED: IssueStatus.CANCELLED,
   "To Do": IssueStatus.TODO,
   "In Progress": IssueStatus.IN_PROGRESS,
   "In Review": IssueStatus.IN_REVIEW,
   Done: IssueStatus.DONE,
+  Cancelled: IssueStatus.CANCELLED,
 };
 
 export const PRIORITY_MAP: Record<string, IssuePriority> = {
@@ -24,6 +26,7 @@ const STATUS_LABELS: Record<IssueStatus, string> = {
   IN_PROGRESS: "In Progress",
   IN_REVIEW: "In Review",
   DONE: "Done",
+  CANCELLED: "Cancelled",
 };
 
 export const SYNTH_STATUSES = (Object.entries(STATUS_LABELS) as [IssueStatus, string][]).map(

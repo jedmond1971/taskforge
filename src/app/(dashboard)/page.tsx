@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FolderKanban, CheckCircle2, Clock, AlertCircle, CalendarClock, Plus } from "lucide-react";
+import { FolderKanban, CheckCircle2, Clock, AlertCircle, CalendarClock, Plus, XCircle } from "lucide-react";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
 
 async function getUserProjects(userId: string) {
@@ -21,7 +21,7 @@ async function getUserProjects(userId: string) {
 
 async function getAssignedIssues(userId: string) {
   return prisma.issue.findMany({
-    where: { assigneeId: userId, status: { not: "DONE" } },
+    where: { assigneeId: userId, status: { notIn: ["DONE", "CANCELLED"] } },
     include: { project: { select: { key: true, name: true } } },
     orderBy: { updatedAt: "desc" },
     take: 5,
@@ -34,7 +34,7 @@ async function getUpcomingDueDates(userId: string) {
   return prisma.issue.findMany({
     where: {
       project: { members: { some: { userId } } },
-      status: { not: "DONE" },
+      status: { notIn: ["DONE", "CANCELLED"] },
       dueDate: { not: null, lte: soon },
     },
     include: { project: { select: { key: true, name: true } } },
@@ -66,6 +66,7 @@ const statusConfig = {
   IN_PROGRESS: { label: "In Progress", color: "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300", icon: Clock },
   IN_REVIEW: { label: "In Review", color: "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300", icon: AlertCircle },
   DONE: { label: "Done", color: "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300", icon: CheckCircle2 },
+  CANCELLED: { label: "Cancelled", color: "bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300", icon: XCircle },
 } as const;
 
 const priorityConfig = {

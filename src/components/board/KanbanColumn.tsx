@@ -24,6 +24,7 @@ const COLUMN_CONFIG: Record<IssueStatus, { label: string; border: string; dot: s
   IN_PROGRESS: { label: "In Progress", border: "border-t-blue-500",    dot: "bg-blue-500"    },
   IN_REVIEW:   { label: "In Review",   border: "border-t-yellow-500",  dot: "bg-yellow-500"  },
   DONE:        { label: "Done",        border: "border-t-emerald-500", dot: "bg-emerald-500" },
+  CANCELLED:   { label: "Cancelled",   border: "border-t-rose-500",    dot: "bg-rose-500"    },
 };
 
 interface KanbanColumnProps {

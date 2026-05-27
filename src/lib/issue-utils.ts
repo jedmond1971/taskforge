@@ -5,6 +5,7 @@ export const STATUS_CONFIG: Record<IssueStatus, { label: string; color: string; 
   IN_PROGRESS: { label: "In Progress", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950" },
   IN_REVIEW: { label: "In Review", color: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-50 dark:bg-yellow-950" },
   DONE: { label: "Done", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950" },
+  CANCELLED: { label: "Cancelled", color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-50 dark:bg-rose-950" },
 };
 
 export const PRIORITY_CONFIG: Record<IssuePriority, { label: string; color: string; bg: string }> = {

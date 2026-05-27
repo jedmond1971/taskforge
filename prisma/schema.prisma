@@ -44,6 +44,7 @@ enum IssueStatus {
   IN_PROGRESS
   IN_REVIEW
   DONE
+  CANCELLED
 }
 
 enum IssuePriority {

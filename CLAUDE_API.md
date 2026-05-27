@@ -290,6 +290,7 @@ Statuses are enum values. Both enum names and human-readable names are accepted 
 | `IN_PROGRESS` | `In Progress` |
 | `IN_REVIEW` | `In Review` |
 | `DONE` | `Done` |
+| `CANCELLED` | `Cancelled` |
 
 ---
 

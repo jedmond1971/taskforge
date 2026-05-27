@@ -21,7 +21,7 @@ import { KanbanCard } from "./KanbanCard";
 import { moveIssue, reorderIssues } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { toast } from "sonner";
 
-const STATUSES: IssueStatus[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"];
+const STATUSES: IssueStatus[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"];
 
 type CardIssue = {
   id: string;
