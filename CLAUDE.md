@@ -70,15 +70,11 @@ Claude Code cannot run `npm install` directly. To add packages:
 
 ## Database migrations
 
-```bash
-psql "$(railway variables --service Postgres --json | python3 -c "import sys,json; print(json.load(sys.stdin)['DATABASE_PUBLIC_URL'])")" -f prisma/migrations/<name>/migration.sql
-```
-
 For local dev (Docker Postgres on port 5433): `npx prisma migrate dev`
 
-Always write the migration SQL manually into `prisma/migrations/<timestamp_name>/migration.sql` and update `prisma/schema.prisma` in the same commit. Run `npx prisma generate` after schema changes.
+Always update `prisma/schema.prisma` and let Prisma generate the migration with `npx prisma migrate dev`. Run `npx prisma generate` after schema changes.
 
-**Production migrations are NOT auto-applied on deploy.** The `start` script is plain `next start` — there is no `prisma migrate deploy` in the build pipeline. Every migration must be applied to the production database manually with the psql command above before (or immediately after) pushing. Railway's `npm ci` triggers `@prisma/client`'s postinstall hook which auto-generates the client, so `prisma generate` is handled automatically on deploy — but the SQL schema change is not.
+**Production migrations are auto-applied on every Railway deploy.** `railway.toml` sets `preDeployCommand = "npx prisma migrate deploy"`, which runs before the app starts. No manual psql step is needed — just push and Railway handles it.
 
 **Before writing any route or server action that queries Prisma, verify every field referenced exists in the current `schema.prisma`.** If a field is absent, note it and either adapt the query or plan a migration before proceeding.
 
