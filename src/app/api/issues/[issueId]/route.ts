@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canEditIssues } from "@/lib/permissions";
 import { notificationService } from "@/lib/notifications";
+import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 
 export async function PATCH(
   request: NextRequest,
@@ -40,6 +41,10 @@ export async function PATCH(
     const updates: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (field in body) updates[field] = body[field];
+    }
+
+    if (typeof updates.description === "string") {
+      updates.description = sanitizeTipTapHtml(updates.description);
     }
 
     if (updates.assigneeId != null) {

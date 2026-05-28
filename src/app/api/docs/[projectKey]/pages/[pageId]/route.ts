@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { deleteObject } from "@/lib/s3";
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
 import { canEditIssues, canManageProject } from "@/lib/permissions";
+import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 
 async function resolvePage(projectKey: string, pageId: string, userId: string) {
   const ctx = await resolveDocCtx(projectKey, userId);
@@ -64,7 +65,7 @@ export async function PATCH(
     };
     const data: Record<string, unknown> = {};
     if (title !== undefined) data.title = title.trim();
-    if (content !== undefined) data.content = content;
+    if (content !== undefined) data.content = sanitizeTipTapHtml(content);
     if (sectionId !== undefined) data.sectionId = sectionId;
     if (position !== undefined) data.position = position;
 

@@ -99,11 +99,13 @@ Always update `prisma/schema.prisma` and let Prisma generate the migration with 
 
 ## Internal v1 REST API
 
-An internal API for Claude Code to track work in JedForge. No authentication required.
+An internal API for Claude Code to track work in JedForge. **Requires the `X-Internal-Api-Key` header on every request.**
 
 - **Local:** `http://localhost:3000/api/v1`
 - **Production:** `https://taskforge-production-099b.up.railway.app/api/v1`
 - **Reference:** see `CLAUDE_API.md` for full route docs and working convention
+
+**Authentication:** All v1 API requests must include the header `X-Internal-Api-Key: <value of V1_API_KEY env var>`. The key is set in Railway environment variables and in the local `.env` file. Never commit the actual key value to the repository.
 
 Routes: `GET/POST /api/v1/issues`, `GET/PATCH/DELETE /api/v1/issues/[key]`, `GET/POST /api/v1/issues/[key]/comments`, `PATCH/DELETE /api/v1/issues/[key]/comments/[commentId]`, `GET /api/v1/projects`, `GET /api/v1/projects/[id]`
 
@@ -163,6 +165,14 @@ Then commit both `.context-docs/JedForge-FunctionalSpec-v2.0.docx` and `scripts/
 - `docx` npm package is installed globally at `/home/jamie/.npm-global/lib/node_modules/docx`. Import via `dist/index.mjs` (not `dist/index.js`). `NumberingConfig` is not exported — pass the numbering config object directly to `Document`.
 - In the `docx` package, font `size` is in half-points: 10pt = `size: 20`, not `size: 200`. Use `n * 2`.
 - `scripts/office/` directory and `validate.py` do not exist in this repo.
+
+---
+
+## Security constraints
+
+- **v1 API requires shared secret** — every request to `/api/v1/...` must include `X-Internal-Api-Key: <V1_API_KEY>`. The guard is in `src/lib/v1-auth.ts` (constant-time comparison). Set `V1_API_KEY` in Railway environment variables and in local `.env`. Never commit the actual value.
+- **Avatar GET requires authentication** — `GET /api/avatar` returns 401 without a valid session. The PUT handler was already protected; the GET was added in the same security pass.
+- **TipTap HTML is sanitized server-side** — all write paths that persist issue descriptions, comment bodies, and doc page content call `sanitizeTipTapHtml()` from `src/lib/sanitize-html.ts` (backed by `isomorphic-dompurify`) before the Prisma call. The viewer component (`rich-text-display.tsx`) does not sanitize — it relies on content already being clean in the database.
 
 ---
 

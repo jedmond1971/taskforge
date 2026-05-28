@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireV1ApiKey } from "@/lib/v1-auth";
+import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 
 function formatComment(comment: {
   id: string;
@@ -22,10 +24,12 @@ function formatComment(comment: {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { key: string } }
 ) {
   try {
+    const authError = requireV1ApiKey(request);
+    if (authError) return authError;
     const issue = await prisma.issue.findUnique({
       where: { key: params.key.toUpperCase() },
       select: { id: true },
@@ -52,6 +56,8 @@ export async function POST(
   { params }: { params: { key: string } }
 ) {
   try {
+    const authError = requireV1ApiKey(request);
+    if (authError) return authError;
     const issue = await prisma.issue.findUnique({
       where: { key: params.key.toUpperCase() },
       select: { id: true },
@@ -81,7 +87,7 @@ export async function POST(
       data: {
         issueId: issue.id,
         authorId: body.authorId,
-        body: body.body.trim(),
+        body: sanitizeTipTapHtml(body.body.trim()),
       },
       include: { author: { select: { id: true, name: true } } },
     });

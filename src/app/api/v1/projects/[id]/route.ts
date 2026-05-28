@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SYNTH_STATUSES } from "../../_helpers";
+import { requireV1ApiKey } from "@/lib/v1-auth";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authError = requireV1ApiKey(request);
+    if (authError) return authError;
     const project = await prisma.project.findUnique({
       where: { id: params.id },
       include: {

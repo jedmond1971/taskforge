@@ -3,9 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { generateIssueKeyWithRetry } from "@/lib/issue-keys";
 import { IssueStatus, IssuePriority, IssueType, Prisma } from "@prisma/client";
 import { STATUS_MAP, PRIORITY_MAP, formatIssue, statusToObject } from "../_helpers";
+import { requireV1ApiKey } from "@/lib/v1-auth";
+import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 
 export async function GET(request: NextRequest) {
   try {
+    const authError = requireV1ApiKey(request);
+    if (authError) return authError;
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const statusParam = searchParams.get("status");
@@ -49,6 +53,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authError = requireV1ApiKey(request);
+    if (authError) return authError;
     const body = (await request.json()) as Record<string, unknown>;
     const { projectId, title, description, statusId, priority, assigneeId, reporterId } = body;
 
@@ -124,7 +130,7 @@ export async function POST(request: NextRequest) {
             key: issueKey,
             projectId,
             title: (title as string).trim(),
-            description: typeof description === "string" ? description : null,
+            description: typeof description === "string" ? sanitizeTipTapHtml(description) : null,
             status,
             priority: resolvedPriority,
             type: IssueType.TASK,

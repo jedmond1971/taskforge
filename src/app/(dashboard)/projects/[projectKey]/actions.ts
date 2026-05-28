@@ -16,6 +16,7 @@ import {
 import { IssueStatus, IssuePriority, IssueType, ProjectMemberRole, Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { notificationService } from "@/lib/notifications";
+import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 
 // Helper: verify user is a project member, returns { userId, projectId }
 async function requireProjectMember(projectKey: string) {
@@ -84,7 +85,7 @@ export async function createIssue(projectKey: string, formData: {
           key: issueKey,
           projectId,
           title: formData.title,
-          description: formData.description ?? null,
+          description: formData.description != null ? sanitizeTipTapHtml(formData.description) : null,
           status: formData.status ?? IssueStatus.TODO,
           priority: formData.priority ?? IssuePriority.MEDIUM,
           type: formData.type ?? IssueType.TASK,
@@ -156,6 +157,10 @@ export async function updateIssue(
     },
   });
   if (!existing) throw new Error("Issue not found");
+
+  if (typeof updates.description === "string") {
+    updates.description = sanitizeTipTapHtml(updates.description);
+  }
 
   const issue = await prisma.issue.update({
     where: { id: issueId },
@@ -521,7 +526,7 @@ export async function addComment(projectKey: string, issueId: string, body: stri
   if (!issue) throw new Error("Issue not found");
 
   const comment = await prisma.comment.create({
-    data: { issueId, authorId: userId, body: body.trim() },
+    data: { issueId, authorId: userId, body: sanitizeTipTapHtml(body.trim()) },
     include: { author: { select: { id: true, name: true, avatarUrl: true } } },
   });
 
@@ -562,7 +567,7 @@ export async function updateComment(
 
   const updated = await prisma.comment.update({
     where: { id: commentId },
-    data: { body: body.trim() },
+    data: { body: sanitizeTipTapHtml(body.trim()) },
     include: { author: { select: { id: true, name: true, avatarUrl: true } } },
   });
 

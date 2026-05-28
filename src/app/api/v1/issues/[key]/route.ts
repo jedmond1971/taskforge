@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { IssueStatus } from "@prisma/client";
 import { STATUS_MAP, PRIORITY_MAP, formatIssue } from "../../_helpers";
+import { requireV1ApiKey } from "@/lib/v1-auth";
+import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { key: string } }
 ) {
   try {
+    const authError = requireV1ApiKey(request);
+    if (authError) return authError;
     const issue = await prisma.issue.findUnique({
       where: { key: params.key.toUpperCase() },
       include: {
@@ -32,6 +36,8 @@ export async function PATCH(
   { params }: { params: { key: string } }
 ) {
   try {
+    const authError = requireV1ApiKey(request);
+    if (authError) return authError;
     const issue = await prisma.issue.findUnique({
       where: { key: params.key.toUpperCase() },
       select: { id: true },
@@ -51,7 +57,7 @@ export async function PATCH(
     }
 
     if ("description" in body) {
-      updates.description = body.description ?? null;
+      updates.description = typeof body.description === "string" ? sanitizeTipTapHtml(body.description) : null;
     }
 
     if ("statusId" in body) {
@@ -133,10 +139,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { key: string } }
 ) {
   try {
+    const authError = requireV1ApiKey(request);
+    if (authError) return authError;
     const issue = await prisma.issue.findUnique({
       where: { key: params.key.toUpperCase() },
       select: { id: true, key: true },

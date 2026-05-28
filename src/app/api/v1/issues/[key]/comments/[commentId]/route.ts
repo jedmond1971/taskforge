@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireV1ApiKey } from "@/lib/v1-auth";
+import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { key: string; commentId: string } }
 ) {
   try {
+    const authError = requireV1ApiKey(request);
+    if (authError) return authError;
     const comment = await prisma.comment.findUnique({
       where: { id: params.commentId },
       include: { issue: { select: { key: true } } },
@@ -25,7 +29,7 @@ export async function PATCH(
 
     const updated = await prisma.comment.update({
       where: { id: params.commentId },
-      data: { body: body.body.trim() },
+      data: { body: sanitizeTipTapHtml(body.body.trim()) },
       include: { author: { select: { id: true, name: true } } },
     });
 
@@ -45,10 +49,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { key: string; commentId: string } }
 ) {
   try {
+    const authError = requireV1ApiKey(request);
+    if (authError) return authError;
     const comment = await prisma.comment.findUnique({
       where: { id: params.commentId },
       include: { issue: { select: { key: true } } },

@@ -8,7 +8,10 @@ interface RichTextDisplayProps {
   className?: string;
 }
 
-function toSafeHtml(content: string): string {
+// NOTE: This function does NOT sanitize HTML. Sanitization is performed server-side
+// in src/lib/sanitize-html.ts before content is persisted. This function only handles
+// the plain-text → HTML conversion for legacy content that predates TipTap.
+function normalizeRichTextContent(content: string): string {
   // If content doesn't look like HTML, treat it as plain text
   if (!content.includes("<")) {
     return content
@@ -23,7 +26,7 @@ export function RichTextDisplay({ content, className = "" }: RichTextDisplayProp
   return (
     <div
       className={`rich-prose text-sm text-zinc-700 dark:text-zinc-300 ${className}`}
-      dangerouslySetInnerHTML={{ __html: toSafeHtml(content) }}
+      dangerouslySetInnerHTML={{ __html: normalizeRichTextContent(content) }}
     />
   );
 }

@@ -1,6 +1,23 @@
 # JedForge Internal REST API
 
-This is an internal API used by Claude Code to create, read, update, and delete issues in JedForge during development sessions. No authentication is required.
+This is an internal API used by Claude Code to create, read, update, and delete issues in JedForge during development sessions.
+
+## Authentication
+
+All requests must include the shared-secret header:
+
+```
+X-Internal-Api-Key: <value of V1_API_KEY environment variable>
+```
+
+The key is set in Railway environment variables and in the local `.env` file. Never commit the actual value to the repository. Missing or incorrect key returns `401 Unauthorized`.
+
+Example curl:
+```bash
+curl -H "X-Internal-Api-Key: $V1_API_KEY" https://taskforge-production-099b.up.railway.app/api/v1/projects
+```
+
+---
 
 ## Base URLs
 
