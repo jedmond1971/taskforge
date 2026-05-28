@@ -19,5 +19,8 @@ Notifications are stored in the `Notification` table and created via `src/lib/no
 ## Server actions
 `src/app/(dashboard)/notifications/actions.ts`: `getNotifications`, `getUnreadCount`, `markNotificationRead`, `markAllNotificationsRead`
 
+## Retention cap
+Each user is capped at **100 notifications**. After every `createNotification` / `createNotifications` call, `pruneNotifications(userId)` deletes the oldest rows beyond the cap. The cap is defined as `NOTIFICATION_CAP = 100` in `src/lib/notifications.ts`.
+
 ## Real-time
 No real-time push — notifications appear on next page load or dropdown open. SSE delivery is a separate planned feature.

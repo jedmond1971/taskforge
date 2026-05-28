@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { deleteObject } from "@/lib/s3";
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
 import { canEditIssues, canManageProject } from "@/lib/permissions";
 
@@ -41,10 +42,16 @@ export async function PATCH(
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
-    const updated = await prisma.docSection.update({
-      where: { id: result.section.id },
-      data,
-    });
+    let updated;
+    try {
+      updated = await prisma.docSection.update({
+        where: { id: result.section.id },
+        data,
+      });
+    } catch (error) {
+      console.error("PATCH /api/docs/[projectKey]/sections/[sectionId] position write failed:", error);
+      return NextResponse.json({ error: "Concurrent modification — please retry" }, { status: 409 });
+    }
 
     return NextResponse.json({ section: updated });
   } catch (error) {
@@ -67,6 +74,21 @@ export async function DELETE(
 
     if (!result.role || !canManageProject(result.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Delete S3 objects for DOCUMENT pages in this section before cascading
+    const documentPages = await prisma.docPage.findMany({
+      where: { sectionId: result.section.id, type: "DOCUMENT", fileKey: { not: null } },
+      select: { fileKey: true },
+    });
+    for (const page of documentPages) {
+      if (page.fileKey) {
+        try {
+          await deleteObject(page.fileKey);
+        } catch (e) {
+          console.error(`Failed to delete S3 object ${page.fileKey}:`, e);
+        }
+      }
     }
 
     await prisma.docSection.delete({ where: { id: result.section.id } });

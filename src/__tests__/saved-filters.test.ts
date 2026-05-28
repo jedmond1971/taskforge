@@ -11,6 +11,9 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
       update: vi.fn(),
       delete: vi.fn(),
     },
+    projectMember: {
+      findUnique: vi.fn(),
+    },
   };
   const mockAuthFn = vi.fn();
   return { mockPrisma, mockAuthFn };
@@ -31,14 +34,17 @@ function mockSession(role: "ADMIN" | "TEAM_MEMBER" = "TEAM_MEMBER", userId = "us
 // ─── saveFilter ───────────────────────────────────────────────────────────────
 
 describe("saveFilter — global flag permission", () => {
+  const PROJECT_ID = "project-1";
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockPrisma.savedFilter.create.mockResolvedValue({ id: "f1" });
+    mockPrisma.projectMember.findUnique.mockResolvedValue({ id: "pm-1" });
   });
 
   it("allows ADMIN to create a global filter", async () => {
     mockSession("ADMIN");
-    await expect(saveFilter("My filter", "status = TODO", true)).resolves.toBeDefined();
+    await expect(saveFilter("My filter", "status = TODO", true, PROJECT_ID)).resolves.toBeDefined();
     expect(mockPrisma.savedFilter.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ isGlobal: true }) })
     );
@@ -46,13 +52,13 @@ describe("saveFilter — global flag permission", () => {
 
   it("denies MEMBER from creating a global filter", async () => {
     mockSession("TEAM_MEMBER");
-    await expect(saveFilter("My filter", "status = TODO", true)).rejects.toThrow("Forbidden");
+    await expect(saveFilter("My filter", "status = TODO", true, PROJECT_ID)).rejects.toThrow("Forbidden");
     expect(mockPrisma.savedFilter.create).not.toHaveBeenCalled();
   });
 
   it("allows MEMBER to create a personal (non-global) filter", async () => {
     mockSession("TEAM_MEMBER");
-    await expect(saveFilter("My filter", "status = TODO", false)).resolves.toBeDefined();
+    await expect(saveFilter("My filter", "status = TODO", false, PROJECT_ID)).resolves.toBeDefined();
     expect(mockPrisma.savedFilter.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ isGlobal: false }) })
     );

@@ -11,7 +11,7 @@ type ActivityEntry = {
   oldValue: string | null;
   newValue: string | null;
   createdAt: Date;
-  user: { id: string; name: string };
+  user: { id: string; name: string } | null;
   issue?: { key: string; title: string };
 };
 
@@ -62,7 +62,8 @@ export function ActivityFeed({
   return (
     <div className="space-y-4">
       {entries.map((entry) => {
-        const initial = entry.user.name.charAt(0).toUpperCase();
+        const userName = entry.user?.name ?? "Deleted user";
+        const initial = userName.charAt(0).toUpperCase();
         const timeAgo = formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true });
 
         return (
@@ -72,7 +73,7 @@ export function ActivityFeed({
             </div>
             <div className="flex-1 min-w-0 text-sm">
               <p className="leading-snug">
-                <span className="font-medium text-zinc-800 dark:text-zinc-200">{entry.user.name}</span>{" "}
+                <span className="font-medium text-zinc-800 dark:text-zinc-200">{userName}</span>{" "}
                 {formatAction(entry)}
                 {showIssue && entry.issue && (
                   <>

@@ -28,7 +28,7 @@ type ActivityLog = {
   oldValue: string | null;
   newValue: string | null;
   createdAt: Date;
-  user: { id: string; name: string };
+  user: { id: string; name: string } | null;
 };
 type Comment = {
   id: string;

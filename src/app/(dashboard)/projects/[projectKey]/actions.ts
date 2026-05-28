@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { generateIssueKeyWithRetry } from "@/lib/issue-keys";
 import {
   requireProjectRole,
   requireAdmin,
@@ -70,40 +69,43 @@ export async function createIssue(projectKey: string, formData: {
     if (!assigneeMember) throw new Error("Assignee is not a member of this project");
   }
 
-  // Count existing issues for position
-  const issueCount = await prisma.issue.count({ where: { projectId } });
+  const sanitizedDescription = formData.description != null
+    ? sanitizeTipTapHtml(formData.description)
+    : null;
 
-  // Retry loop: generateIssueKeyWithRetry picks the next available key, but a
-  // concurrent create can race past that check and claim the same key before we
-  // insert. Catch the resulting unique-constraint error (P2002) and try again.
-  let issue;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const issueKey = await generateIssueKeyWithRetry(key);
-    try {
-      issue = await prisma.issue.create({
-        data: {
-          key: issueKey,
-          projectId,
-          title: formData.title,
-          description: formData.description != null ? sanitizeTipTapHtml(formData.description) : null,
-          status: formData.status ?? IssueStatus.TODO,
-          priority: formData.priority ?? IssuePriority.MEDIUM,
-          type: formData.type ?? IssueType.TASK,
-          assigneeId: formData.assigneeId ?? null,
-          reporterId: userId,
-          labels: formData.labels ?? [],
-          position: issueCount,
-          dueDate: formData.dueDate ?? null,
-          parentId: formData.parentId ?? null,
-        },
-      });
-      break;
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
-      throw e;
-    }
-  }
-  if (!issue) throw new Error(`Could not create issue for project ${key} after retries`);
+  // Advisory lock: SELECT ... FOR UPDATE on the Project row serialises concurrent
+  // issue creates for this project, eliminating the TOCTOU race in key generation.
+  const issue = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT id FROM "Project" WHERE id = ${projectId} FOR UPDATE`;
+
+    const issueCount = await tx.issue.count({ where: { projectId } });
+
+    const lastIssue = await tx.issue.findFirst({
+      where: { projectId },
+      orderBy: { createdAt: "desc" },
+      select: { key: true },
+    });
+    const lastNum = lastIssue ? parseInt(lastIssue.key.split("-")[1], 10) : 0;
+    const issueKey = `${key}-${lastNum + 1}`;
+
+    return tx.issue.create({
+      data: {
+        key: issueKey,
+        projectId,
+        title: formData.title,
+        description: sanitizedDescription,
+        status: formData.status ?? IssueStatus.TODO,
+        priority: formData.priority ?? IssuePriority.MEDIUM,
+        type: formData.type ?? IssueType.TASK,
+        assigneeId: formData.assigneeId ?? null,
+        reporterId: userId,
+        labels: formData.labels ?? [],
+        position: issueCount,
+        dueDate: formData.dueDate ?? null,
+        parentId: formData.parentId ?? null,
+      },
+    });
+  });
 
   await logActivity({
     issueId: issue.id,
@@ -444,53 +446,73 @@ export async function moveIssue(
 ) {
   const { userId, projectId } = await requireProjectRole(projectKey, canEditIssues);
 
-  const existing = await prisma.issue.findFirst({
-    where: { id: issueId, projectId },
-    select: { id: true, status: true, position: true },
-  });
-  if (!existing) throw new Error("Issue not found");
+  try {
+    const { issue, oldStatus } = await prisma.$transaction(async (tx) => {
+      // Lock project row to serialise concurrent moves for this project
+      await tx.$executeRaw`SELECT id FROM "Project" WHERE id = ${projectId} FOR UPDATE`;
 
-  const statusChanged = existing.status !== newStatus;
+      const existing = await tx.issue.findFirst({
+        where: { id: issueId, projectId },
+        select: { id: true, status: true },
+      });
+      if (!existing) throw new Error("Issue not found");
 
-  // Shift other issues in the destination column to make room
-  await prisma.issue.updateMany({
-    where: { projectId, status: newStatus, position: { gte: newPosition }, id: { not: issueId } },
-    data: { position: { increment: 1 } },
-  });
+      const oldStatus = existing.status;
+      const statusChanged = oldStatus !== newStatus;
 
-  const issue = await prisma.issue.update({
-    where: { id: issueId },
-    data: { status: newStatus, position: newPosition },
-  });
+      // Build the new destination column order: others + moved issue at clamped pos
+      const destOthers = await tx.issue.findMany({
+        where: { projectId, status: newStatus, id: { not: issueId } },
+        orderBy: { position: "asc" },
+        select: { id: true },
+      });
+      const clamped = Math.max(0, Math.min(newPosition, destOthers.length));
+      const destOrder = [
+        ...destOthers.slice(0, clamped),
+        { id: issueId },
+        ...destOthers.slice(clamped),
+      ];
 
-  if (statusChanged) {
-    // Compact the source column so positions are contiguous after the issue leaves
-    const sourceIssues = await prisma.issue.findMany({
-      where: { projectId, status: existing.status },
-      orderBy: { position: "asc" },
-      select: { id: true },
+      // Update moved issue status then reindex entire destination column
+      await tx.issue.update({ where: { id: issueId }, data: { status: newStatus } });
+      for (let i = 0; i < destOrder.length; i++) {
+        await tx.issue.update({ where: { id: destOrder[i].id }, data: { position: i } });
+      }
+
+      if (statusChanged) {
+        // Reindex source column now that the issue has left
+        const srcIssues = await tx.issue.findMany({
+          where: { projectId, status: oldStatus },
+          orderBy: { position: "asc" },
+          select: { id: true },
+        });
+        for (let i = 0; i < srcIssues.length; i++) {
+          await tx.issue.update({ where: { id: srcIssues[i].id }, data: { position: i } });
+        }
+      }
+
+      const updatedIssue = await tx.issue.findUniqueOrThrow({ where: { id: issueId } });
+      return { issue: updatedIssue, oldStatus };
     });
-    if (sourceIssues.length > 0) {
-      await prisma.$transaction(
-        sourceIssues.map((src, index) =>
-          prisma.issue.update({ where: { id: src.id }, data: { position: index } })
-        )
-      );
+
+    if (oldStatus !== newStatus) {
+      await logActivity({
+        issueId,
+        userId,
+        action: "updated",
+        field: "status",
+        oldValue: oldStatus,
+        newValue: newStatus,
+      });
     }
 
-    await logActivity({
-      issueId,
-      userId,
-      action: "updated",
-      field: "status",
-      oldValue: existing.status,
-      newValue: newStatus,
-    });
+    revalidatePath(`/projects/${projectKey}/board`);
+    revalidatePath(`/projects/${projectKey}/issues`);
+    return { success: true, issue };
+  } catch (error) {
+    console.error("moveIssue position write failed:", error);
+    throw new Error("Failed to move issue — please retry");
   }
-
-  revalidatePath(`/projects/${projectKey}/board`);
-  revalidatePath(`/projects/${projectKey}/issues`);
-  return { success: true, issue };
 }
 
 // --- REORDER ISSUES (within-column drag) ---
@@ -500,14 +522,19 @@ export async function reorderIssues(
 ) {
   const { projectId } = await requireProjectRole(projectKey, canEditIssues);
 
-  await prisma.$transaction(
-    issueIds.map((id, index) =>
-      prisma.issue.updateMany({
-        where: { id, projectId },
-        data: { position: index },
-      })
-    )
-  );
+  try {
+    await prisma.$transaction(
+      issueIds.map((id, index) =>
+        prisma.issue.updateMany({
+          where: { id, projectId },
+          data: { position: index },
+        })
+      )
+    );
+  } catch (error) {
+    console.error("reorderIssues position write failed:", error);
+    throw new Error("Failed to reorder issues — please retry");
+  }
 
   revalidatePath(`/projects/${projectKey}/board`);
   return { success: true };
@@ -613,6 +640,10 @@ export async function updateProject(
 export async function deleteProject(projectKey: string) {
   const { projectId } = await requireProjectRole(projectKey, canManageProject);
 
+  // TODO (S3 orphan cleanup): Before deleting, enumerate all DOCUMENT-type DocPages
+  // with a fileKey in this project's DocSpace and call deleteObject() on each.
+  // Pattern: prisma.docPage.findMany({ where: { docSpace: { projectId }, type: "DOCUMENT", fileKey: { not: null } } })
+  // Prisma ON DELETE CASCADE handles DB rows; S3 objects must be cleaned up manually.
   await prisma.project.delete({ where: { id: projectId } });
 
   revalidatePath("/projects");

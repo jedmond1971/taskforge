@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { deleteObject } from "@/lib/s3";
 import { canEditIssues } from "@/lib/permissions";
 import { notificationService } from "@/lib/notifications";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
@@ -155,6 +156,19 @@ export async function DELETE(
     });
     if (!member || !canEditIssues(member.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Clean up S3 objects before cascading the DB delete
+    const attachments = await prisma.attachment.findMany({
+      where: { issueId: params.issueId },
+      select: { fileKey: true },
+    });
+    for (const att of attachments) {
+      try {
+        await deleteObject(att.fileKey);
+      } catch (e) {
+        console.error(`Failed to delete S3 attachment ${att.fileKey}:`, e);
+      }
     }
 
     await prisma.issue.delete({ where: { id: params.issueId } });

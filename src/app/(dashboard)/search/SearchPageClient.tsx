@@ -31,11 +31,13 @@ interface FilterData {
 interface SearchPageClientProps {
   filters: FilterData[];
   currentUserId: string;
+  projectId?: string;
 }
 
 export function SearchPageClient({
   filters,
   currentUserId,
+  projectId,
 }: SearchPageClientProps) {
   const router = useRouter();
   const [results, setResults] = useState<QueryResult | null>(null);
@@ -81,6 +83,10 @@ export function SearchPageClient({
   );
 
   function handleOpenSaveDialog() {
+    if (!projectId) {
+      toast.error("Filters can only be saved from within a project");
+      return;
+    }
     if (!currentQuery.trim()) {
       toast.error("Run a query first before saving");
       return;
@@ -104,7 +110,8 @@ export function SearchPageClient({
         });
         toast.success("Filter updated");
       } else {
-        await saveFilter(filterName, currentQuery, filterIsGlobal);
+        if (!projectId) throw new Error("No project context");
+        await saveFilter(filterName, currentQuery, filterIsGlobal, projectId);
         toast.success("Filter saved");
       }
       setSaveDialogOpen(false);

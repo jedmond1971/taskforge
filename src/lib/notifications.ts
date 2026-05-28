@@ -1,6 +1,23 @@
 import { prisma } from "@/lib/prisma";
 import { NotificationType } from "@prisma/client";
 
+const NOTIFICATION_CAP = 100;
+
+async function pruneNotifications(userId: string) {
+  const count = await prisma.notification.count({ where: { userId } });
+  if (count > NOTIFICATION_CAP) {
+    const oldest = await prisma.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: "asc" },
+      take: count - NOTIFICATION_CAP,
+      select: { id: true },
+    });
+    await prisma.notification.deleteMany({
+      where: { id: { in: oldest.map((n) => n.id) } },
+    });
+  }
+}
+
 async function createNotification({
   type,
   message,
@@ -21,6 +38,7 @@ async function createNotification({
     await prisma.notification.create({
       data: { type, message, userId, issueId: issueId ?? null },
     });
+    await pruneNotifications(userId);
   } catch (error) {
     console.error("[notifications] Failed to create notification:", error);
   }
@@ -53,6 +71,9 @@ async function createNotifications({
       })),
       skipDuplicates: true,
     });
+    for (const userId of filtered) {
+      await pruneNotifications(userId);
+    }
   } catch (error) {
     console.error("[notifications] Failed to create notifications:", error);
   }

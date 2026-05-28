@@ -143,7 +143,7 @@ The Docs module lives under `src/app/(dashboard)/projects/[projectKey]/docs/` (p
    - Delete pages and sections: `canManageProject` (PROJECT_LEAD only)
    - Visibility toggle (`PATCH /api/docs/[projectKey]`): PROJECT_LEAD only (checked inline, not via `resolveDocCtx`)
 5. **Docs search** — `GET /api/docs/[projectKey]/search?q=<query>` searches `DocPage.title` (all types) and `DocPage.content` (NATIVE only) with case-insensitive `contains`. Returns up to 20 results with `id`, `title`, `type`, `sectionTitle`, and a `snippet`. Accessible to any user who can read the docspace.
-6. **Page revisions** — `PageRevision` rows are snapshot-only (created on save, never mutated). The PATCH handler for `/api/docs/[projectKey]/pages/[pageId]` automatically snapshots the previous content into a new `PageRevision` whenever `content` is included in the update body — do not break this side-effect when modifying that handler. Restoring a revision means writing its content back to `DocPage.content` and creating a new revision from the current content first (the auto-snapshot in PATCH handles this).
+6. **Page revisions** — `PageRevision` rows are snapshot-only (created on save, never mutated). The PATCH handler for `/api/docs/[projectKey]/pages/[pageId]` automatically snapshots the previous content into a new `PageRevision` whenever `content` is included in the update body — do not break this side-effect when modifying that handler. Restoring a revision means writing its content back to `DocPage.content` and creating a new revision from the current content first (the auto-snapshot in PATCH handles this). **Cap: 50 revisions per page** — oldest are pruned in the same transaction as each content save.
 7. **Issue↔DocPage cross-links** — `IssueDocLink` is the junction table (cascade-deletes when either side is deleted). Both issue and page must belong to the same project — enforced in the `linkDocPage` server action. Manage links via `linkDocPage` / `unlinkDocPage` in `actions.ts`; read linked issues for a page via `GET /api/docs/[projectKey]/pages/[pageId]/links`.
 
 8. **DOCUMENT page file lifecycle** — files are uploaded via `POST /api/docs/[projectKey]/pages/[pageId]/file` (multipart `file` field; PDF and DOCX only, 50 MB max). That endpoint also sets `type = DOCUMENT` on the page, so posting a file to an existing NATIVE page converts it. `GET` on the same route returns `{ url, mimeType, fileName }` with a 1-hour presigned S3 URL. Files are stored at `docs/[docSpaceId]/[pageId]/[uuid]-[sanitized-filename]` in S3. The DELETE handler for a page removes the S3 object automatically; replacing a file via POST also deletes the previous object. PDFs render inline via `<iframe>`; DOCX files get a download-only prompt (no browser-native Word viewer). The UI creates the page stub first then uploads — a failed upload leaves an orphaned DOCUMENT page with no file (known edge case).
@@ -165,6 +165,18 @@ Then commit both `.context-docs/JedForge-FunctionalSpec-v2.0.docx` and `scripts/
 - `docx` npm package is installed globally at `/home/jamie/.npm-global/lib/node_modules/docx`. Import via `dist/index.mjs` (not `dist/index.js`). `NumberingConfig` is not exported — pass the numbering config object directly to `Document`.
 - In the `docx` package, font `size` is in half-points: 10pt = `size: 20`, not `size: 200`. Use `n * 2`.
 - `scripts/office/` directory and `validate.py` do not exist in this repo.
+
+---
+
+## Data integrity invariants (A2 audit)
+
+- **Issue key generation is atomic** — `createIssue` in `actions.ts` uses `SELECT ... FOR UPDATE` on the Project row inside a Prisma transaction to serialise concurrent inserts. The `generateIssueKeyWithRetry` retry loop has been replaced; `src/lib/issue-keys.ts` is now unused by the main flow.
+- **Kanban position writes are transactional** — `moveIssue` runs a single `prisma.$transaction` that locks the project row, reindexes both affected columns, and updates the issue status atomically. `reorderIssues` is also wrapped in a transaction. Position write failures throw an error (client retries).
+- **S3 orphan cleanup on delete** — `DELETE /api/issues/[issueId]` fetches all attachments and deletes their S3 objects before cascading the DB delete. `DELETE /api/docs/[projectKey]/sections/[sectionId]` does the same for DOCUMENT-type pages. A TODO comment in `deleteProject` marks the equivalent work needed when project delete is implemented.
+- **PageRevision cap = 50** — see Docs module invariant #6.
+- **Notification cap = 100** — `src/lib/notifications.ts` prunes the oldest notifications beyond 100 after every insert. See `.context-docs/notifications.md`.
+- **ActivityLog.userId is nullable** — `SET NULL` on user delete preserves audit history. `issueId` still cascades on issue delete.
+- **SavedFilter requires projectId** — filters are project-scoped to prevent cross-tenant data leaks. `getMyFilters(projectId)` and `saveFilter(..., projectId)` require a projectId. The global `/search` page cannot save/load filters; use the project-specific search panel for that.
 
 ---
 

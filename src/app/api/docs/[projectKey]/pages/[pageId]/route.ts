@@ -73,25 +73,60 @@ export async function PATCH(
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
-    // Snapshot current content as a revision before overwriting
-    if (content !== undefined && result.page.content) {
-      await prisma.pageRevision.create({
-        data: {
-          pageId: result.page.id,
-          content: result.page.content,
-          authorId: session.user.id,
-        },
-      });
-    }
+    let updated;
+    try {
+      if (content !== undefined) {
+        // Content update: snapshot previous revision, update page, prune old revisions — all atomic
+        updated = await prisma.$transaction(async (tx) => {
+          if (result.page.content) {
+            await tx.pageRevision.create({
+              data: {
+                pageId: result.page.id,
+                content: result.page.content,
+                authorId: session.user.id,
+              },
+            });
+          }
 
-    const updated = await prisma.docPage.update({
-      where: { id: result.page.id },
-      data,
-      include: {
-        author: { select: { id: true, name: true, avatarUrl: true } },
-        section: { select: { id: true, title: true } },
-      },
-    });
+          const page = await tx.docPage.update({
+            where: { id: result.page.id },
+            data,
+            include: {
+              author: { select: { id: true, name: true, avatarUrl: true } },
+              section: { select: { id: true, title: true } },
+            },
+          });
+
+          // Prune: keep latest 50 revisions per page
+          const revisionCount = await tx.pageRevision.count({ where: { pageId: result.page.id } });
+          if (revisionCount > 50) {
+            const oldest = await tx.pageRevision.findMany({
+              where: { pageId: result.page.id },
+              orderBy: { createdAt: "asc" },
+              take: revisionCount - 50,
+              select: { id: true },
+            });
+            await tx.pageRevision.deleteMany({
+              where: { id: { in: oldest.map((r) => r.id) } },
+            });
+          }
+
+          return page;
+        });
+      } else {
+        updated = await prisma.docPage.update({
+          where: { id: result.page.id },
+          data,
+          include: {
+            author: { select: { id: true, name: true, avatarUrl: true } },
+            section: { select: { id: true, title: true } },
+          },
+        });
+      }
+    } catch (error) {
+      console.error("PATCH /api/docs/[projectKey]/pages/[pageId] write failed:", error);
+      return NextResponse.json({ error: "Concurrent modification — please retry" }, { status: 409 });
+    }
 
     return NextResponse.json({ page: updated });
   } catch (error) {

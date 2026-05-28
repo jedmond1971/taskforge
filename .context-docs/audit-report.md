@@ -223,7 +223,7 @@ This is a significant gap between spec intent and implementation. The Activity F
 | `Subscription` | Full Stripe billing schema (stripeCustomerId, stripeSubscriptionId, stripePriceId, SubscriptionStatus enum, cancelAtPeriodEnd). The spec mentions monetization as "not yet decided" (Section 12 Open Decision #4). Having a Stripe schema suggests early billing infrastructure that is undocumented. |
 | `Board` | Named boards per project. Partially supersedes the implicit "the Kanban board" in the spec. Currently only used to hold `Column` records. |
 | `Column` | Named, coloured, ordered Kanban columns per board. Spec implies columns are fixed to the IssueStatus enum. The `Column` model exists but does not drive the board rendering — `KanbanBoard.tsx` hard-codes `STATUSES: IssueStatus[]` and does not query `Column` records. This model is defined but effectively unused. |
-| `SavedFilter` | Named saved search queries, per-user with an `isGlobal` flag for admin-shared filters. Not mentioned in spec. |
+| `SavedFilter` | Named saved search queries, per-user with an `isGlobal` flag for project-shared filters. Requires `projectId` — filters are project-scoped to prevent cross-tenant leaks. Not mentioned in spec. |
 | `Plan` enum | FREE/PRO/TEAM plan tiers on Organization. Undocumented. |
 | `SubscriptionStatus` enum | TRIALING/ACTIVE/PAST_DUE/CANCELED/INCOMPLETE. Undocumented. |
 
