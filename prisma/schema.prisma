@@ -106,6 +106,7 @@ model Project {
   orgId       String
   isPrivate   Boolean  @default(false)
   isArchived  Boolean  @default(false)
+  isClosed    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

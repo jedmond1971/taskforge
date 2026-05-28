@@ -6,6 +6,7 @@ import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard,
   FolderKanban,
+  FolderX,
   Search,
   BookOpen,
   ShieldCheck,
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/search", label: "Search", icon: Search },
   { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/projects/closed", label: "Closed Projects", icon: FolderX },
   { href: "/docs", label: "Docs", icon: BookOpen },
 ];
 
@@ -81,6 +83,8 @@ export function Sidebar({ onClose }: SidebarProps) {
           const isActive =
             item.href === "/"
               ? pathname === "/"
+              : item.href === "/projects"
+              ? pathname.startsWith("/projects") && !pathname.startsWith("/projects/closed")
               : pathname.startsWith(item.href);
 
           return (

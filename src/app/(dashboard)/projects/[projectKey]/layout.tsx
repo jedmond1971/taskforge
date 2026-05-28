@@ -26,6 +26,7 @@ export default async function ProjectLayout({
 
   const project = await getProject(params.projectKey, session.user.id);
   if (!project) notFound();
+  if (project.isClosed && session.user.role !== "ADMIN") redirect("/projects");
 
   return (
     <div className="space-y-0 -m-4 sm:-m-6">

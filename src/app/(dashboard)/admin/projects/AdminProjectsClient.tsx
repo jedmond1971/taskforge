@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Search, ExternalLink, Trash2 } from "lucide-react";
+import { Search, ExternalLink, Trash2, Lock, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,12 +15,13 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { getAdminProjects, adminDeleteProject } from "../actions";
+import { getAdminProjects, adminDeleteProject, closeProject, reopenProject } from "../actions";
 
 type AdminProject = {
   id: string;
   name: string;
   key: string;
+  isClosed: boolean;
   createdAt: Date;
   _count: { members: number; issues: number };
   members: { user: { name: string } }[];
@@ -35,6 +36,8 @@ export function AdminProjectsClient({
   const [projects, setProjects] = useState<AdminProject[]>(initialProjects);
   const [search, setSearch] = useState("");
   const [, startTransition] = useTransition();
+
+  const [toggling, setToggling] = useState<string | null>(null);
 
   // Delete state
   const [deleteProject, setDeleteProject] = useState<AdminProject | null>(null);
@@ -80,6 +83,24 @@ export function AdminProjectsClient({
   const openDelete = (project: AdminProject) => {
     setDeleteProject(project);
     setConfirmKey("");
+  };
+
+  const handleCloseToggle = async (project: AdminProject) => {
+    setToggling(project.id);
+    try {
+      if (project.isClosed) {
+        await reopenProject(project.id);
+        toast.success(`"${project.name}" reopened`);
+      } else {
+        await closeProject(project.id);
+        toast.success(`"${project.name}" closed`);
+      }
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setToggling(null);
+    }
   };
 
   return (
@@ -134,7 +155,14 @@ export function AdminProjectsClient({
                 <tr key={project.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                   <td className="px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{project.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{project.name}</p>
+                        {project.isClosed && (
+                          <span className="text-xs font-medium text-red-500 bg-red-50 dark:bg-red-950/30 px-1.5 py-0.5 rounded">
+                            Closed
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-zinc-500">{project.key}</p>
                     </div>
                   </td>
@@ -154,6 +182,19 @@ export function AdminProjectsClient({
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon-sm" render={<Link href={`/projects/${project.key}`} />}>
                         <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleCloseToggle(project)}
+                        disabled={toggling === project.id}
+                        title={project.isClosed ? "Reopen project" : "Close project"}
+                      >
+                        {project.isClosed ? (
+                          <Unlock className="w-3.5 h-3.5 text-green-500" />
+                        ) : (
+                          <Lock className="w-3.5 h-3.5 text-amber-400" />
+                        )}
                       </Button>
                       <Button
                         variant="ghost"

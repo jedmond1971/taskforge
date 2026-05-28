@@ -172,6 +172,7 @@ export async function getAdminProjects(search?: string) {
       id: true,
       name: true,
       key: true,
+      isClosed: true,
       createdAt: true,
       _count: { select: { members: true, issues: true } },
       members: {
@@ -317,4 +318,18 @@ export async function adminDeleteProject(projectId: string) {
   await prisma.project.delete({ where: { id: projectId } });
   revalidatePath("/admin/projects");
   return { success: true };
+}
+
+// ─── Close / Reopen project ──────────────────────────────────────────────────
+
+export async function closeProject(projectId: string) {
+  await requireAdmin();
+  await prisma.project.update({ where: { id: projectId }, data: { isClosed: true } });
+  revalidatePath('/admin/projects');
+}
+
+export async function reopenProject(projectId: string) {
+  await requireAdmin();
+  await prisma.project.update({ where: { id: projectId }, data: { isClosed: false } });
+  revalidatePath('/admin/projects');
 }
