@@ -47,6 +47,19 @@ Org switching UI, full invite system, billing changes, broad project membership 
 
 ---
 
+## Closed project invariants
+
+Projects have an `isClosed Boolean @default(false)` field. Rules enforced in code:
+
+1. **Only `UserRole.ADMIN` can close or reopen a project** — `closeProject`/`reopenProject` actions in `src/app/(dashboard)/admin/actions.ts` call `requireAdmin()` before mutating.
+2. **Active projects listing filters closed projects** — `src/app/(dashboard)/projects/page.tsx` adds `isClosed: false` to its Prisma query. Closed projects do not appear on the main Projects page for any user.
+3. **Non-admins are redirected from closed project URLs** — `src/app/(dashboard)/projects/[projectKey]/layout.tsx` redirects to `/projects` if `project.isClosed && session.user.role !== "ADMIN"`. Admins can still navigate into closed projects.
+4. **`/projects/closed` is visible to all authenticated users** — non-admins see only closed projects they are members of; admins see all closed projects.
+5. **Re-Open button is disabled for non-admins** — the button renders with `disabled` attribute and reduced opacity. The server action (`src/app/(dashboard)/projects/closed-actions.ts`) also re-checks admin role server-side.
+6. **`getAdminProjects` uses explicit `select`** — if you add fields to the `Project` model that the admin panel needs to display, add them to the `select` block in that function (`src/app/(dashboard)/admin/actions.ts`).
+
+---
+
 ## UI component library
 
 This project uses **`@base-ui/react`** (NOT Radix UI). Standard shadcn components that depend on Radix do not exist here. Custom equivalents are built on Base UI primitives.
@@ -65,6 +78,10 @@ Claude Code cannot run `npm install` directly. To add packages:
 1. Edit `package.json` manually.
 2. Ask Jamie to run `npm install` locally to update `package-lock.json`.
 3. Commit both files and push. Railway uses `npm ci` which requires the lockfile to be in sync.
+
+## Subagent file-write limitation in worktrees
+
+When agents are launched with `isolation: "worktree"`, Edit and Write tool calls are denied for source files inside the worktree directory (`.claude/worktrees/agent-xxx/`). Worktree agents can read files and run bash commands but cannot write. **Workaround:** do all file editing in the main context after the subagent returns its findings/code, or avoid `isolation: "worktree"` when the agent needs to write files.
 
 ---
 
@@ -103,7 +120,7 @@ To update an issue after completing work, use `PATCH /api/v1/issues/[key]` with 
 - Docker Postgres on port 5433 — start with `docker start taskforge-db` if not running (see startup checklist above)
 - Railway CLI auth is broken in this environment (interactive login hangs, browserless produces no output). Workaround: curl the production URL directly. Fix: generate a token at railway.app → Account Settings → Tokens and use `RAILWAY_TOKEN=<token>` or `railway login --token <token>`. (Tracked: TFEN-19)
 - Production URL: `https://taskforge-production-099b.up.railway.app` — `jedforge.com` has no DNS records
-- Seeded test users (all password `password123`): `admin@taskforge.dev` (Alice Chen, PROJECT_LEAD on all 4 projects), `member@taskforge.dev`, `carol@taskforge.dev`, `dave@taskforge.dev`
+- Seeded test users (all password `password123`): `admin@taskforge.dev` (Alice Chen, `UserRole.ADMIN` — use this account to test any admin-gated feature), `member@taskforge.dev`, `carol@taskforge.dev`, `dave@taskforge.dev`
 - Seeded local projects (keys): `PL` (Product Launch), `MA` (Mobile App), `WR` (Website Redesign), `JFR` (JedForge Roadmap). Production has additional projects (`TFEN`, `JFDOCS`, `WEQUIZ`, etc.) that do not exist in local dev.
 - Playwright v1.59.1 is installed in `node_modules` only (not global). In CJS scripts: `require('/home/jamie/Projects/TaskForge/node_modules/playwright')`. Chromium must be downloaded once with `npx playwright install chromium`. `tmux` is not available — start the dev server in the background: `npm run dev > /tmp/nextdev.log 2>&1 &` then `sleep 8` before driving it.
 
