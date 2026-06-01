@@ -235,6 +235,8 @@ model ActivityLog {
   newValue  String?
   createdAt DateTime @default(now())
 
+  // Issue delete cascades and removes all activity log rows for that issue.
+  // User delete nullifies userId to preserve audit history (not a hard delete).
   issue Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
   user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
 
