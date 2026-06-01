@@ -16,6 +16,7 @@ import { IssueStatus, IssuePriority, IssueType, ProjectMemberRole, Prisma } from
 import bcrypt from "bcryptjs";
 import { notificationService } from "@/lib/notifications";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
+import { deleteObject } from "@/lib/s3";
 
 // Helper: verify user is a project member, returns { userId, projectId }
 async function requireProjectMember(projectKey: string) {
@@ -640,10 +641,32 @@ export async function updateProject(
 export async function deleteProject(projectKey: string) {
   const { projectId } = await requireProjectRole(projectKey, canManageProject);
 
-  // TODO (S3 orphan cleanup): Before deleting, enumerate all DOCUMENT-type DocPages
-  // with a fileKey in this project's DocSpace and call deleteObject() on each.
-  // Pattern: prisma.docPage.findMany({ where: { docSpace: { projectId }, type: "DOCUMENT", fileKey: { not: null } } })
-  // Prisma ON DELETE CASCADE handles DB rows; S3 objects must be cleaned up manually.
+  const attachments = await prisma.attachment.findMany({
+    where: { issue: { projectId } },
+    select: { fileKey: true },
+  });
+
+  const docPages = await prisma.docPage.findMany({
+    where: {
+      docSpace: { projectId },
+      fileKey: { not: null },
+    },
+    select: { fileKey: true },
+  });
+
+  const keysToDelete = [
+    ...attachments.map((a) => a.fileKey),
+    ...docPages.map((p) => p.fileKey as string),
+  ];
+
+  for (const key of keysToDelete) {
+    try {
+      await deleteObject(key);
+    } catch (e) {
+      console.error(`Failed to delete S3 object ${key}:`, e);
+    }
+  }
+
   await prisma.project.delete({ where: { id: projectId } });
 
   revalidatePath("/projects");

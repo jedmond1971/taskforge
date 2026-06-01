@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { UserRole, OrgRole, Plan, ProjectMemberRole } from "@prisma/client";
+import { deleteObject } from "@/lib/s3";
 
 async function requireAdmin() {
   const session = await auth();
@@ -314,6 +315,32 @@ export async function adminDeleteProject(projectId: string) {
     select: { key: true },
   });
   if (!project) throw new Error("Project not found");
+
+  const attachments = await prisma.attachment.findMany({
+    where: { issue: { projectId } },
+    select: { fileKey: true },
+  });
+
+  const docPages = await prisma.docPage.findMany({
+    where: {
+      docSpace: { projectId },
+      fileKey: { not: null },
+    },
+    select: { fileKey: true },
+  });
+
+  const keysToDelete = [
+    ...attachments.map((a) => a.fileKey),
+    ...docPages.map((p) => p.fileKey as string),
+  ];
+
+  for (const key of keysToDelete) {
+    try {
+      await deleteObject(key);
+    } catch (e) {
+      console.error(`Failed to delete S3 object ${key}:`, e);
+    }
+  }
 
   await prisma.project.delete({ where: { id: projectId } });
   revalidatePath("/admin/projects");
