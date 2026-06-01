@@ -167,6 +167,8 @@ model Issue {
   @@index([reporterId])
   @@index([status])
   @@index([priority])
+  // Position uniqueness enforced by DEFERRABLE constraint in migration
+  // (not expressible as @@unique — reorder logic writes sequentially)
   @@index([projectId, status, position])
 }
 
@@ -356,6 +358,8 @@ model DocSection {
   pages    DocPage[]
 
   @@index([docSpaceId])
+  // Position uniqueness enforced by DEFERRABLE constraint in migration
+  // (not expressible as @@unique — reorder logic writes sequentially)
   @@index([docSpaceId, position])
 }
 
@@ -383,6 +387,9 @@ model DocPage {
   @@index([docSpaceId])
   @@index([sectionId])
   @@index([authorId])
+  // Position uniqueness enforced by DEFERRABLE constraint in migration
+  // (not expressible as @@unique — sectionId is nullable; partial indexes handle
+  //  sectioned pages (deferrable) and top-level pages (non-deferrable partial index))
   @@index([docSpaceId, sectionId, position])
 }
 
