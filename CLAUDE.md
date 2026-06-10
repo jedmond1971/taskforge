@@ -125,6 +125,8 @@ To update an issue after completing work, use `PATCH /api/v1/issues/[key]` with 
 
 **Schema notes:** `IssueStatus` and `IssuePriority` are enums, not database tables. Priority values are `CRITICAL | HIGH | MEDIUM | LOW` (URGENT is accepted as an alias for CRITICAL). Statuses are synthesised from the enum in API responses.
 
+**Position constraint:** `PATCH /api/v1/issues/[key]` with a `statusId` that differs from the current status automatically appends the issue to the end of the target column (`position = count of issues already in that column`). This is required to satisfy the DEFERRABLE unique constraint on `(projectId, status, position)` — omitting the position update causes a 500 when the existing position value collides with another issue already in the target column.
+
 **Create an issue at the start of every non-trivial task.** See `CLAUDE_API.md` → Working Convention.
 
 ---
@@ -136,6 +138,7 @@ To update an issue after completing work, use `PATCH /api/v1/issues/[key]` with 
 - Production URL: `https://taskforge-production-099b.up.railway.app` — `jedforge.com` has no DNS records
 - Seeded test users (all password `password123`): `admin@taskforge.dev` (Alice Chen, `UserRole.ADMIN` — use this account to test any admin-gated feature), `member@taskforge.dev`, `carol@taskforge.dev`, `dave@taskforge.dev`
 - Seeded local projects (keys): `PL` (Product Launch), `MA` (Mobile App), `WR` (Website Redesign), `JFR` (JedForge Roadmap). Production has additional projects (`TFEN`, `JFDOCS`, `WEQUIZ`, etc.) that do not exist in local dev.
+- Auth page logos: `public/logo-light.png` and `public/logo-dark.png` are both **1254×1254 square** images. They are displayed at `w-[200px] sm:w-[260px]` on the login page — do not increase this without checking total page height fits inside a 1080p viewport (logo + card + gaps must stay under ~940px).
 - Playwright v1.59.1 is installed in `node_modules` only (not global). In CJS scripts: `require('/home/jamie/Projects/TaskForge/node_modules/playwright')`. Chromium must be downloaded once with `npx playwright install chromium`. `tmux` is not available — start the dev server in the background: `npm run dev > /tmp/nextdev.log 2>&1 &` then `sleep 8` before driving it.
 
 ---
@@ -184,7 +187,7 @@ Then commit both `.context-docs/JedForge-FunctionalSpec-v2.0.docx` and `scripts/
 
 - **Issue key generation is atomic** — `createIssue` in `actions.ts` uses `SELECT ... FOR UPDATE` on the Project row inside a Prisma transaction to serialise concurrent inserts. The `generateIssueKeyWithRetry` retry loop has been replaced; `src/lib/issue-keys.ts` is now unused by the main flow.
 - **Kanban position writes are transactional** — `moveIssue` runs a single `prisma.$transaction` that locks the project row, reindexes both affected columns, and updates the issue status atomically. `reorderIssues` is also wrapped in a transaction. Position write failures throw an error (client retries).
-- **S3 orphan cleanup on delete** — `DELETE /api/issues/[issueId]` fetches all attachments and deletes their S3 objects before cascading the DB delete. `DELETE /api/docs/[projectKey]/sections/[sectionId]` does the same for DOCUMENT-type pages. A TODO comment in `deleteProject` marks the equivalent work needed when project delete is implemented.
+- **S3 orphan cleanup on delete** — `DELETE /api/issues/[issueId]` fetches all attachments and deletes their S3 objects before cascading the DB delete. `DELETE /api/docs/[projectKey]/sections/[sectionId]` does the same for DOCUMENT-type pages. `deleteProject` (`src/app/(dashboard)/projects/[projectKey]/actions.ts`) also fetches and deletes all attachment and DOCUMENT-page S3 objects before the Prisma delete.
 - **PageRevision cap = 50** — see Docs module invariant #6.
 - **Notification cap = 100** — `src/lib/notifications.ts` prunes the oldest notifications beyond 100 after every insert. See `.context-docs/notifications.md`.
 - **ActivityLog.userId is nullable** — `SET NULL` on user delete preserves audit history. `issueId` still cascades on issue delete.
