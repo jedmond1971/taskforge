@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Prisma } from "@prisma/client";
 
 // ─── Hoisted mocks ───────────────────────────────────────────────────────────
 
-const { mockPrisma, mockAuthFn, mockGenerateKey } = vi.hoisted(() => {
+const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
   const mockPrisma = {
     project: { findUnique: vi.fn() },
     projectMember: { findUnique: vi.fn() },
@@ -14,20 +13,20 @@ const { mockPrisma, mockAuthFn, mockGenerateKey } = vi.hoisted(() => {
       findMany: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
     },
     activityLog: { create: vi.fn() },
+    $executeRaw: vi.fn().mockResolvedValue(0),
     $transaction: vi.fn(),
   };
   const mockAuthFn = vi.fn();
-  const mockGenerateKey = vi.fn();
-  return { mockPrisma, mockAuthFn, mockGenerateKey };
+  return { mockPrisma, mockAuthFn };
 });
 
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/auth", () => ({ auth: mockAuthFn }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
-vi.mock("@/lib/issue-keys", () => ({ generateIssueKeyWithRetry: mockGenerateKey }));
 
 import { createIssue, moveIssue, reorderIssues } from "@/app/(dashboard)/projects/[projectKey]/actions";
 
@@ -42,73 +41,56 @@ function mockProjectMembership(projectId = "proj-1", orgId = "org-1", role = "PR
   mockPrisma.projectMember.findUnique.mockResolvedValue({ role });
 }
 
-function makeP2002() {
-  return new Prisma.PrismaClientKnownRequestError("Unique constraint failed on key", {
-    code: "P2002",
-    clientVersion: "5.0.0",
-    meta: { target: ["key"] },
-  });
-}
+// ─── createIssue: atomic key generation ──────────────────────────────────────
 
-// ─── createIssue: issue key race condition ────────────────────────────────────
-
-describe("createIssue — issue key retry on P2002", () => {
+describe("createIssue — atomic key generation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSession();
     mockProjectMembership();
-    mockPrisma.issue.count.mockResolvedValue(0);
     mockPrisma.activityLog.create.mockResolvedValue({});
-    // $transaction used indirectly via activityLog; not needed here
+    mockPrisma.$transaction.mockImplementation(
+      (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma)
+    );
   });
 
-  it("succeeds on the first attempt when no collision", async () => {
-    mockGenerateKey.mockResolvedValue("PRJ-1");
-    const created = { id: "issue-1", key: "PRJ-1" };
-    mockPrisma.issue.create.mockResolvedValueOnce(created);
+  it("generates key as projectKey-N+1 based on highest existing key", async () => {
+    mockPrisma.issue.count.mockResolvedValue(3);
+    mockPrisma.issue.findFirst.mockResolvedValue({ key: "PRJ-3" });
+    const created = { id: "issue-4", key: "PRJ-4" };
+    mockPrisma.issue.create.mockResolvedValue(created);
 
     const result = await createIssue("PRJ", { title: "New issue" });
 
     expect(result.success).toBe(true);
-    expect(result.issue.key).toBe("PRJ-1");
-    expect(mockPrisma.issue.create).toHaveBeenCalledTimes(1);
+    expect(result.issue.key).toBe("PRJ-4");
+    expect(mockPrisma.issue.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ key: "PRJ-4" }) })
+    );
   });
 
-  it("retries on P2002 and succeeds on the second attempt", async () => {
-    mockGenerateKey
-      .mockResolvedValueOnce("PRJ-1") // first attempt — key collides
-      .mockResolvedValueOnce("PRJ-2"); // second attempt — succeeds
+  it("generates key as projectKey-1 when project has no issues yet", async () => {
+    mockPrisma.issue.count.mockResolvedValue(0);
+    mockPrisma.issue.findFirst.mockResolvedValue(null);
+    const created = { id: "issue-1", key: "PRJ-1" };
+    mockPrisma.issue.create.mockResolvedValue(created);
 
-    const created = { id: "issue-2", key: "PRJ-2" };
-    mockPrisma.issue.create
-      .mockRejectedValueOnce(makeP2002())
-      .mockResolvedValueOnce(created);
-
-    const result = await createIssue("PRJ", { title: "Race issue" });
+    const result = await createIssue("PRJ", { title: "First issue" });
 
     expect(result.success).toBe(true);
-    expect(result.issue.key).toBe("PRJ-2");
-    expect(mockPrisma.issue.create).toHaveBeenCalledTimes(2);
-    expect(mockGenerateKey).toHaveBeenCalledTimes(2);
-  });
-
-  it("rethrows non-P2002 errors immediately", async () => {
-    mockGenerateKey.mockResolvedValue("PRJ-1");
-    const dbError = new Error("connection refused");
-    mockPrisma.issue.create.mockRejectedValueOnce(dbError);
-
-    await expect(createIssue("PRJ", { title: "Broken issue" })).rejects.toThrow("connection refused");
-    expect(mockPrisma.issue.create).toHaveBeenCalledTimes(1);
-  });
-
-  it("throws after exhausting all retries", async () => {
-    mockGenerateKey.mockResolvedValue("PRJ-1");
-    mockPrisma.issue.create.mockRejectedValue(makeP2002());
-
-    await expect(createIssue("PRJ", { title: "Always collides" })).rejects.toThrow(
-      /Could not create issue/
+    expect(mockPrisma.issue.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ key: "PRJ-1" }) })
     );
-    expect(mockPrisma.issue.create).toHaveBeenCalledTimes(5);
+  });
+
+  it("uses $transaction for atomic key gen and create", async () => {
+    mockPrisma.issue.count.mockResolvedValue(0);
+    mockPrisma.issue.findFirst.mockResolvedValue(null);
+    mockPrisma.issue.create.mockResolvedValue({ id: "i1", key: "PRJ-1" });
+
+    await createIssue("PRJ", { title: "Task" });
+
+    expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -121,51 +103,47 @@ describe("moveIssue — cross-column source column compaction", () => {
     mockProjectMembership();
     mockPrisma.activityLog.create.mockResolvedValue({});
     mockPrisma.issue.update.mockResolvedValue({ id: "issue-1", status: "IN_PROGRESS", position: 0 });
-    mockPrisma.issue.updateMany.mockResolvedValue({ count: 1 });
-    // $transaction resolves each op in the array
-    mockPrisma.$transaction.mockImplementation((ops: unknown[]) => Promise.all(ops));
+    mockPrisma.issue.findUniqueOrThrow.mockResolvedValue({ id: "issue-1", status: "IN_PROGRESS", position: 0 });
+    // moveIssue uses callback-style $transaction internally
+    mockPrisma.$transaction.mockImplementation(
+      (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma)
+    );
   });
 
   it("compacts the source column after a cross-column move", async () => {
     mockPrisma.issue.findFirst.mockResolvedValue({ id: "issue-1", status: "TODO", position: 1 });
-    // Source column (TODO) has 2 remaining issues after the move
-    mockPrisma.issue.findMany.mockResolvedValue([
-      { id: "other-1" },
-      { id: "other-2" },
-    ]);
+    mockPrisma.issue.findMany.mockResolvedValue([{ id: "other-1" }, { id: "other-2" }]);
 
     await moveIssue("PRJ", "issue-1", "IN_PROGRESS", 0);
 
-    // Should have fetched source column issues and normalized them
+    expect(mockPrisma.$transaction).toHaveBeenCalled();
+    // Source column (TODO) compaction: findMany called with source status filter
     expect(mockPrisma.issue.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ status: "TODO" }),
         orderBy: { position: "asc" },
       })
     );
-    expect(mockPrisma.$transaction).toHaveBeenCalled();
-    const txCall = mockPrisma.$transaction.mock.calls[0][0] as unknown[];
-    expect(txCall).toHaveLength(2); // 2 remaining issues get position 0 and 1
   });
 
-  it("does not compact when the issue moves within the same column", async () => {
+  it("does not compact the source column when the issue moves within the same column", async () => {
     mockPrisma.issue.findFirst.mockResolvedValue({ id: "issue-1", status: "TODO", position: 0 });
+    mockPrisma.issue.findMany.mockResolvedValue([]);
 
-    await moveIssue("PRJ", "issue-1", "TODO", 2);
-
-    // No compaction needed — status did not change
-    expect(mockPrisma.issue.findMany).not.toHaveBeenCalled();
-    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    await expect(moveIssue("PRJ", "issue-1", "TODO", 2)).resolves.toMatchObject({ success: true });
+    expect(mockPrisma.$transaction).toHaveBeenCalled();
+    // Only one findMany call (dest column); src compaction skipped when status is unchanged
+    expect(mockPrisma.issue.findMany).toHaveBeenCalledTimes(1);
   });
 
   it("handles an empty source column gracefully after the last issue leaves", async () => {
     mockPrisma.issue.findFirst.mockResolvedValue({ id: "issue-1", status: "DONE", position: 0 });
-    mockPrisma.issue.findMany.mockResolvedValue([]); // column is now empty
+    mockPrisma.issue.findMany.mockResolvedValue([]);
 
     await expect(moveIssue("PRJ", "issue-1", "IN_PROGRESS", 0)).resolves.toMatchObject({
       success: true,
     });
-    expect(mockPrisma.$transaction).not.toHaveBeenCalled(); // nothing to compact
+    expect(mockPrisma.$transaction).toHaveBeenCalled();
   });
 });
 
