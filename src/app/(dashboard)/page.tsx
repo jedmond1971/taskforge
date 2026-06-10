@@ -11,6 +11,7 @@ async function getUserProjects(userId: string) {
   return prisma.project.findMany({
     where: {
       members: { some: { userId } },
+      isClosed: false,
     },
     include: {
       _count: { select: { members: true, issues: true } },
@@ -21,7 +22,11 @@ async function getUserProjects(userId: string) {
 
 async function getAssignedIssues(userId: string) {
   return prisma.issue.findMany({
-    where: { assigneeId: userId, status: { notIn: ["DONE", "CANCELLED"] } },
+    where: {
+      assigneeId: userId,
+      status: { notIn: ["DONE", "CANCELLED"] },
+      project: { isClosed: false },
+    },
     include: { project: { select: { key: true, name: true } } },
     orderBy: { updatedAt: "desc" },
     take: 5,
@@ -33,7 +38,7 @@ async function getUpcomingDueDates(userId: string) {
   const soon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // next 7 days
   return prisma.issue.findMany({
     where: {
-      project: { members: { some: { userId } } },
+      project: { members: { some: { userId } }, isClosed: false },
       status: { notIn: ["DONE", "CANCELLED"] },
       dueDate: { not: null, lte: soon },
     },
@@ -49,6 +54,7 @@ async function getRecentActivity(userId: string) {
       issue: {
         project: {
           members: { some: { userId } },
+          isClosed: false,
         },
       },
     },
