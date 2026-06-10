@@ -121,7 +121,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative overflow-hidden min-h-screen w-full flex flex-col items-center justify-center gap-6 px-4 sm:px-6">
+    <div className="relative overflow-x-hidden w-full flex flex-col items-center justify-center gap-6 px-4 sm:px-6 py-8">
       <canvas
         id="sparks"
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}
