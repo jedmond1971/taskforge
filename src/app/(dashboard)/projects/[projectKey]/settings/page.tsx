@@ -58,7 +58,6 @@ export default async function SettingsPage({
         description: project.description,
         createdAt: project.createdAt.toISOString(),
         isPrivate: project.isPrivate,
-        isArchived: project.isArchived,
       }}
       members={project.members.map((m) => ({
         id: m.id,

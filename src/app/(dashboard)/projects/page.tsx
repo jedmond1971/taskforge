@@ -9,7 +9,7 @@ import { NewProjectDialog } from "@/components/projects/NewProjectDialog";
 
 async function getProjects(userId: string) {
   return prisma.project.findMany({
-    where: { members: { some: { userId } }, isArchived: false, isClosed: false },
+    where: { members: { some: { userId } }, isClosed: false },
     include: {
       _count: { select: { members: true, issues: true } },
       members: {

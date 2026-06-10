@@ -23,7 +23,7 @@ async function getProjectsWithDocs(userId: string) {
   });
 
   return memberships
-    .filter((m) => !m.project.isArchived)
+    .filter((m) => !m.project.isClosed)
     .map((m) => m.project);
 }
 

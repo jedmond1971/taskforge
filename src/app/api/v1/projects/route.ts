@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const authError = requireV1ApiKey(request);
     if (authError) return authError;
     const projects = await prisma.project.findMany({
-      where: { isArchived: false },
+      where: { isClosed: false },
       select: { id: true, name: true, key: true },
       orderBy: { name: "asc" },
     });

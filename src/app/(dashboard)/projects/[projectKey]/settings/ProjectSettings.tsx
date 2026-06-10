@@ -22,7 +22,6 @@ import {
   removeProjectMember,
   changeMemberRole,
   deleteProject,
-  archiveProject,
   setProjectPrivacy,
   searchUsers,
   createUserAndAddToProject,
@@ -55,7 +54,7 @@ interface ProjectSettingsProps {
     description: string | null;
     createdAt: string;
     isPrivate: boolean;
-    isArchived: boolean;
+
   };
   members: Member[];
   currentUserId: string;
@@ -722,7 +721,6 @@ function DangerZoneTab({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [confirmInput, setConfirmInput] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const [archiving, setArchiving] = useState(false);
   const [togglingPrivacy, setTogglingPrivacy] = useState(false);
 
   async function handleDelete() {
@@ -735,19 +733,6 @@ function DangerZoneTab({
         err instanceof Error ? err.message : "Failed to delete project"
       );
       setDeleting(false);
-    }
-  }
-
-  async function handleArchive() {
-    setArchiving(true);
-    try {
-      await archiveProject(projectKey);
-      // archiveProject calls redirect() on the server side
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to archive project"
-      );
-      setArchiving(false);
     }
   }
 
@@ -768,25 +753,6 @@ function DangerZoneTab({
 
   return (
     <div className="max-w-xl space-y-4">
-      {/* Archive project */}
-      <div className="border border-amber-500/30 rounded-xl p-6 bg-amber-500/5">
-        <h3 className="text-lg font-semibold text-amber-400 mb-2">
-          Archive Project
-        </h3>
-        <p className="text-sm text-zinc-400 mb-4">
-          Archiving hides this project from the default project list. All data
-          is preserved and the project can be restored by an admin.
-        </p>
-        <Button
-          variant="outline"
-          onClick={handleArchive}
-          disabled={archiving}
-          className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
-        >
-          {archiving ? "Archiving..." : "Archive this project"}
-        </Button>
-      </div>
-
       {/* Private project toggle — Admin only */}
       {isAdmin && (
         <div className="border border-zinc-500/30 rounded-xl p-6 bg-zinc-500/5">

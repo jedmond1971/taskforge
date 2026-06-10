@@ -803,19 +803,6 @@ export async function createUserAndAddToProject(
   return { success: true };
 }
 
-// --- ARCHIVE PROJECT ---
-export async function archiveProject(projectKey: string) {
-  const { projectId } = await requireProjectRole(projectKey, canManageProject);
-
-  await prisma.project.update({
-    where: { id: projectId },
-    data: { isArchived: true },
-  });
-
-  revalidatePath("/projects");
-  redirect("/projects");
-}
-
 // --- SET PROJECT PRIVACY --- (Admin only per spec Section 2)
 export async function setProjectPrivacy(projectKey: string, isPrivate: boolean) {
   await requireAdmin();
