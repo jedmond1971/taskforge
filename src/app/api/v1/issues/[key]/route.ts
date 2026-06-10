@@ -40,7 +40,7 @@ export async function PATCH(
     if (authError) return authError;
     const issue = await prisma.issue.findUnique({
       where: { key: params.key.toUpperCase() },
-      select: { id: true },
+      select: { id: true, projectId: true, status: true },
     });
     if (!issue) {
       return NextResponse.json({ error: "Issue not found" }, { status: 404 });
@@ -62,16 +62,25 @@ export async function PATCH(
 
     if ("statusId" in body) {
       const statusId = body.statusId;
+      let newStatus: IssueStatus;
       if (statusId === null || statusId === undefined) {
-        updates.status = IssueStatus.TODO;
+        newStatus = IssueStatus.TODO;
       } else if (typeof statusId === "string") {
         const resolved = STATUS_MAP[statusId];
         if (!resolved) {
           return NextResponse.json({ error: `Invalid statusId: ${statusId}` }, { status: 400 });
         }
-        updates.status = resolved;
+        newStatus = resolved;
       } else {
         return NextResponse.json({ error: "statusId must be a string" }, { status: 400 });
+      }
+      updates.status = newStatus;
+      // Changing columns requires a new position to avoid the (projectId, status, position) unique constraint
+      if (newStatus !== issue.status) {
+        const colCount = await prisma.issue.count({
+          where: { projectId: issue.projectId, status: newStatus },
+        });
+        updates.position = colCount;
       }
     }
 
@@ -95,20 +104,14 @@ export async function PATCH(
         if (typeof assigneeId !== "string") {
           return NextResponse.json({ error: "assigneeId must be a string or null" }, { status: 400 });
         }
-        const full = await prisma.issue.findUnique({
-          where: { id: issue.id },
-          select: { projectId: true },
+        const assigneeMember = await prisma.projectMember.findUnique({
+          where: { userId_projectId: { userId: assigneeId, projectId: issue.projectId } },
         });
-        if (full) {
-          const assigneeMember = await prisma.projectMember.findUnique({
-            where: { userId_projectId: { userId: assigneeId, projectId: full.projectId } },
-          });
-          if (!assigneeMember) {
-            return NextResponse.json(
-              { error: "Assignee is not a member of this project" },
-              { status: 400 }
-            );
-          }
+        if (!assigneeMember) {
+          return NextResponse.json(
+            { error: "Assignee is not a member of this project" },
+            { status: 400 }
+          );
         }
         updates.assigneeId = assigneeId;
       } else {
