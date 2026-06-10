@@ -23,8 +23,9 @@ const { mockPrisma, mockAuthFn, mockDeleteObject } = vi.hoisted(() => {
       delete: vi.fn(),
       aggregate: vi.fn(),
     },
-    pageRevision: { findMany: vi.fn(), create: vi.fn() },
+    pageRevision: { findMany: vi.fn(), create: vi.fn(), count: vi.fn().mockResolvedValue(0), deleteMany: vi.fn() },
     issueDocLink: { findMany: vi.fn() },
+    $transaction: vi.fn((cb: (tx: unknown) => unknown) => cb(mockPrisma)),
   };
   const mockAuthFn = vi.fn();
   const mockDeleteObject = vi.fn().mockResolvedValue(undefined);
