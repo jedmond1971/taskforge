@@ -140,8 +140,8 @@ export default function LoginPage() {
         }}
       />
       <div className="relative z-10 flex flex-col items-center gap-6 w-full">
-        <img src="/logo-light.png" alt="JedForge" className="w-full max-w-[90vw] sm:w-[512px] h-auto block dark:hidden" />
-        <img src="/logo-dark.png" alt="JedForge" className="w-full max-w-[90vw] sm:w-[512px] h-auto hidden dark:block" />
+        <img src="/logo-light.png" alt="JedForge" className="w-[200px] sm:w-[260px] h-auto block dark:hidden" />
+        <img src="/logo-dark.png" alt="JedForge" className="w-[200px] sm:w-[260px] h-auto hidden dark:block" />
         <div className="login-card relative w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 sm:p-8 shadow-2xl">
           <div
             className="absolute top-0 rounded-sm"
