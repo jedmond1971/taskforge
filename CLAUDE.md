@@ -74,6 +74,8 @@ This project uses **`@base-ui/react`** (NOT Radix UI). Standard shadcn component
 
 See `.context-docs/rich-text.md` for TipTap packages, storage format, and empty-state behavior.
 
+**`lucide-react` icon naming gotcha** — `LinkOff` does not exist in the installed version (1.7.0). The correct name is `Link2Off`. When in doubt, check exports with `node -e "const l = require('lucide-react'); console.log(Object.keys(l).filter(k => /link/i.test(k)))"`.
+
 ---
 
 ## Adding npm packages
