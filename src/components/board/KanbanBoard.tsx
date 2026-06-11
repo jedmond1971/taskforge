@@ -19,9 +19,11 @@ import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
 import { KanbanColumn } from "./KanbanColumn";
 import { KanbanCard } from "./KanbanCard";
 import { moveIssue, reorderIssues } from "@/app/(dashboard)/projects/[projectKey]/actions";
+import { STATUS_CATEGORY } from "@/lib/issue-utils";
 import { toast } from "sonner";
 
-const STATUSES: IssueStatus[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"];
+// CANCELLED belongs to the Done category — it shows in the Done column, not its own column.
+const BOARD_COLUMNS: IssueStatus[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"];
 
 type CardIssue = {
   id: string;
@@ -62,11 +64,11 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
     if (!activeIssue) setIssues(initialIssues);
   }, [initialIssues]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Group issues by status, sorted by position
-  const byStatus = useCallback(
-    (status: IssueStatus) =>
+  // Group issues by board column (category), sorted by position
+  const byColumn = useCallback(
+    (columnId: IssueStatus) =>
       issues
-        .filter((i) => i.status === status)
+        .filter((i) => STATUS_CATEGORY[i.status] === columnId)
         .sort((a, b) => a.position - b.position),
     [issues]
   );
@@ -83,17 +85,20 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
     const activeIssueItem = issues.find((i) => i.id === active.id);
     if (!activeIssueItem) return;
 
-    // Determine the target status — over could be a column droppable id or another card's id
-    const overStatus = STATUSES.includes(over.id as IssueStatus)
+    // Resolve target column: droppable id OR the category of the card being hovered
+    const overIssueStatus = issues.find((i) => i.id === over.id)?.status;
+    const overColumn: IssueStatus | undefined = BOARD_COLUMNS.includes(over.id as IssueStatus)
       ? (over.id as IssueStatus)
-      : issues.find((i) => i.id === over.id)?.status;
+      : overIssueStatus != null
+      ? (STATUS_CATEGORY[overIssueStatus] as IssueStatus)
+      : undefined;
 
-    if (!overStatus || overStatus === activeIssueItem.status) return;
+    if (!overColumn || overColumn === STATUS_CATEGORY[activeIssueItem.status]) return;
 
-    // Optimistically move the card to the new column
+    // Optimistically move the card to the new column (always targets the column's primary status)
     setIssues((prev) =>
       prev.map((i) =>
-        i.id === activeIssueItem.id ? { ...i, status: overStatus } : i
+        i.id === activeIssueItem.id ? { ...i, status: overColumn } : i
       )
     );
   }
@@ -105,16 +110,20 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
 
     if (!over || !draggedIssue) return;
 
-    // Determine destination status from the drop target id
-    const destStatus: IssueStatus = STATUSES.includes(over.id as IssueStatus)
+    // Resolve destination column (always the primary/category status, never CANCELLED directly)
+    const overIssueStatus = issues.find((i) => i.id === over.id)?.status;
+    const destStatus: IssueStatus = BOARD_COLUMNS.includes(over.id as IssueStatus)
       ? (over.id as IssueStatus)
-      : (issues.find((i) => i.id === over.id)?.status ?? draggedIssue.status);
+      : overIssueStatus != null
+      ? (STATUS_CATEGORY[overIssueStatus] as IssueStatus)
+      : STATUS_CATEGORY[draggedIssue.status] as IssueStatus;
 
+    // All issues in the destination column (may include multiple statuses, e.g. DONE + CANCELLED)
     const destColumn = issues
-      .filter((i) => i.status === destStatus)
+      .filter((i) => STATUS_CATEGORY[i.status] === destStatus)
       .sort((a, b) => a.position - b.position);
 
-    if (destStatus !== draggedIssue.status) {
+    if (destStatus !== STATUS_CATEGORY[draggedIssue.status]) {
       const overIndex = destColumn.findIndex((i) => i.id === over.id);
       const newPosition = overIndex === -1 ? destColumn.length : overIndex;
 
@@ -144,7 +153,7 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
       const reordered = arrayMove(destColumn, oldIndex, newIndex);
 
       setIssues((prev) => {
-        const otherColumns = prev.filter((i) => i.status !== destStatus);
+        const otherColumns = prev.filter((i) => STATUS_CATEGORY[i.status] !== destStatus);
         const updated = reordered.map((issue, idx) => ({ ...issue, position: idx }));
         return [...otherColumns, ...updated];
       });
@@ -170,13 +179,13 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 items-start">
-        {STATUSES.map((status) => (
+        {BOARD_COLUMNS.map((columnId) => (
           <KanbanColumn
-            key={status}
-            status={status}
-            issues={byStatus(status)}
+            key={columnId}
+            status={columnId}
+            issues={byColumn(columnId)}
             projectKey={projectKey}
-            isOver={overId === status}
+            isOver={overId === columnId}
           />
         ))}
       </div>

@@ -1,5 +1,16 @@
 import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
 
+// Maps each status to the board column it belongs to. CANCELLED shares the Done column.
+export type StatusCategory = "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE";
+
+export const STATUS_CATEGORY: Record<IssueStatus, StatusCategory> = {
+  TODO: "TODO",
+  IN_PROGRESS: "IN_PROGRESS",
+  IN_REVIEW: "IN_REVIEW",
+  DONE: "DONE",
+  CANCELLED: "DONE",
+};
+
 export const STATUS_CONFIG: Record<IssueStatus, { label: string; color: string; bg: string }> = {
   TODO: { label: "To Do", color: "text-zinc-600 dark:text-zinc-400", bg: "bg-zinc-100 dark:bg-zinc-800" },
   IN_PROGRESS: { label: "In Progress", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950" },
