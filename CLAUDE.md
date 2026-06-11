@@ -5,7 +5,7 @@
 ### Startup checklist (run at the beginning of every session)
 1. `git status` — confirm the working tree is clean before starting. Commit or stash any pre-existing changes first.
 2. `docker start taskforge-db 2>/dev/null; docker ps --filter name=taskforge-db --format "{{.Status}}"` — confirm Postgres is running.
-3. Find or create a JedForge issue for the work ahead. Check the relevant project (JFDOCS, TFEN, JFR) for an existing issue before creating a new one. See `CLAUDE_API.md` → Working Convention.
+3. Find or create a JedForge issue for the work ahead. The only open production projects are **JFR** (JedForge work) and **WEQUIZ** (both in "The OG" org) — TFEN and JFDOCS are closed; use JFR for new JedForge issues. See `CLAUDE_API.md` → Working Convention.
 
 ### Pre-commit checklist (run before every commit)
 1. `npm run lint` — zero errors required. Pre-existing warnings are acceptable; new ones are not.
@@ -41,6 +41,8 @@ Every project belongs to exactly one organization, and every user-to-project rel
 6. **Admin org deletion** (`adminDeleteOrg`) — Blocked if the org has any projects. No silent cascade.
 7. **Admin org-member removal** (`adminRemoveOrgMember`) — Blocked if the user still has `ProjectMember` rows in that org. Do not cascade-delete project memberships.
 8. **Admin add-user-to-project** (`adminAddUserToProject`) — Admin override that upserts an `OrgMember` (MEMBER role) for the project's org if the user isn't already in it, then creates `ProjectMember`. This is the only place the org-membership pre-check is bypassed; it is replaced by an upsert so the invariant is still satisfied after the call.
+
+**There is no feature to move a project between organizations** — neither in the UI, admin actions, nor the v1 API. When a move is needed, do it via direct SQL in a single transaction: upsert `OrgMember` rows (MEMBER) in the target org for every `ProjectMember` of the moving project first, then update `Project.orgId` — otherwise invariants 2–5 break. `OrgMember.id` has no DB default (Prisma generates cuids); `gen_random_uuid()::text` works for manual inserts.
 
 **Non-goals (do not implement without a separate product decision):**
 Org switching UI, full invite system, billing changes, broad project membership role redesign, cascading project deletion on org delete.
@@ -134,7 +136,8 @@ To update an issue after completing work, use `PATCH /api/v1/issues/[key]` with 
 ## Local dev environment
 
 - Docker Postgres on port 5433 — start with `docker start taskforge-db` if not running (see startup checklist above)
-- Railway CLI auth is broken in this environment (interactive login hangs, browserless produces no output). Workaround: curl the production URL directly. Fix: generate a token at railway.app → Account Settings → Tokens and use `RAILWAY_TOKEN=<token>` or `railway login --token <token>`. (Tracked: TFEN-19)
+- **Railway CLI is unusable in this environment** — every command (`whoami`, `status`, `variables`) produces no output and exits 1, even with `RAILWAY_API_TOKEN` set. Use the **Railway GraphQL API** instead: `POST https://backboard.railway.com/graphql/v2` with header `Authorization: Bearer $RAILWAY_API_TOKEN`. The token is exported in `~/.bashrc` (non-interactive shells may not source it — read it from the file directly). TaskForge production lives in project "striking-strength" (`7a369174-b77d-49c0-9ef0-f651541fe383`), environment `816d8546-3458-4855-9699-b77c855019b9`, services `taskforge` and `Postgres` (`a303a6b4-af40-457d-a017-08bfcf3647ff`).
+- **Direct production DB access:** query the GraphQL `variables(projectId, environmentId, serviceId)` field for the Postgres service and use its `DATABASE_PUBLIC_URL` with local `psql`. Fetch it fresh each time; never write it to a file that survives the session or commit it.
 - Production URL: `https://taskforge-production-099b.up.railway.app` — `jedforge.com` has no DNS records
 - Seeded test users (all password `password123`): `admin@taskforge.dev` (Alice Chen, `UserRole.ADMIN` — use this account to test any admin-gated feature), `member@taskforge.dev`, `carol@taskforge.dev`, `dave@taskforge.dev`
 - Seeded local projects (keys): `PL` (Product Launch), `MA` (Mobile App), `WR` (Website Redesign), `JFR` (JedForge Roadmap). Production has additional projects (`TFEN`, `JFDOCS`, `WEQUIZ`, etc.) that do not exist in local dev.
