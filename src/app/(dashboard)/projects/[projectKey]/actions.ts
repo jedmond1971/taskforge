@@ -821,3 +821,34 @@ export async function setProjectPrivacy(projectKey: string, isPrivate: boolean) 
   revalidatePath(`/projects/${projectKey}/settings`);
   return { success: true };
 }
+
+export async function getIssuesHierarchy(projectKey: string) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const project = await prisma.project.findUnique({
+    where: { key: projectKey.toUpperCase() },
+    select: { id: true },
+  });
+  if (!project) throw new Error("Project not found");
+
+  const member = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId: session.user.id, projectId: project.id } },
+  });
+  if (!member) throw new Error("Not a project member");
+
+  return prisma.issue.findMany({
+    where: { projectId: project.id },
+    select: {
+      id: true,
+      key: true,
+      title: true,
+      status: true,
+      priority: true,
+      type: true,
+      parentId: true,
+      assignee: { select: { id: true, name: true, avatarUrl: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+}
