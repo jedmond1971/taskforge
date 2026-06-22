@@ -135,8 +135,10 @@ To update an issue after completing work, use `PATCH /api/v1/issues/[key]` with 
 
 ---
 
-## Local dev environment
+## Local dev environment (Windows / Jed's machine)
 
+- **No local `.env` file** — the project root has no `.env` on this machine. `V1_API_KEY` and other secrets must be provided manually or sourced from Railway env vars. Create `.env` from `.env.example` before running the dev server.
+- **PowerShell git commit heredocs** — the bash `$(cat <<'EOF'…EOF)` pattern fails in PowerShell. Use the PowerShell here-string syntax instead: `git commit -m @'` … `'@` (closing `'@` must be at column 0).
 - Docker Postgres on port 5433 — start with `docker start taskforge-db` if not running (see startup checklist above)
 - **Railway CLI is unusable in this environment** — every command (`whoami`, `status`, `variables`) produces no output and exits 1, even with `RAILWAY_API_TOKEN` set. Use the **Railway GraphQL API** instead: `POST https://backboard.railway.com/graphql/v2` with header `Authorization: Bearer $RAILWAY_API_TOKEN`. The token is exported in `~/.bashrc` (non-interactive shells may not source it — read it from the file directly). TaskForge production lives in project "striking-strength" (`7a369174-b77d-49c0-9ef0-f651541fe383`), environment `816d8546-3458-4855-9699-b77c855019b9`, services `taskforge` and `Postgres` (`a303a6b4-af40-457d-a017-08bfcf3647ff`).
 - **Direct production DB access:** query the GraphQL `variables(projectId, environmentId, serviceId)` field for the Postgres service and use its `DATABASE_PUBLIC_URL` with local `psql`. Fetch it fresh each time; never write it to a file that survives the session or commit it.
