@@ -12,6 +12,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== "/") return;
       const target = e.target as HTMLElement;
