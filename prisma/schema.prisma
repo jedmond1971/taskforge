@@ -39,12 +39,10 @@ enum ProjectMemberRole {
   VIEWER
 }
 
-enum IssueStatus {
+enum StatusCategory {
   TODO
   IN_PROGRESS
-  IN_REVIEW
   DONE
-  CANCELLED
 }
 
 enum IssuePriority {
@@ -109,9 +107,10 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  org          Organization  @relation(fields: [orgId], references: [id])
+  org          Organization    @relation(fields: [orgId], references: [id])
   members      ProjectMember[]
   issues       Issue[]
+  statuses     ProjectStatus[]
   boards       Board[]
   docSpace     DocSpace?
   savedFilters SavedFilter[]
@@ -137,7 +136,7 @@ model Issue {
   key         String        @unique
   title       String
   description String?
-  status      IssueStatus   @default(TODO)
+  statusId    String
   priority    IssuePriority @default(MEDIUM)
   type        IssueType     @default(TASK)
   assigneeId  String?
@@ -149,11 +148,12 @@ model Issue {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assignee User?    @relation("AssignedIssues", fields: [assigneeId], references: [id])
-  reporter User     @relation("ReportedIssues", fields: [reporterId], references: [id])
-  parent   Issue?   @relation("SubIssues", fields: [parentId], references: [id])
-  children Issue[]  @relation("SubIssues")
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectStatus ProjectStatus @relation(fields: [statusId], references: [id])
+  assignee      User?         @relation("AssignedIssues", fields: [assigneeId], references: [id])
+  reporter      User          @relation("ReportedIssues", fields: [reporterId], references: [id])
+  parent        Issue?        @relation("SubIssues", fields: [parentId], references: [id])
+  children      Issue[]       @relation("SubIssues")
 
   comments      Comment[]
   activityLogs  ActivityLog[]
@@ -164,11 +164,11 @@ model Issue {
   @@index([projectId])
   @@index([assigneeId])
   @@index([reporterId])
-  @@index([status])
+  @@index([statusId])
   @@index([priority])
   // Position uniqueness enforced by DEFERRABLE constraint in migration
   // (not expressible as @@unique — reorder logic writes sequentially)
-  @@index([projectId, status, position])
+  @@index([projectId, statusId, position])
 }
 
 model Board {
@@ -192,6 +192,23 @@ model Column {
   board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
 
   @@index([boardId])
+}
+
+model ProjectStatus {
+  id        String         @id @default(cuid())
+  projectId String
+  name      String
+  category  StatusCategory
+  position  Int
+  isDefault Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issues  Issue[]
+
+  @@unique([projectId, name])
+  @@index([projectId, category, position])
 }
 
 model Comment {

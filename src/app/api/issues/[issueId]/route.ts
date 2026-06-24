@@ -106,15 +106,15 @@ export async function PATCH(
     }
 
     if (
-      "status" in updates &&
-      updates.status !== undefined &&
-      updates.status !== issue.status
+      "statusId" in updates &&
+      updates.statusId !== undefined &&
+      updates.statusId !== issue.statusId
     ) {
       await notificationService.statusChanged({
         issueKey: issue.key,
         issueTitle: issue.title,
         issueId: issue.id,
-        newStatus: updates.status as string,
+        newStatus: updates.statusId as string,
         assigneeId: issue.assigneeId,
         reporterId: issue.reporterId,
         actorId: session.user.id,

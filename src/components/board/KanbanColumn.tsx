@@ -3,32 +3,32 @@
 import { useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { IssueStatus } from "@prisma/client";
+import { StatusCategory } from "@prisma/client";
 import { Plus } from "lucide-react";
 import { KanbanCard } from "./KanbanCard";
 import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
+import { CATEGORY_COLOR } from "@/lib/issue-utils";
 import { cn } from "@/lib/utils";
+
+type BoardStatus = {
+  id: string;
+  name: string;
+  category: StatusCategory;
+};
 
 type CardIssue = {
   id: string;
   key: string;
   title: string;
-  status: IssueStatus;
+  status: { id: string; name: string; category: StatusCategory };
   priority: import("@prisma/client").IssuePriority;
   type: import("@prisma/client").IssueType;
+  dueDate?: Date | null;
   assignee: { id: string; name: string; avatarUrl: string | null } | null;
 };
 
-const COLUMN_CONFIG: Record<IssueStatus, { label: string; border: string; dot: string }> = {
-  TODO:        { label: "To Do",       border: "border-t-zinc-500",    dot: "bg-zinc-500"    },
-  IN_PROGRESS: { label: "In Progress", border: "border-t-blue-500",    dot: "bg-blue-500"    },
-  IN_REVIEW:   { label: "In Review",   border: "border-t-yellow-500",  dot: "bg-yellow-500"  },
-  DONE:        { label: "Done",        border: "border-t-emerald-500", dot: "bg-emerald-500" },
-  CANCELLED:   { label: "Cancelled",   border: "border-t-rose-500",    dot: "bg-rose-500"    },
-};
-
 interface KanbanColumnProps {
-  status: IssueStatus;
+  status: BoardStatus;
   issues: CardIssue[];
   projectKey: string;
   isOver?: boolean;
@@ -36,9 +36,9 @@ interface KanbanColumnProps {
 
 export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColumnProps) {
   const [createOpen, setCreateOpen] = useState(false);
-  const cfg = COLUMN_CONFIG[status];
+  const cfg = CATEGORY_COLOR[status.category];
 
-  const { setNodeRef } = useDroppable({ id: status });
+  const { setNodeRef } = useDroppable({ id: status.id });
 
   return (
     <div className="flex flex-col flex-shrink-0 w-64 sm:w-72">
@@ -46,12 +46,12 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
       <div
         className={cn(
           "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 border-t-2 rounded-t-lg px-3 py-2.5 flex items-center justify-between",
-          cfg.border
+          cfg.borderTop
         )}
       >
         <div className="flex items-center gap-2">
           <div className={cn("w-2 h-2 rounded-full", cfg.dot)} />
-          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{cfg.label}</span>
+          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{status.name}</span>
           <span className="text-xs text-zinc-500 bg-zinc-100 dark:bg-zinc-800 rounded px-1.5 py-0.5 font-mono">
             {issues.length}
           </span>
@@ -59,7 +59,7 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
         <button
           onClick={() => setCreateOpen(true)}
           className="p-1 text-zinc-400 dark:text-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
-          aria-label={`Add issue to ${cfg.label}`}
+          aria-label={`Add issue to ${status.name}`}
         >
           <Plus className="w-4 h-4" />
         </button>
@@ -103,7 +103,7 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
         projectKey={projectKey}
         open={createOpen}
         onOpenChange={setCreateOpen}
-        defaultStatus={status}
+        defaultStatusId={status.id}
       />
     </div>
   );

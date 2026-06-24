@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
+import { StatusCategory, IssuePriority, IssueType } from "@prisma/client";
 import { ChevronRight, ChevronDown, Link2Off, Layers } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { PriorityBadge } from "./PriorityBadge";
@@ -10,7 +10,7 @@ type HierarchyIssue = {
   id: string;
   key: string;
   title: string;
-  status: IssueStatus;
+  projectStatus: { id: string; name: string; category: StatusCategory };
   priority: IssuePriority;
   type: IssueType;
   parentId: string | null;
@@ -98,7 +98,7 @@ function IssueRow({
           </div>
         </td>
         <td className="py-2.5 px-3 whitespace-nowrap">
-          <StatusBadge status={issue.status} />
+          <StatusBadge status={issue.projectStatus} />
         </td>
         <td className="py-2.5 px-3 whitespace-nowrap">
           <PriorityBadge priority={issue.priority} />

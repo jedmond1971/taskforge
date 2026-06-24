@@ -3,7 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
-import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
+import { StatusCategory, IssuePriority, IssueType } from "@prisma/client";
 import { PriorityBadge } from "@/components/issues/PriorityBadge";
 import { TYPE_CONFIG } from "@/lib/issue-utils";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,7 @@ type CardIssue = {
   id: string;
   key: string;
   title: string;
-  status: IssueStatus;
+  status: { id: string; name: string; category: StatusCategory };
   priority: IssuePriority;
   type: IssueType;
   dueDate?: Date | null;
@@ -68,7 +68,7 @@ export function KanbanCard({ issue, projectKey, isDragOverlay = false }: KanbanC
         <PriorityBadge priority={issue.priority} />
       </div>
 
-      {issue.dueDate && issue.status !== "DONE" && (() => {
+      {issue.dueDate && issue.status.category !== "DONE" && (() => {
         const due = new Date(issue.dueDate);
         const now = new Date();
         const isOverdue = due < now;

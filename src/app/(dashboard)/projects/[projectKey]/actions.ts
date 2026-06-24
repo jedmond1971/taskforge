@@ -12,7 +12,8 @@ import {
   canManageMembers,
   canManageProject,
 } from "@/lib/permissions";
-import { IssueStatus, IssuePriority, IssueType, ProjectMemberRole, Prisma } from "@prisma/client";
+import { IssuePriority, IssueType, ProjectMemberRole, StatusCategory, Prisma } from "@prisma/client";
+import { CATEGORY_ORDER } from "@/lib/issue-utils";
 import bcrypt from "bcryptjs";
 import { notificationService } from "@/lib/notifications";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
@@ -53,7 +54,7 @@ async function logActivity(params: {
 export async function createIssue(projectKey: string, formData: {
   title: string;
   description?: string;
-  status?: IssueStatus;
+  statusId?: string;
   priority?: IssuePriority;
   type?: IssueType;
   assigneeId?: string;
@@ -79,6 +80,16 @@ export async function createIssue(projectKey: string, formData: {
   const issue = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT id FROM "Project" WHERE id = ${projectId} FOR UPDATE`;
 
+    let statusId = formData.statusId;
+    if (!statusId) {
+      const defaultStatus = await tx.projectStatus.findFirst({
+        where: { projectId, category: "TODO", isDefault: true },
+        select: { id: true },
+      });
+      if (!defaultStatus) throw new Error("No default status found for project");
+      statusId = defaultStatus.id;
+    }
+
     const issueCount = await tx.issue.count({ where: { projectId } });
 
     const lastIssue = await tx.issue.findFirst({
@@ -95,7 +106,7 @@ export async function createIssue(projectKey: string, formData: {
         projectId,
         title: formData.title,
         description: sanitizedDescription,
-        status: formData.status ?? IssueStatus.TODO,
+        statusId,
         priority: formData.priority ?? IssuePriority.MEDIUM,
         type: formData.type ?? IssueType.TASK,
         assigneeId: formData.assigneeId ?? null,
@@ -104,6 +115,9 @@ export async function createIssue(projectKey: string, formData: {
         position: issueCount,
         dueDate: formData.dueDate ?? null,
         parentId: formData.parentId ?? null,
+      },
+      include: {
+        projectStatus: { select: { id: true, name: true, category: true } },
       },
     });
   });
@@ -136,7 +150,7 @@ export async function updateIssue(
   updates: Partial<{
     title: string;
     description: string | null;
-    status: IssueStatus;
+    statusId: string;
     priority: IssuePriority;
     type: IssueType;
     assigneeId: string | null;
@@ -157,6 +171,7 @@ export async function updateIssue(
     where: { id: issueId, projectId },
     include: {
       assignee: { select: { name: true } },
+      projectStatus: { select: { id: true, name: true } },
     },
   });
   if (!existing) throw new Error("Issue not found");
@@ -168,11 +183,11 @@ export async function updateIssue(
   const issue = await prisma.issue.update({
     where: { id: issueId },
     data: updates,
+    include: { projectStatus: { select: { id: true, name: true, category: true } } },
   });
 
-  // Log each changed field
+  // Log each changed field (statusId handled separately below)
   const fieldLabels: Record<string, string> = {
-    status: "status",
     priority: "priority",
     type: "type",
     assigneeId: "assignee",
@@ -202,6 +217,28 @@ export async function updateIssue(
     }
   }
 
+  // Log status change using human-readable names
+  if ("statusId" in updates && updates.statusId !== undefined && updates.statusId !== existing.statusId) {
+    await logActivity({
+      issueId,
+      userId,
+      action: "updated",
+      field: "status",
+      oldValue: existing.projectStatus.name,
+      newValue: issue.projectStatus.name,
+    });
+
+    await notificationService.statusChanged({
+      issueKey: existing.key,
+      issueTitle: existing.title,
+      issueId: issueId,
+      newStatus: issue.projectStatus.name,
+      assigneeId: existing.assigneeId,
+      reporterId: existing.reporterId,
+      actorId: userId,
+    });
+  }
+
   if (
     "assigneeId" in updates &&
     updates.assigneeId != null &&
@@ -212,22 +249,6 @@ export async function updateIssue(
       issueKey: existing.key,
       issueTitle: existing.title,
       issueId: issueId,
-      actorId: userId,
-    });
-  }
-
-  if (
-    "status" in updates &&
-    updates.status !== undefined &&
-    updates.status !== existing.status
-  ) {
-    await notificationService.statusChanged({
-      issueKey: existing.key,
-      issueTitle: existing.title,
-      issueId: issueId,
-      newStatus: updates.status,
-      assigneeId: existing.assigneeId,
-      reporterId: existing.reporterId,
       actorId: userId,
     });
   }
@@ -256,7 +277,7 @@ export async function deleteIssue(projectKey: string, issueId: string) {
 
 // --- GET ISSUES (with filtering/sorting) ---
 export type IssueFilters = {
-  status?: IssueStatus;
+  statusId?: string;
   priority?: IssuePriority;
   type?: IssueType;
   assigneeId?: string;
@@ -289,7 +310,7 @@ export async function getIssues(
 
   const where: Prisma.IssueWhereInput = {
     projectId: project.id,
-    ...(filters.status && { status: filters.status }),
+    ...(filters.statusId && { statusId: filters.statusId }),
     ...(filters.priority && { priority: filters.priority }),
     ...(filters.type && { type: filters.type }),
     ...(filters.assigneeId && { assigneeId: filters.assigneeId }),
@@ -310,6 +331,7 @@ export async function getIssues(
     where,
     orderBy,
     include: {
+      projectStatus: { select: { id: true, name: true, category: true } },
       assignee: { select: { id: true, name: true, avatarUrl: true } },
       reporter: { select: { id: true, name: true } },
       _count: { select: { comments: true } },
@@ -336,15 +358,16 @@ export async function getIssue(projectKey: string, issueKey: string) {
   return prisma.issue.findFirst({
     where: { key: issueKey.toUpperCase(), projectId: project.id },
     include: {
+      projectStatus: { select: { id: true, name: true, category: true } },
       assignee: { select: { id: true, name: true, avatarUrl: true } },
       reporter: { select: { id: true, name: true, avatarUrl: true } },
-      parent: { select: { id: true, key: true, title: true, status: true } },
+      parent: { select: { id: true, key: true, title: true, projectStatus: { select: { id: true, name: true, category: true } } } },
       children: {
         select: {
           id: true,
           key: true,
           title: true,
-          status: true,
+          projectStatus: { select: { id: true, name: true, category: true } },
           priority: true,
           assignee: { select: { id: true, name: true, avatarUrl: true } },
         },
@@ -416,6 +439,32 @@ export async function unlinkDocPage(projectKey: string, issueId: string, pageId:
   revalidatePath(`/projects/${projectKey}/issues`);
 }
 
+// --- GET PROJECT STATUSES (for status dropdowns, accessible to all members) ---
+export async function getProjectStatuses(projectKey: string) {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const project = await prisma.project.findUnique({
+    where: { key: projectKey.toUpperCase() },
+    select: { id: true },
+  });
+  if (!project) throw new Error("Project not found");
+
+  const member = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId: session.user.id, projectId: project.id } },
+  });
+  if (!member) throw new Error("Not a project member");
+
+  const statuses = await prisma.projectStatus.findMany({
+    where: { projectId: project.id },
+  });
+
+  return statuses.sort((a, b) => {
+    const catDiff = CATEGORY_ORDER[a.category as StatusCategory] - CATEGORY_ORDER[b.category as StatusCategory];
+    return catDiff !== 0 ? catDiff : a.position - b.position;
+  });
+}
+
 // --- GET PROJECT MEMBERS (for assignee select) ---
 export async function getProjectMembers(projectKey: string) {
   const session = await auth();
@@ -442,28 +491,35 @@ export async function getProjectMembers(projectKey: string) {
 export async function moveIssue(
   projectKey: string,
   issueId: string,
-  newStatus: IssueStatus,
+  newStatusId: string,
   newPosition: number
 ) {
   const { userId, projectId } = await requireProjectRole(projectKey, canEditIssues);
 
   try {
-    const { issue, oldStatus } = await prisma.$transaction(async (tx) => {
+    const { issue, oldStatusId, oldStatusName, newStatusName } = await prisma.$transaction(async (tx) => {
       // Lock project row to serialise concurrent moves for this project
       await tx.$executeRaw`SELECT id FROM "Project" WHERE id = ${projectId} FOR UPDATE`;
 
       const existing = await tx.issue.findFirst({
         where: { id: issueId, projectId },
-        select: { id: true, status: true },
+        select: { id: true, statusId: true, projectStatus: { select: { name: true } } },
       });
       if (!existing) throw new Error("Issue not found");
 
-      const oldStatus = existing.status;
-      const statusChanged = oldStatus !== newStatus;
+      const oldStatusId = existing.statusId;
+      const oldStatusName = existing.projectStatus.name;
+      const statusChanged = oldStatusId !== newStatusId;
+
+      const newStatusRecord = await tx.projectStatus.findUnique({
+        where: { id: newStatusId },
+        select: { name: true },
+      });
+      if (!newStatusRecord) throw new Error("Target status not found");
 
       // Build the new destination column order: others + moved issue at clamped pos
       const destOthers = await tx.issue.findMany({
-        where: { projectId, status: newStatus, id: { not: issueId } },
+        where: { projectId, statusId: newStatusId, id: { not: issueId } },
         orderBy: { position: "asc" },
         select: { id: true },
       });
@@ -475,7 +531,7 @@ export async function moveIssue(
       ];
 
       // Update moved issue status then reindex entire destination column
-      await tx.issue.update({ where: { id: issueId }, data: { status: newStatus } });
+      await tx.issue.update({ where: { id: issueId }, data: { statusId: newStatusId } });
       for (let i = 0; i < destOrder.length; i++) {
         await tx.issue.update({ where: { id: destOrder[i].id }, data: { position: i } });
       }
@@ -483,7 +539,7 @@ export async function moveIssue(
       if (statusChanged) {
         // Reindex source column now that the issue has left
         const srcIssues = await tx.issue.findMany({
-          where: { projectId, status: oldStatus },
+          where: { projectId, statusId: oldStatusId },
           orderBy: { position: "asc" },
           select: { id: true },
         });
@@ -492,18 +548,21 @@ export async function moveIssue(
         }
       }
 
-      const updatedIssue = await tx.issue.findUniqueOrThrow({ where: { id: issueId } });
-      return { issue: updatedIssue, oldStatus };
+      const updatedIssue = await tx.issue.findUniqueOrThrow({
+        where: { id: issueId },
+        include: { projectStatus: { select: { id: true, name: true, category: true } } },
+      });
+      return { issue: updatedIssue, oldStatusId, oldStatusName, newStatusName: newStatusRecord.name };
     });
 
-    if (oldStatus !== newStatus) {
+    if (oldStatusId !== newStatusId) {
       await logActivity({
         issueId,
         userId,
         action: "updated",
         field: "status",
-        oldValue: oldStatus,
-        newValue: newStatus,
+        oldValue: oldStatusName,
+        newValue: newStatusName,
       });
     }
 
@@ -843,7 +902,7 @@ export async function getIssuesHierarchy(projectKey: string) {
       id: true,
       key: true,
       title: true,
-      status: true,
+      projectStatus: { select: { id: true, name: true, category: true } },
       priority: true,
       type: true,
       parentId: true,

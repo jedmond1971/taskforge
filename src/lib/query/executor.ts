@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { ParseResult, ASTNode, ValueNode, Operator } from "./parser";
+import type { StatusCategory } from "@prisma/client";
 
 export interface QueryContext {
   userId: string;
@@ -11,7 +12,8 @@ export interface QueryResult {
     id: string;
     key: string;
     title: string;
-    status: string;
+    statusId: string;
+    projectStatus: { id: string; name: string; category: StatusCategory };
     priority: string;
     type: string;
     dueDate: Date | null;
@@ -215,7 +217,18 @@ async function buildNodeWhere(
       const { field, operator, value } = node;
 
       switch (field) {
-        case "status":
+        case "status": {
+          if (operator === "IN" || operator === "NOT IN") {
+            const names = resolveStringValues(value);
+            const clause = { projectStatus: { name: { in: names } } };
+            return operator === "NOT IN" ? { NOT: clause } : clause;
+          }
+          const name = resolveStringValue(value);
+          if (operator === "=") return { projectStatus: { name: { equals: name, mode: "insensitive" } } };
+          if (operator === "!=") return { NOT: { projectStatus: { name: { equals: name, mode: "insensitive" } } } };
+          return {};
+        }
+
         case "priority":
         case "type":
           return buildEnumComparison(field, operator, value);
@@ -341,6 +354,7 @@ export async function executeQuery(
       orderBy: orderByClause,
       take,
       include: {
+        projectStatus: { select: { id: true, name: true, category: true } },
         assignee: {
           select: { id: true, name: true, avatarUrl: true },
         },
@@ -363,7 +377,8 @@ export async function executeQuery(
       id: issue.id,
       key: issue.key,
       title: issue.title,
-      status: issue.status,
+      statusId: issue.statusId,
+      projectStatus: issue.projectStatus,
       priority: issue.priority,
       type: issue.type,
       dueDate: (issue as Record<string, unknown>).dueDate as Date | null ?? null,

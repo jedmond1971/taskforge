@@ -1,8 +1,12 @@
 import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
-import { getIssues, getProjectMembers } from "@/app/(dashboard)/projects/[projectKey]/actions";
+import { IssuePriority, IssueType } from "@prisma/client";
+import {
+  getIssues,
+  getProjectMembers,
+  getProjectStatuses,
+} from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { IssueList } from "@/components/issues/IssueList";
 import { IssueFiltersBar } from "@/components/issues/IssueFiltersBar";
 import { AutoRefresh } from "@/components/layout/AutoRefresh";
@@ -18,9 +22,6 @@ interface PageProps {
   };
 }
 
-function isValidStatus(v: string): v is IssueStatus {
-  return ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"].includes(v);
-}
 function isValidPriority(v: string): v is IssuePriority {
   return ["CRITICAL", "HIGH", "MEDIUM", "LOW"].includes(v);
 }
@@ -32,18 +33,29 @@ export default async function IssuesPage({ params, searchParams }: PageProps) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const [allStatuses, members] = await Promise.all([
+    getProjectStatuses(params.projectKey),
+    getProjectMembers(params.projectKey),
+  ]);
+
+  // Resolve status name → statusId for filtering
+  let statusId: string | undefined;
+  if (searchParams.status) {
+    const match = allStatuses.find(
+      (s) => s.name.toLowerCase() === searchParams.status!.toLowerCase()
+    );
+    statusId = match?.id;
+  }
+
   const filters = {
-    ...(searchParams.status && isValidStatus(searchParams.status) && { status: searchParams.status }),
+    ...(statusId && { statusId }),
     ...(searchParams.priority && isValidPriority(searchParams.priority) && { priority: searchParams.priority }),
     ...(searchParams.type && isValidType(searchParams.type) && { type: searchParams.type }),
     ...(searchParams.assigneeId && { assigneeId: searchParams.assigneeId }),
     ...(searchParams.search && { search: searchParams.search }),
   };
 
-  const [issues, members] = await Promise.all([
-    getIssues(params.projectKey, filters),
-    getProjectMembers(params.projectKey),
-  ]);
+  const issues = await getIssues(params.projectKey, filters);
 
   return (
     <div className="space-y-4">
@@ -57,6 +69,7 @@ export default async function IssuesPage({ params, searchParams }: PageProps) {
       <Suspense fallback={<div className="h-10" />}>
         <IssueFiltersBar
           members={members.map((m) => m.user)}
+          statuses={allStatuses}
           projectKey={params.projectKey}
           currentFilters={searchParams}
         />

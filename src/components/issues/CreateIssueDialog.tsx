@@ -8,25 +8,37 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { IssueForm } from "./IssueForm";
-import { getProjectMembers } from "@/app/(dashboard)/projects/[projectKey]/actions";
-import { IssueStatus } from "@prisma/client";
+import {
+  getProjectMembers,
+  getProjectStatuses,
+} from "@/app/(dashboard)/projects/[projectKey]/actions";
+import { StatusCategory } from "@prisma/client";
 
 type Member = { id: string; name: string; avatarUrl: string | null };
+type ProjectStatus = { id: string; name: string; category: StatusCategory };
 
 interface CreateIssueDialogProps {
   projectKey: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultStatus?: IssueStatus;
+  defaultStatusId?: string;
   parentId?: string | null;
 }
 
-export function CreateIssueDialog({ projectKey, open, onOpenChange, defaultStatus, parentId }: CreateIssueDialogProps) {
+export function CreateIssueDialog({
+  projectKey,
+  open,
+  onOpenChange,
+  defaultStatusId,
+  parentId,
+}: CreateIssueDialogProps) {
   const [members, setMembers] = useState<{ user: Member }[]>([]);
+  const [statuses, setStatuses] = useState<ProjectStatus[]>([]);
 
   useEffect(() => {
     if (!open) return;
     getProjectMembers(projectKey).then(setMembers).catch(() => setMembers([]));
+    getProjectStatuses(projectKey).then(setStatuses).catch(() => setStatuses([]));
   }, [open, projectKey]);
 
   return (
@@ -40,7 +52,8 @@ export function CreateIssueDialog({ projectKey, open, onOpenChange, defaultStatu
         <IssueForm
           projectKey={projectKey}
           members={members}
-          defaultStatus={defaultStatus}
+          statuses={statuses}
+          defaultStatusId={defaultStatusId}
           parentId={parentId}
           onSuccess={() => onOpenChange(false)}
           onCancel={() => onOpenChange(false)}

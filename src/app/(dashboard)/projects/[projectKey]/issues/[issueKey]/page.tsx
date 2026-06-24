@@ -1,6 +1,10 @@
 import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
-import { getIssue, getProjectMembers } from "@/app/(dashboard)/projects/[projectKey]/actions";
+import {
+  getIssue,
+  getProjectMembers,
+  getProjectStatuses,
+} from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { IssueDetail } from "@/components/issues/IssueDetail";
 import { canEditIssues } from "@/lib/permissions";
 
@@ -12,9 +16,10 @@ export default async function IssueDetailPage({ params }: PageProps) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const [issue, members] = await Promise.all([
+  const [issue, members, statuses] = await Promise.all([
     getIssue(params.projectKey, params.issueKey),
     getProjectMembers(params.projectKey),
+    getProjectStatuses(params.projectKey),
   ]);
 
   if (!issue) notFound();
@@ -26,6 +31,7 @@ export default async function IssueDetailPage({ params }: PageProps) {
     <IssueDetail
       issue={issue}
       members={members.map((m) => m.user)}
+      statuses={statuses}
       projectKey={params.projectKey}
       currentUserId={session.user.id}
       currentUserName={session.user.name ?? ""}

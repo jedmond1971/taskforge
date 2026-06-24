@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
+import { StatusCategory, IssuePriority, IssueType } from "@prisma/client";
 import { StatusBadge } from "./StatusBadge";
 import { PriorityBadge } from "./PriorityBadge";
 import { TYPE_CONFIG } from "@/lib/issue-utils";
@@ -12,7 +12,8 @@ type IssueWithRelations = {
   id: string;
   key: string;
   title: string;
-  status: IssueStatus;
+  statusId: string;
+  projectStatus: { id: string; name: string; category: StatusCategory };
   priority: IssuePriority;
   type: IssueType;
   dueDate?: Date | null;
@@ -155,7 +156,7 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
                 )}
               </td>
               <td className="px-4 py-3">
-                <StatusBadge status={issue.status} />
+                <StatusBadge status={issue.projectStatus} />
               </td>
               <td className="px-4 py-3">
                 <PriorityBadge priority={issue.priority} />
@@ -180,7 +181,7 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
               <td className="px-4 py-3 text-xs hidden md:table-cell">
                 {issue.dueDate ? (() => {
                   const due = new Date(issue.dueDate);
-                  const isOverdue = due < new Date() && issue.status !== "DONE";
+                  const isOverdue = due < new Date() && issue.projectStatus.category !== "DONE";
                   return (
                     <span className={`flex items-center gap-1 ${isOverdue ? "text-red-600 dark:text-red-400 font-medium" : "text-zinc-500"}`}>
                       {isOverdue && <AlertCircle className="w-3 h-3" />}

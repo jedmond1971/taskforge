@@ -49,6 +49,15 @@ export async function POST(request: NextRequest) {
             role: "PROJECT_LEAD",
           },
         },
+        statuses: {
+          createMany: {
+            data: [
+              { name: "To Do",       category: "TODO",        position: 0, isDefault: true },
+              { name: "In Progress", category: "IN_PROGRESS", position: 0, isDefault: true },
+              { name: "Done",        category: "DONE",        position: 0, isDefault: true },
+            ],
+          },
+        },
       },
     });
 

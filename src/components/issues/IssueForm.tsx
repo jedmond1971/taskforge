@@ -2,14 +2,20 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
+import { StatusCategory, IssuePriority, IssueType } from "@prisma/client";
 import { createIssue, updateIssue } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { STATUS_CONFIG, PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
+import { PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
 import { LabelInput } from "@/components/issues/LabelInput";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+
+type ProjectStatus = {
+  id: string;
+  name: string;
+  category: StatusCategory;
+};
 
 type ProjectMember = {
   user: { id: string; name: string; avatarUrl: string | null };
@@ -19,7 +25,7 @@ type ExistingIssue = {
   id: string;
   title: string;
   description: string | null;
-  status: IssueStatus;
+  statusId: string;
   priority: IssuePriority;
   type: IssueType;
   assigneeId: string | null;
@@ -30,21 +36,36 @@ type ExistingIssue = {
 interface IssueFormProps {
   projectKey: string;
   members: ProjectMember[];
+  statuses: ProjectStatus[];
   issue?: ExistingIssue;
-  defaultStatus?: IssueStatus;
+  defaultStatusId?: string;
   parentId?: string | null;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
-export function IssueForm({ projectKey, members, issue, defaultStatus, parentId, onSuccess, onCancel }: IssueFormProps) {
+export function IssueForm({
+  projectKey,
+  members,
+  statuses,
+  issue,
+  defaultStatusId,
+  parentId,
+  onSuccess,
+  onCancel,
+}: IssueFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  const defaultStatus =
+    statuses.find((s) => s.id === (issue?.statusId ?? defaultStatusId)) ??
+    statuses.find((s) => s.category === "TODO") ??
+    statuses[0];
+
   const [title, setTitle] = useState(issue?.title ?? "");
   const [description, setDescription] = useState(issue?.description ?? "");
-  const [status, setStatus] = useState<IssueStatus>(issue?.status ?? defaultStatus ?? "TODO");
+  const [statusId, setStatusId] = useState<string>(defaultStatus?.id ?? "");
   const [priority, setPriority] = useState<IssuePriority>(issue?.priority ?? "MEDIUM");
   const [type, setType] = useState<IssueType>(issue?.type ?? "TASK");
   const [assigneeId, setAssigneeId] = useState<string>(issue?.assigneeId ?? "");
@@ -62,29 +83,32 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, parentId,
 
     const dueDateValue = dueDate ? new Date(dueDate) : null;
 
-    const formData = {
-      title: title.trim(),
-      description: description || undefined,
-      status,
-      priority,
-      type,
-      assigneeId: assigneeId || undefined,
-      labels,
-      dueDate: dueDateValue ?? undefined,
-    };
-
     startTransition(async () => {
       try {
         if (issue) {
           await updateIssue(projectKey, issue.id, {
-            ...formData,
+            title: title.trim(),
             description: description || null,
+            statusId,
+            priority,
+            type,
             assigneeId: assigneeId || null,
+            labels,
             dueDate: dueDateValue,
           });
           toast.success("Issue updated");
         } else {
-          await createIssue(projectKey, { ...formData, parentId: parentId ?? null });
+          await createIssue(projectKey, {
+            title: title.trim(),
+            description: description || undefined,
+            statusId,
+            priority,
+            type,
+            assigneeId: assigneeId || undefined,
+            labels,
+            dueDate: dueDateValue ?? undefined,
+            parentId: parentId ?? null,
+          });
           toast.success("Issue created");
         }
         onSuccess?.();
@@ -130,12 +154,12 @@ export function IssueForm({ projectKey, members, issue, defaultStatus, parentId,
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Status</label>
           <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as IssueStatus)}
+            value={statusId}
+            onChange={(e) => setStatusId(e.target.value)}
             className={selectClass}
           >
-            {(Object.keys(STATUS_CONFIG) as IssueStatus[]).map((s) => (
-              <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
+            {statuses.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
         </div>

@@ -1,14 +1,16 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
-import { STATUS_CONFIG, PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
+import { IssuePriority, IssueType, StatusCategory } from "@prisma/client";
+import { PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
 import { X } from "lucide-react";
 
+type ProjectStatus = { id: string; name: string; category: StatusCategory };
 type Member = { id: string; name: string; avatarUrl: string | null };
 
 interface IssueFiltersBarProps {
   members: Member[];
+  statuses: ProjectStatus[];
   projectKey: string;
   currentFilters: {
     status?: string;
@@ -18,7 +20,7 @@ interface IssueFiltersBarProps {
   };
 }
 
-export function IssueFiltersBar({ members, currentFilters }: IssueFiltersBarProps) {
+export function IssueFiltersBar({ members, statuses, currentFilters }: IssueFiltersBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -49,8 +51,8 @@ export function IssueFiltersBar({ members, currentFilters }: IssueFiltersBarProp
         className={selectClass}
       >
         <option value="">All Statuses</option>
-        {(Object.keys(STATUS_CONFIG) as IssueStatus[]).map((s) => (
-          <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
+        {statuses.map((s) => (
+          <option key={s.id} value={s.name}>{s.name}</option>
         ))}
       </select>
 

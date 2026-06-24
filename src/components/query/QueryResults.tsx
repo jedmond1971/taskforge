@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { SearchX } from "lucide-react";
-import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
+import { StatusCategory, IssuePriority, IssueType } from "@prisma/client";
 import { StatusBadge } from "@/components/issues/StatusBadge";
 import { PriorityBadge } from "@/components/issues/PriorityBadge";
 import { TYPE_CONFIG } from "@/lib/issue-utils";
@@ -12,7 +12,8 @@ interface QueryIssue {
   id: string;
   key: string;
   title: string;
-  status: string;
+  statusId: string;
+  projectStatus: { id: string; name: string; category: StatusCategory };
   priority: string;
   type: string;
   createdAt: Date;
@@ -164,7 +165,7 @@ export function QueryResults({ results, isLoading }: QueryResultsProps) {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge status={issue.status as IssueStatus} />
+                    <StatusBadge status={issue.projectStatus} />
                   </td>
                   <td className="px-4 py-3">
                     <PriorityBadge

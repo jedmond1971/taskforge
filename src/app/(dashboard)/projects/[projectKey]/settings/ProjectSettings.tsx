@@ -16,6 +16,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Trash2, UserPlus, Search, UserRoundPlus } from "lucide-react";
+import { BoardSettings } from "./BoardSettings";
 import {
   updateProject,
   addProjectMember,
@@ -104,7 +105,10 @@ export function ProjectSettings({
     { id: "general", label: "General" },
     { id: "members", label: "Members" },
     ...(currentUserRole === "PROJECT_LEAD"
-      ? [{ id: "danger", label: "Danger Zone" }]
+      ? [
+          { id: "board", label: "Board" },
+          { id: "danger", label: "Danger Zone" },
+        ]
       : []),
   ];
 
@@ -143,6 +147,9 @@ export function ProjectSettings({
           currentUserRole={currentUserRole}
           projectKey={projectKey}
         />
+      )}
+      {activeTab === "board" && currentUserRole === "PROJECT_LEAD" && (
+        <BoardSettings projectKey={projectKey} />
       )}
       {activeTab === "danger" && currentUserRole === "PROJECT_LEAD" && (
         <DangerZoneTab project={project} projectKey={projectKey} isAdmin={isAdmin} />

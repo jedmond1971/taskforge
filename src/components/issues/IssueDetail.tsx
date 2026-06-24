@@ -3,9 +3,9 @@
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { IssueStatus, IssuePriority, IssueType, DocPageType } from "@prisma/client";
+import { StatusCategory, IssuePriority, IssueType, DocPageType } from "@prisma/client";
 import { updateIssue, deleteIssue } from "@/app/(dashboard)/projects/[projectKey]/actions";
-import { STATUS_CONFIG, PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
+import { CATEGORY_COLOR, PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
 import { Pencil, Trash2, Check, X, ChevronRight, Plus } from "lucide-react";
 import { LabelInput } from "@/components/issues/LabelInput";
 import { toast } from "sonner";
@@ -37,11 +37,13 @@ type Comment = {
   updatedAt: Date;
   author: User;
 };
+type ProjectStatus = { id: string; name: string; category: StatusCategory };
+
 type SubIssue = {
   id: string;
   key: string;
   title: string;
-  status: IssueStatus;
+  projectStatus: ProjectStatus;
   priority: IssuePriority;
   assignee: User | null;
 };
@@ -49,7 +51,7 @@ type ParentIssue = {
   id: string;
   key: string;
   title: string;
-  status: IssueStatus;
+  projectStatus: ProjectStatus;
 };
 type DocLink = {
   id: string;
@@ -62,7 +64,8 @@ type Issue = {
   key: string;
   title: string;
   description: string | null;
-  status: IssueStatus;
+  statusId: string;
+  projectStatus: ProjectStatus;
   priority: IssuePriority;
   type: IssueType;
   assigneeId: string | null;
@@ -84,6 +87,7 @@ type Issue = {
 interface IssueDetailProps {
   issue: Issue;
   members: User[];
+  statuses: ProjectStatus[];
   projectKey: string;
   currentUserId: string;
   currentUserName: string;
@@ -182,7 +186,7 @@ function InlineSelect<T extends string>({ label, value, options, issueId, projec
 }
 
 function SubIssueRow({ subIssue, projectKey }: { subIssue: SubIssue; projectKey: string }) {
-  const statusCfg = STATUS_CONFIG[subIssue.status];
+  const statusCfg = CATEGORY_COLOR[subIssue.projectStatus.category];
   const priorityCfg = PRIORITY_CONFIG[subIssue.priority];
 
   return (
@@ -191,7 +195,7 @@ function SubIssueRow({ subIssue, projectKey }: { subIssue: SubIssue; projectKey:
       className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors group"
     >
       <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${statusCfg.color} ${statusCfg.bg} whitespace-nowrap`}>
-        {statusCfg.label}
+        {subIssue.projectStatus.name}
       </span>
       <span className="font-mono text-xs text-indigo-500 dark:text-indigo-400 shrink-0">{subIssue.key}</span>
       <span className="text-sm text-zinc-700 dark:text-zinc-300 flex-1 truncate group-hover:text-zinc-900 dark:group-hover:text-zinc-100">
@@ -205,7 +209,7 @@ function SubIssueRow({ subIssue, projectKey }: { subIssue: SubIssue; projectKey:
   );
 }
 
-export function IssueDetail({ issue, members, projectKey, currentUserId, currentUserName, canEdit }: IssueDetailProps) {
+export function IssueDetail({ issue, members, statuses, projectKey, currentUserId, currentUserName, canEdit }: IssueDetailProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editingDesc, setEditingDesc] = useState(false);
@@ -252,10 +256,7 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
     });
   }
 
-  const statusOptions = (Object.keys(STATUS_CONFIG) as IssueStatus[]).map((s) => ({
-    value: s,
-    label: STATUS_CONFIG[s].label,
-  }));
+  const statusOptions = statuses.map((s) => ({ value: s.id, label: s.name }));
   const priorityOptions = (Object.keys(PRIORITY_CONFIG) as IssuePriority[]).map((p) => ({
     value: p,
     label: PRIORITY_CONFIG[p].label,
@@ -480,11 +481,11 @@ export function IssueDetail({ issue, members, projectKey, currentUserId, current
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-4">
             <InlineSelect
               label="Status"
-              value={issue.status}
+              value={issue.statusId}
               options={statusOptions}
               issueId={issue.id}
               projectKey={projectKey}
-              fieldKey="status"
+              fieldKey="statusId"
               onSaved={refresh}
               disabled={!canEdit}
             />

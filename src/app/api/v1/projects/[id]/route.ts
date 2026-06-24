@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { SYNTH_STATUSES } from "../../_helpers";
 import { requireV1ApiKey } from "@/lib/v1-auth";
 
 export async function GET(
@@ -13,6 +12,10 @@ export async function GET(
     const project = await prisma.project.findUnique({
       where: { id: params.id },
       include: {
+        statuses: {
+          select: { id: true, name: true, category: true, isDefault: true },
+          orderBy: { position: "asc" },
+        },
         members: {
           include: {
             user: { select: { id: true, name: true, email: true, avatarUrl: true } },
@@ -29,7 +32,7 @@ export async function GET(
       name: project.name,
       key: project.key,
       description: project.description,
-      statuses: SYNTH_STATUSES,
+      statuses: project.statuses,
       members: project.members.map((m) => ({
         id: m.id,
         role: m.role,

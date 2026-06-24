@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateIssueKeyWithRetry } from "@/lib/issue-keys";
-import { IssueStatus, IssuePriority, IssueType, Prisma } from "@prisma/client";
-import { STATUS_MAP, PRIORITY_MAP, formatIssue, statusToObject } from "../_helpers";
+import { IssuePriority, IssueType, Prisma } from "@prisma/client";
+import { resolveStatusForProject, PRIORITY_MAP, formatIssue } from "../_helpers";
 import { requireV1ApiKey } from "@/lib/v1-auth";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
+
+const ISSUE_INCLUDE = {
+  projectStatus: { select: { id: true, name: true, category: true } },
+  assignee: { select: { id: true, name: true } },
+  reporter: { select: { id: true, name: true } },
+  project: { select: { id: true, key: true, name: true } },
+  _count: { select: { comments: true, attachments: true } },
+} as const;
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,23 +28,24 @@ export async function GET(request: NextRequest) {
     const where: Prisma.IssueWhereInput = {};
     if (projectId) where.projectId = projectId;
     if (statusParam) {
-      const status = STATUS_MAP[statusParam];
-      if (!status) {
-        return NextResponse.json({ error: `Invalid status: ${statusParam}` }, { status: 400 });
+      if (!projectId) {
+        return NextResponse.json(
+          { error: "projectId is required when filtering by status" },
+          { status: 400 }
+        );
       }
-      where.status = status;
+      const resolved = await resolveStatusForProject(projectId, statusParam);
+      if (!resolved) {
+        return NextResponse.json({ error: `Status not found: ${statusParam}` }, { status: 400 });
+      }
+      where.statusId = resolved.id;
     }
     if (assigneeId) where.assigneeId = assigneeId;
 
     const [issues, total] = await Promise.all([
       prisma.issue.findMany({
         where,
-        include: {
-          assignee: { select: { id: true, name: true } },
-          reporter: { select: { id: true, name: true } },
-          project: { select: { id: true, key: true, name: true } },
-          _count: { select: { comments: true, attachments: true } },
-        },
+        include: ISSUE_INCLUDE,
         orderBy: { createdAt: "desc" },
         take: limit,
         skip: offset,
@@ -56,7 +65,7 @@ export async function POST(request: NextRequest) {
     const authError = requireV1ApiKey(request);
     if (authError) return authError;
     const body = (await request.json()) as Record<string, unknown>;
-    const { projectId, title, description, statusId, priority, assigneeId, reporterId } = body;
+    const { projectId, title, description, status, priority, assigneeId, reporterId } = body;
 
     if (!projectId || typeof projectId !== "string") {
       return NextResponse.json({ error: "projectId is required" }, { status: 400 });
@@ -73,13 +82,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    let status: IssueStatus = IssueStatus.TODO;
-    if (statusId && typeof statusId === "string") {
-      const resolved = STATUS_MAP[statusId];
+    // Resolve status: accept name string, fall back to TODO default
+    let resolvedStatusId: string;
+    if (status && typeof status === "string") {
+      const resolved = await resolveStatusForProject(projectId, status);
       if (!resolved) {
-        return NextResponse.json({ error: `Invalid statusId: ${statusId}` }, { status: 400 });
+        return NextResponse.json({ error: `Status not found: ${status}` }, { status: 400 });
       }
-      status = resolved;
+      resolvedStatusId = resolved.id;
+    } else {
+      const defaultStatus = await prisma.projectStatus.findFirst({
+        where: { projectId, category: "TODO", isDefault: true },
+        select: { id: true },
+      });
+      if (!defaultStatus) {
+        return NextResponse.json({ error: "Project has no default status" }, { status: 400 });
+      }
+      resolvedStatusId = defaultStatus.id;
     }
 
     let resolvedPriority: IssuePriority = IssuePriority.MEDIUM;
@@ -131,7 +150,7 @@ export async function POST(request: NextRequest) {
             projectId,
             title: (title as string).trim(),
             description: typeof description === "string" ? sanitizeTipTapHtml(description) : null,
-            status,
+            statusId: resolvedStatusId,
             priority: resolvedPriority,
             type: IssueType.TASK,
             assigneeId: typeof assigneeId === "string" ? assigneeId : null,
@@ -139,6 +158,7 @@ export async function POST(request: NextRequest) {
             labels: [],
             position: issueCount,
           },
+          include: ISSUE_INCLUDE,
         });
         break;
       } catch (e) {
@@ -150,18 +170,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Could not generate unique issue key" }, { status: 500 });
     }
 
-    return NextResponse.json(
-      {
-        key: issue.key,
-        id: issue.id,
-        title: issue.title,
-        status: statusToObject(issue.status),
-        priority: issue.priority,
-        projectId: issue.projectId,
-        createdAt: issue.createdAt,
-      },
-      { status: 201 }
-    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return NextResponse.json(formatIssue(issue as any), { status: 201 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

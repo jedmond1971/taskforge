@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { IssueStatus } from "@prisma/client";
-import { STATUS_CONFIG } from "@/lib/issue-utils";
+import { StatusCategory } from "@prisma/client";
+import { CATEGORY_COLOR } from "@/lib/issue-utils";
 import { GitBranch } from "lucide-react";
 
 type LinkedIssue = {
   id: string;
   key: string;
   title: string;
-  status: IssueStatus;
+  projectStatus: { id: string; name: string; category: StatusCategory };
 };
 
 type LinkEntry = {
@@ -53,7 +53,7 @@ export function ReferencedIssuesPanel({ projectKey, pageId }: ReferencedIssuesPa
       </div>
       <div className="space-y-1">
         {links.map(({ id, issue }) => {
-          const statusCfg = STATUS_CONFIG[issue.status];
+          const statusCfg = CATEGORY_COLOR[issue.projectStatus.category];
           return (
             <Link
               key={id}
@@ -63,7 +63,7 @@ export function ReferencedIssuesPanel({ projectKey, pageId }: ReferencedIssuesPa
               <span
                 className={`text-xs font-medium px-1.5 py-0.5 rounded whitespace-nowrap ${statusCfg.color} ${statusCfg.bg}`}
               >
-                {statusCfg.label}
+                {issue.projectStatus.name}
               </span>
               <span className="font-mono text-xs text-indigo-500 dark:text-indigo-400 shrink-0">
                 {issue.key}

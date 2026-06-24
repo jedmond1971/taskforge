@@ -1,22 +1,40 @@
-import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
+import { IssuePriority, IssueType, StatusCategory } from "@prisma/client";
 
-// Maps each status to the board column it belongs to. CANCELLED shares the Done column.
-export type StatusCategory = "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE";
+export { StatusCategory };
 
-export const STATUS_CATEGORY: Record<IssueStatus, StatusCategory> = {
-  TODO: "TODO",
-  IN_PROGRESS: "IN_PROGRESS",
-  IN_REVIEW: "IN_REVIEW",
-  DONE: "DONE",
-  CANCELLED: "DONE",
+// Fixed display order for status categories on the board
+export const CATEGORY_ORDER: Record<StatusCategory, number> = {
+  TODO: 0,
+  IN_PROGRESS: 1,
+  DONE: 2,
 };
 
-export const STATUS_CONFIG: Record<IssueStatus, { label: string; color: string; bg: string }> = {
-  TODO: { label: "To Do", color: "text-zinc-600 dark:text-zinc-400", bg: "bg-zinc-100 dark:bg-zinc-800" },
-  IN_PROGRESS: { label: "In Progress", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950" },
-  IN_REVIEW: { label: "In Review", color: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-50 dark:bg-yellow-950" },
-  DONE: { label: "Done", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950" },
-  CANCELLED: { label: "Cancelled", color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-50 dark:bg-rose-950" },
+// Per-category color tokens used by board columns, status badges, and settings UI
+export const CATEGORY_COLOR: Record<
+  StatusCategory,
+  { color: string; bg: string; border: string; borderTop: string; dot: string }
+> = {
+  TODO: {
+    color: "text-zinc-600 dark:text-zinc-400",
+    bg: "bg-zinc-100 dark:bg-zinc-800",
+    border: "border-zinc-400",
+    borderTop: "border-t-zinc-400",
+    dot: "bg-zinc-400",
+  },
+  IN_PROGRESS: {
+    color: "text-blue-600 dark:text-blue-400",
+    bg: "bg-blue-50 dark:bg-blue-950",
+    border: "border-blue-500",
+    borderTop: "border-t-blue-500",
+    dot: "bg-blue-500",
+  },
+  DONE: {
+    color: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-50 dark:bg-emerald-950",
+    border: "border-emerald-500",
+    borderTop: "border-t-emerald-500",
+    dot: "bg-emerald-500",
+  },
 };
 
 export const PRIORITY_CONFIG: Record<IssuePriority, { label: string; color: string; bg: string }> = {

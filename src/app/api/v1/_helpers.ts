@@ -1,17 +1,5 @@
-import { IssueStatus, IssuePriority } from "@prisma/client";
-
-export const STATUS_MAP: Record<string, IssueStatus> = {
-  TODO: IssueStatus.TODO,
-  IN_PROGRESS: IssueStatus.IN_PROGRESS,
-  IN_REVIEW: IssueStatus.IN_REVIEW,
-  DONE: IssueStatus.DONE,
-  CANCELLED: IssueStatus.CANCELLED,
-  "To Do": IssueStatus.TODO,
-  "In Progress": IssueStatus.IN_PROGRESS,
-  "In Review": IssueStatus.IN_REVIEW,
-  Done: IssueStatus.DONE,
-  Cancelled: IssueStatus.CANCELLED,
-};
+import { IssuePriority, StatusCategory } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 export const PRIORITY_MAP: Record<string, IssuePriority> = {
   LOW: IssuePriority.LOW,
@@ -21,20 +9,38 @@ export const PRIORITY_MAP: Record<string, IssuePriority> = {
   URGENT: IssuePriority.CRITICAL,
 };
 
-const STATUS_LABELS: Record<IssueStatus, string> = {
-  TODO: "To Do",
-  IN_PROGRESS: "In Progress",
-  IN_REVIEW: "In Review",
-  DONE: "Done",
-  CANCELLED: "Cancelled",
-};
+// Resolve a status string (name or legacy category key) to a ProjectStatus record.
+// Tries name match first ("To Do", "Done"), then category default fallback ("TODO", "DONE").
+export async function resolveStatusForProject(projectId: string, statusValue: string) {
+  // Try exact name match
+  const byName = await prisma.projectStatus.findUnique({
+    where: { projectId_name: { projectId, name: statusValue } },
+  });
+  if (byName) return byName;
 
-export const SYNTH_STATUSES = (Object.entries(STATUS_LABELS) as [IssueStatus, string][]).map(
-  ([id, name], order) => ({ id, name, order })
-);
+  // Try case-insensitive name match
+  const byNameCI = await prisma.projectStatus.findFirst({
+    where: { projectId, name: { equals: statusValue, mode: "insensitive" } },
+  });
+  if (byNameCI) return byNameCI;
 
-export function statusToObject(status: IssueStatus) {
-  return { id: status as string, name: STATUS_LABELS[status] };
+  // Try legacy category key (e.g. "TODO" → default TODO status)
+  const categoryMap: Record<string, StatusCategory> = {
+    TODO: "TODO",
+    IN_PROGRESS: "IN_PROGRESS",
+    IN_REVIEW: "IN_PROGRESS",
+    DONE: "DONE",
+    CANCELLED: "DONE",
+  };
+  const category = categoryMap[statusValue.toUpperCase()];
+  if (category) {
+    const byCategory = await prisma.projectStatus.findFirst({
+      where: { projectId, category, isDefault: true },
+    });
+    if (byCategory) return byCategory;
+  }
+
+  return null;
 }
 
 export function formatIssue(issue: {
@@ -42,7 +48,8 @@ export function formatIssue(issue: {
   key: string;
   title: string;
   description: string | null;
-  status: IssueStatus;
+  statusId: string;
+  projectStatus: { id: string; name: string; category: StatusCategory };
   priority: IssuePriority;
   projectId: string;
   assigneeId: string | null;
@@ -59,7 +66,11 @@ export function formatIssue(issue: {
     key: issue.key,
     title: issue.title,
     description: issue.description,
-    status: statusToObject(issue.status),
+    status: {
+      id: issue.projectStatus.id,
+      name: issue.projectStatus.name,
+      category: issue.projectStatus.category,
+    },
     priority: issue.priority,
     projectId: issue.projectId,
     projectName: issue.project?.name ?? null,

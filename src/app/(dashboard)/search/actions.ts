@@ -175,8 +175,20 @@ async function getValueSuggestions(
   userId: string
 ): Promise<string[]> {
   switch (field) {
-    case "status":
-      return ['"TODO"', '"IN_PROGRESS"', '"IN_REVIEW"', '"DONE"'];
+    case "status": {
+      const memberships = await prisma.projectMember.findMany({
+        where: { userId },
+        select: { projectId: true },
+      });
+      const projectIds = memberships.map((m) => m.projectId);
+      const statuses = await prisma.projectStatus.findMany({
+        where: { projectId: { in: projectIds } },
+        select: { name: true },
+        distinct: ["name"],
+        orderBy: { name: "asc" },
+      });
+      return statuses.map((s) => `"${s.name}"`);
+    }
     case "priority":
       return ['"CRITICAL"', '"HIGH"', '"MEDIUM"', '"LOW"'];
     case "type":

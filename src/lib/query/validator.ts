@@ -48,7 +48,6 @@ const FIELD_OPERATORS: Record<string, Operator[]> = {
   dueDate: ["=", "!=", ">", "<", ">=", "<="],
 };
 
-const STATUS_VALUES = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"];
 const PRIORITY_VALUES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
 const TYPE_VALUES = ["BUG", "TASK", "STORY", "EPIC"];
 
@@ -123,11 +122,6 @@ function validateValue(
 
   if (value.type === "string") {
     const upper = value.value.toUpperCase();
-    if (field === "status" && !STATUS_VALUES.includes(upper)) {
-      errors.push({
-        message: `Invalid status value '${value.value}'. Valid values: ${STATUS_VALUES.join(", ")}`,
-      });
-    }
     if (field === "priority" && !PRIORITY_VALUES.includes(upper)) {
       errors.push({
         message: `Invalid priority value '${value.value}'. Valid values: ${PRIORITY_VALUES.join(", ")}`,

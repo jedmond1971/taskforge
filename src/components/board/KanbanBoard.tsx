@@ -15,21 +15,25 @@ import {
   type CollisionDetection,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { IssueStatus, IssuePriority, IssueType } from "@prisma/client";
+import { StatusCategory, IssuePriority, IssueType } from "@prisma/client";
 import { KanbanColumn } from "./KanbanColumn";
 import { KanbanCard } from "./KanbanCard";
 import { moveIssue, reorderIssues } from "@/app/(dashboard)/projects/[projectKey]/actions";
-import { STATUS_CATEGORY } from "@/lib/issue-utils";
 import { toast } from "sonner";
 
-// CANCELLED belongs to the Done category — it shows in the Done column, not its own column.
-const BOARD_COLUMNS: IssueStatus[] = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"];
+type BoardStatus = {
+  id: string;
+  name: string;
+  category: StatusCategory;
+  position: number;
+};
 
 type CardIssue = {
   id: string;
   key: string;
   title: string;
-  status: IssueStatus;
+  statusId: string;
+  status: { id: string; name: string; category: StatusCategory };
   priority: IssuePriority;
   type: IssueType;
   position: number;
@@ -39,6 +43,7 @@ type CardIssue = {
 
 interface KanbanBoardProps {
   initialIssues: CardIssue[];
+  statuses: BoardStatus[];
   projectKey: string;
 }
 
@@ -49,11 +54,13 @@ const customCollision: CollisionDetection = (args) => {
   return rectIntersection(args);
 };
 
-export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
+export function KanbanBoard({ initialIssues, statuses, projectKey }: KanbanBoardProps) {
   const [issues, setIssues] = useState<CardIssue[]>(initialIssues);
   const [activeIssue, setActiveIssue] = useState<CardIssue | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const statusIds = new Set(statuses.map((s) => s.id));
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -64,14 +71,21 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
     if (!activeIssue) setIssues(initialIssues);
   }, [initialIssues]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Group issues by board column (category), sorted by position
+  // Group issues by statusId, sorted by position
   const byColumn = useCallback(
-    (columnId: IssueStatus) =>
+    (statusId: string) =>
       issues
-        .filter((i) => STATUS_CATEGORY[i.status] === columnId)
+        .filter((i) => i.statusId === statusId)
         .sort((a, b) => a.position - b.position),
     [issues]
   );
+
+  // Resolve the statusId for the column being hovered (either the column itself or a card's column)
+  function resolveColumnId(overId: string): string | undefined {
+    if (statusIds.has(overId)) return overId;
+    const hovered = issues.find((i) => i.id === overId);
+    return hovered?.statusId;
+  }
 
   function handleDragStart({ active }: DragStartEvent) {
     const issue = issues.find((i) => i.id === active.id);
@@ -85,20 +99,18 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
     const activeIssueItem = issues.find((i) => i.id === active.id);
     if (!activeIssueItem) return;
 
-    // Resolve target column: droppable id OR the category of the card being hovered
-    const overIssueStatus = issues.find((i) => i.id === over.id)?.status;
-    const overColumn: IssueStatus | undefined = BOARD_COLUMNS.includes(over.id as IssueStatus)
-      ? (over.id as IssueStatus)
-      : overIssueStatus != null
-      ? (STATUS_CATEGORY[overIssueStatus] as IssueStatus)
-      : undefined;
+    const destStatusId = resolveColumnId(String(over.id));
+    if (!destStatusId || destStatusId === activeIssueItem.statusId) return;
 
-    if (!overColumn || overColumn === STATUS_CATEGORY[activeIssueItem.status]) return;
+    const destStatus = statuses.find((s) => s.id === destStatusId);
+    if (!destStatus) return;
 
-    // Optimistically move the card to the new column (always targets the column's primary status)
+    // Optimistically move the card to the new column
     setIssues((prev) =>
       prev.map((i) =>
-        i.id === activeIssueItem.id ? { ...i, status: overColumn } : i
+        i.id === activeIssueItem.id
+          ? { ...i, statusId: destStatusId, status: { id: destStatus.id, name: destStatus.name, category: destStatus.category } }
+          : i
       )
     );
   }
@@ -110,52 +122,47 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
 
     if (!over || !draggedIssue) return;
 
-    // Resolve destination column (always the primary/category status, never CANCELLED directly)
-    const overIssueStatus = issues.find((i) => i.id === over.id)?.status;
-    const destStatus: IssueStatus = BOARD_COLUMNS.includes(over.id as IssueStatus)
-      ? (over.id as IssueStatus)
-      : overIssueStatus != null
-      ? (STATUS_CATEGORY[overIssueStatus] as IssueStatus)
-      : STATUS_CATEGORY[draggedIssue.status] as IssueStatus;
-
-    // All issues in the destination column (may include multiple statuses, e.g. DONE + CANCELLED)
+    const destStatusId = resolveColumnId(String(over.id)) ?? draggedIssue.statusId;
     const destColumn = issues
-      .filter((i) => STATUS_CATEGORY[i.status] === destStatus)
+      .filter((i) => i.statusId === destStatusId)
       .sort((a, b) => a.position - b.position);
 
-    if (destStatus !== STATUS_CATEGORY[draggedIssue.status]) {
-      const overIndex = destColumn.findIndex((i) => i.id === over.id);
+    if (destStatusId !== draggedIssue.statusId) {
+      // Cross-column move
+      const overIndex = destColumn.findIndex((i) => i.id === String(over.id));
       const newPosition = overIndex === -1 ? destColumn.length : overIndex;
+
+      const destStatus = statuses.find((s) => s.id === destStatusId);
+      if (!destStatus) return;
 
       setIssues((prev) =>
         prev.map((i) =>
           i.id === draggedIssue.id
-            ? { ...i, status: destStatus, position: newPosition }
+            ? { ...i, statusId: destStatusId, status: { id: destStatus.id, name: destStatus.name, category: destStatus.category }, position: newPosition }
             : i
         )
       );
 
       setIsSaving(true);
-      moveIssue(projectKey, draggedIssue.id, destStatus, newPosition)
+      moveIssue(projectKey, draggedIssue.id, destStatusId, newPosition)
         .catch(() => {
           toast.error("Failed to move issue");
           setIssues(initialIssues);
         })
-        .finally(() => {
-          setIsSaving(false);
-        });
+        .finally(() => setIsSaving(false));
     } else {
+      // Within-column reorder
       const oldIndex = destColumn.findIndex((i) => i.id === draggedIssue.id);
-      const newIndex = destColumn.findIndex((i) => i.id === over.id);
+      const newIndex = destColumn.findIndex((i) => i.id === String(over.id));
 
       if (oldIndex === newIndex) return;
 
       const reordered = arrayMove(destColumn, oldIndex, newIndex);
 
       setIssues((prev) => {
-        const otherColumns = prev.filter((i) => STATUS_CATEGORY[i.status] !== destStatus);
+        const others = prev.filter((i) => i.statusId !== destStatusId);
         const updated = reordered.map((issue, idx) => ({ ...issue, position: idx }));
-        return [...otherColumns, ...updated];
+        return [...others, ...updated];
       });
 
       setIsSaving(true);
@@ -164,9 +171,7 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
           toast.error("Failed to reorder issues");
           setIssues(initialIssues);
         })
-        .finally(() => {
-          setIsSaving(false);
-        });
+        .finally(() => setIsSaving(false));
     }
   }
 
@@ -179,13 +184,13 @@ export function KanbanBoard({ initialIssues, projectKey }: KanbanBoardProps) {
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 items-start">
-        {BOARD_COLUMNS.map((columnId) => (
+        {statuses.map((s) => (
           <KanbanColumn
-            key={columnId}
-            status={columnId}
-            issues={byColumn(columnId)}
+            key={s.id}
+            status={s}
+            issues={byColumn(s.id)}
             projectKey={projectKey}
-            isOver={overId === columnId}
+            isOver={overId === s.id}
           />
         ))}
       </div>

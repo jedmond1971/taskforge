@@ -45,7 +45,7 @@ export async function GET(
             id: true,
             key: true,
             title: true,
-            status: true,
+            projectStatus: { select: { id: true, name: true, category: true } },
             priority: true,
             type: true,
             assignee: { select: { id: true, name: true, avatarUrl: true } },

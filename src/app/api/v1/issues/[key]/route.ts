@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { IssueStatus } from "@prisma/client";
-import { STATUS_MAP, PRIORITY_MAP, formatIssue } from "../../_helpers";
+import { resolveStatusForProject, PRIORITY_MAP, formatIssue } from "../../_helpers";
 import { requireV1ApiKey } from "@/lib/v1-auth";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
+
+const ISSUE_INCLUDE = {
+  projectStatus: { select: { id: true, name: true, category: true } },
+  assignee: { select: { id: true, name: true } },
+  reporter: { select: { id: true, name: true } },
+  project: { select: { id: true, key: true, name: true } },
+  _count: { select: { comments: true, attachments: true } },
+} as const;
 
 export async function GET(
   request: NextRequest,
@@ -14,12 +21,7 @@ export async function GET(
     if (authError) return authError;
     const issue = await prisma.issue.findUnique({
       where: { key: params.key.toUpperCase() },
-      include: {
-        assignee: { select: { id: true, name: true } },
-        reporter: { select: { id: true, name: true } },
-        project: { select: { id: true, key: true, name: true } },
-        _count: { select: { comments: true, attachments: true } },
-      },
+      include: ISSUE_INCLUDE,
     });
     if (!issue) {
       return NextResponse.json({ error: "Issue not found" }, { status: 404 });
@@ -40,7 +42,7 @@ export async function PATCH(
     if (authError) return authError;
     const issue = await prisma.issue.findUnique({
       where: { key: params.key.toUpperCase() },
-      select: { id: true, projectId: true, status: true },
+      select: { id: true, projectId: true, statusId: true },
     });
     if (!issue) {
       return NextResponse.json({ error: "Issue not found" }, { status: 404 });
@@ -57,30 +59,48 @@ export async function PATCH(
     }
 
     if ("description" in body) {
-      updates.description = typeof body.description === "string" ? sanitizeTipTapHtml(body.description) : null;
+      updates.description = typeof body.description === "string"
+        ? sanitizeTipTapHtml(body.description)
+        : null;
     }
 
-    if ("statusId" in body) {
-      const statusId = body.statusId;
-      let newStatus: IssueStatus;
-      if (statusId === null || statusId === undefined) {
-        newStatus = IssueStatus.TODO;
-      } else if (typeof statusId === "string") {
-        const resolved = STATUS_MAP[statusId];
-        if (!resolved) {
-          return NextResponse.json({ error: `Invalid statusId: ${statusId}` }, { status: 400 });
-        }
-        newStatus = resolved;
-      } else {
-        return NextResponse.json({ error: "statusId must be a string" }, { status: 400 });
-      }
-      updates.status = newStatus;
-      // Changing columns requires a new position to avoid the (projectId, status, position) unique constraint
-      if (newStatus !== issue.status) {
-        const colCount = await prisma.issue.count({
-          where: { projectId: issue.projectId, status: newStatus },
+    // Accept "status" (name string) or "statusId" (name string or actual cuid, for backwards compat)
+    const statusValue = "status" in body ? body.status : "statusId" in body ? body.statusId : undefined;
+    if (statusValue !== undefined) {
+      if (statusValue === null || statusValue === undefined) {
+        // Null → reset to TODO default
+        const defaultStatus = await prisma.projectStatus.findFirst({
+          where: { projectId: issue.projectId, category: "TODO", isDefault: true },
+          select: { id: true },
         });
-        updates.position = colCount;
+        if (defaultStatus) updates.statusId = defaultStatus.id;
+      } else if (typeof statusValue === "string") {
+        // Try direct ID lookup first (for callers that pass the actual cuid)
+        const byId = await prisma.projectStatus.findFirst({
+          where: { id: statusValue, projectId: issue.projectId },
+          select: { id: true },
+        });
+        if (byId) {
+          updates.statusId = byId.id;
+        } else {
+          const resolved = await resolveStatusForProject(issue.projectId, statusValue);
+          if (!resolved) {
+            return NextResponse.json(
+              { error: `Status not found: ${statusValue}` },
+              { status: 400 }
+            );
+          }
+          updates.statusId = resolved.id;
+        }
+        // Changing columns requires a new position to avoid the unique constraint
+        if (updates.statusId !== issue.statusId) {
+          const colCount = await prisma.issue.count({
+            where: { projectId: issue.projectId, statusId: updates.statusId as string },
+          });
+          updates.position = colCount;
+        }
+      } else {
+        return NextResponse.json({ error: "status must be a string or null" }, { status: 400 });
       }
     }
 
@@ -126,12 +146,7 @@ export async function PATCH(
     const updated = await prisma.issue.update({
       where: { id: issue.id },
       data: updates,
-      include: {
-        assignee: { select: { id: true, name: true } },
-        reporter: { select: { id: true, name: true } },
-        project: { select: { id: true, key: true, name: true } },
-        _count: { select: { comments: true, attachments: true } },
-      },
+      include: ISSUE_INCLUDE,
     });
 
     return NextResponse.json(formatIssue(updated));
