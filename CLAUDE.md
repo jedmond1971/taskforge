@@ -87,7 +87,7 @@ Claude Code cannot run `npm install` directly. To add packages:
 
 ## Subagent file-write limitation in worktrees
 
-When agents are launched with `isolation: "worktree"`, Edit and Write tool calls are denied for source files inside the worktree directory (`.claude/worktrees/agent-xxx/`). Worktree agents can read files and run bash commands but cannot write. **Workaround:** do all file editing in the main context after the subagent returns its findings/code, or avoid `isolation: "worktree"` when the agent needs to write files.
+Worktree agents (`isolation: "worktree"`) can read and run bash but cannot Edit/Write source files. Do all file editing in the main context after the subagent returns its findings.
 
 ---
 
@@ -115,25 +115,13 @@ Production picks up the migration automatically via `prisma migrate deploy` in `
 
 ## Internal v1 REST API
 
-An internal API for Claude Code to track work in JedForge. **Requires the `X-Internal-Api-Key` header on every request.**
+Internal API for Claude Code to track work. Full docs in `CLAUDE_API.md`. **Create an issue at the start of every non-trivial task.**
 
-- **Local:** `http://localhost:3000/api/v1`
-- **Production:** `https://taskforge-production-099b.up.railway.app/api/v1`
-- **Reference:** see `CLAUDE_API.md` for full route docs and working convention
-
-**Authentication:** All v1 API requests must include the header `X-Internal-Api-Key: <value of V1_API_KEY env var>`. The key is set in Railway environment variables and in the local `.env` file. Never commit the actual key value to the repository.
-
-Routes: `GET/POST /api/v1/issues`, `GET/PATCH/DELETE /api/v1/issues/[key]`, `GET/POST /api/v1/issues/[key]/comments`, `PATCH/DELETE /api/v1/issues/[key]/comments/[commentId]`, `GET /api/v1/projects`, `GET /api/v1/projects/[id]`
-
-To update an issue after completing work, use `PATCH /api/v1/issues/[key]` with `statusId` (not `status`) to mark it done. To post a comment, use `POST /api/v1/issues/[key]/comments` with `body` and `authorId`. Use `cmo365psl000vdrd0p63lirlz` as `authorId` to post as Maximus (Claude Code account). See `CLAUDE_API.md` for the full comments API.
-
-**Schema notes:** `IssueStatus` enum is **gone** — replaced by the `ProjectStatus` table (per-project rows) and a `StatusCategory` enum (`TODO | IN_PROGRESS | DONE`). `IssuePriority` remains an enum: `CRITICAL | HIGH | MEDIUM | LOW` (URGENT is accepted as an alias for CRITICAL). The v1 API `status` field now returns `{ id: "<cuid>", name: "To Do", category: "TODO" }`. Statuses vary per project.
-
-**Setting status via v1 API:** `PATCH /api/v1/issues/[key]` accepts `statusId` with a value that is either (a) the actual `ProjectStatus` cuid, (b) a human-readable status name like `"Done"`, or (c) a legacy category key like `"DONE"` (resolved to that project's default DONE status). All three forms work.
-
-**Position constraint:** `PATCH /api/v1/issues/[key]` with a `statusId` that changes the issue's status automatically appends the issue to the end of the target column (`position = count of issues already in that column`). This is required to satisfy the DEFERRABLE unique constraint on `(projectId, statusId, position)` — omitting the position update causes a 500 when the existing position value collides with another issue already in the target column.
-
-**Create an issue at the start of every non-trivial task.** See `CLAUDE_API.md` → Working Convention.
+- **Local:** `http://localhost:3000/api/v1` | **Production:** `https://taskforge-production-099b.up.railway.app/api/v1`
+- Auth: `X-Internal-Api-Key: <V1_API_KEY>` on every request. Never commit the key.
+- Post comments as Maximus: `authorId: "cmo365psl000vdrd0p63lirlz"`
+- `statusId` accepts a cuid, a human name (`"Done"`), or a category key (`"DONE"`) — all three forms work.
+- `IssueStatus` enum is gone — use `ProjectStatus` rows. `IssuePriority`: `CRITICAL | HIGH | MEDIUM | LOW`.
 
 ---
 
@@ -154,53 +142,33 @@ To update an issue after completing work, use `PATCH /api/v1/issues/[key]` with 
 
 ## Docs module invariants
 
-The Docs module lives under `src/app/(dashboard)/projects/[projectKey]/docs/` (project view) and `src/app/(dashboard)/docs/` (global view). API routes are at `/api/docs/[projectKey]/...`.
+See `.context-docs/docs-invariants.md` for all 8 rules. Key facts:
 
-**Rules enforced in code:**
-
-1. **DocSpace is lazy-upserted** — there is no DocSpace creation endpoint. A `DocSpace` row is upserted automatically on any member's call to the docs API. The shared helper `resolveDocCtx` in `src/app/api/docs/_helpers.ts` handles this; all docs route files import it. The docs Next.js layout (`src/app/(dashboard)/projects/[projectKey]/docs/layout.tsx`) also upserts the DocSpace directly to fetch sidebar data — both upsert paths are intentional. Do not try to pre-create DocSpaces at project creation time.
-2. **DocPageType** — two values: `NATIVE` (TipTap HTML stored in the `content` field — same format as issue descriptions/comments, not raw Markdown) and `DOCUMENT` (file upload; `fileKey`, `fileSize`, `mimeType` fields used instead). Do not add intermediate types without a product decision.
-3. **`DocSpace.isPublic`** — when true, any authenticated JedForge user can read that project's docs even without a `ProjectMember` row. Only `PROJECT_LEAD` can toggle this via `PATCH /api/docs/[projectKey]` with `{ isPublic: boolean }`. `resolveDocCtx` returns `role: null` for non-member public readers; write operations (POST/PATCH/DELETE) still require a member role.
-4. **Docs role enforcement** — enforced in all API routes via `resolveDocCtx` + permission helpers from `src/lib/permissions.ts`:
-   - Read (GET): any project member, or any authenticated user on a public docspace
-   - Create / edit pages and sections, file upload: `canEditIssues` (TEAM_MEMBER or PROJECT_LEAD)
-   - Delete pages and sections: `canManageProject` (PROJECT_LEAD only)
-   - Visibility toggle (`PATCH /api/docs/[projectKey]`): PROJECT_LEAD only (checked inline, not via `resolveDocCtx`)
-5. **Docs search** — `GET /api/docs/[projectKey]/search?q=<query>` searches `DocPage.title` (all types) and `DocPage.content` (NATIVE only) with case-insensitive `contains`. Returns up to 20 results with `id`, `title`, `type`, `sectionTitle`, and a `snippet`. Accessible to any user who can read the docspace.
-6. **Page revisions** — `PageRevision` rows are snapshot-only (created on save, never mutated). The PATCH handler for `/api/docs/[projectKey]/pages/[pageId]` automatically snapshots the previous content into a new `PageRevision` whenever `content` is included in the update body — do not break this side-effect when modifying that handler. Restoring a revision means writing its content back to `DocPage.content` and creating a new revision from the current content first (the auto-snapshot in PATCH handles this). **Cap: 50 revisions per page** — oldest are pruned in the same transaction as each content save.
-7. **Issue↔DocPage cross-links** — `IssueDocLink` is the junction table (cascade-deletes when either side is deleted). Both issue and page must belong to the same project — enforced in the `linkDocPage` server action. Manage links via `linkDocPage` / `unlinkDocPage` in `actions.ts`; read linked issues for a page via `GET /api/docs/[projectKey]/pages/[pageId]/links`.
-
-8. **DOCUMENT page file lifecycle** — files are uploaded via `POST /api/docs/[projectKey]/pages/[pageId]/file` (multipart `file` field; PDF and DOCX only, 50 MB max). That endpoint also sets `type = DOCUMENT` on the page, so posting a file to an existing NATIVE page converts it. `GET` on the same route returns `{ url, mimeType, fileName }` with a 1-hour presigned S3 URL. Files are stored at `docs/[docSpaceId]/[pageId]/[uuid]-[sanitized-filename]` in S3. The DELETE handler for a page removes the S3 object automatically; replacing a file via POST also deletes the previous object. PDFs render inline via `<iframe>`; DOCX files get a download-only prompt (no browser-native Word viewer). The UI creates the page stub first then uploads — a failed upload leaves an orphaned DOCUMENT page with no file (known edge case).
+- DocSpaces are lazy-upserted via `resolveDocCtx` (`src/app/api/docs/_helpers.ts`) — do not pre-create them.
+- `DocPageType`: `NATIVE` (TipTap HTML) or `DOCUMENT` (file upload). No other types.
+- Role enforcement: read = any member (or any authed user if `isPublic`); edit = `TEAM_MEMBER+`; delete = `PROJECT_LEAD`.
+- Page revisions auto-snapshot on every content save; cap = 50.
 
 ---
 
 ## Functional specification
 
-The functional spec lives at `.context-docs/JedForge-FunctionalSpec-v2.0.docx`. Regenerate it with:
-```bash
-node scripts/generate-spec-v2.mjs
-```
+Spec: `.context-docs/JedForge-FunctionalSpec-v2.0.docx` — regenerate with `node scripts/generate-spec-v2.mjs`, then commit both files.
 
-Then commit both `.context-docs/JedForge-FunctionalSpec-v2.0.docx` and `scripts/generate-spec-v2.mjs` if the script was also changed.
-
-**Tooling notes for working with .docx files:**
-- `extract-text` command does not exist on this machine. Use `python3` + `python-docx` to read .docx content.
-- `python-docx` is not installed by default: `pip3 install python-docx --break-system-packages`
-- `docx` npm package is installed globally at `/home/jamie/.npm-global/lib/node_modules/docx`. Import via `dist/index.mjs` (not `dist/index.js`). `NumberingConfig` is not exported — pass the numbering config object directly to `Document`.
-- In the `docx` package, font `size` is in half-points: 10pt = `size: 20`, not `size: 200`. Use `n * 2`.
-- `scripts/office/` directory and `validate.py` do not exist in this repo.
+**Tooling notes for .docx:**
+- Read with `python3` + `python-docx` (`pip3 install python-docx --break-system-packages`). `extract-text` does not exist.
+- `docx` npm package: `/home/jamie/.npm-global/lib/node_modules/docx`, import via `dist/index.mjs`. Font `size` is half-points: 10pt = `size: 20`.
 
 ---
 
-## Data integrity invariants (A2 audit)
+## Data integrity invariants
 
-- **Issue key generation is atomic** — `createIssue` in `actions.ts` uses `SELECT ... FOR UPDATE` on the Project row inside a Prisma transaction to serialise concurrent inserts. The `generateIssueKeyWithRetry` retry loop has been replaced; `src/lib/issue-keys.ts` is now unused by the main flow.
-- **Kanban position writes are transactional** — `moveIssue` runs a single `prisma.$transaction` that locks the project row, reindexes both affected columns, and updates the issue `statusId` atomically. `reorderIssues` is also wrapped in a transaction. Position write failures throw an error (client retries). The DEFERRABLE unique constraint is on `(projectId, statusId, position)`.
-- **S3 orphan cleanup on delete** — `DELETE /api/issues/[issueId]` fetches all attachments and deletes their S3 objects before cascading the DB delete. `DELETE /api/docs/[projectKey]/sections/[sectionId]` does the same for DOCUMENT-type pages. `deleteProject` (`src/app/(dashboard)/projects/[projectKey]/actions.ts`) also fetches and deletes all attachment and DOCUMENT-page S3 objects before the Prisma delete.
-- **PageRevision cap = 50** — see Docs module invariant #6.
-- **Notification cap = 100** — `src/lib/notifications.ts` prunes the oldest notifications beyond 100 after every insert. See `.context-docs/notifications.md`.
-- **ActivityLog.userId is nullable** — `SET NULL` on user delete preserves audit history. `issueId` still cascades on issue delete.
-- **SavedFilter requires projectId** — filters are project-scoped to prevent cross-tenant data leaks. `getMyFilters(projectId)` and `saveFilter(..., projectId)` require a projectId. The global `/search` page cannot save/load filters; use the project-specific search panel for that.
+See `.context-docs/data-integrity.md` for full details. Key facts:
+
+- Issue key generation and kanban position writes are wrapped in `prisma.$transaction` with row-level locks.
+- S3 objects are cleaned up on delete (issues, doc sections, project delete).
+- Notification cap = 100; PageRevision cap = 50.
+- `SavedFilter` requires `projectId` — global `/search` page cannot save/load filters.
 
 ---
 
@@ -214,6 +182,8 @@ Then commit both `.context-docs/JedForge-FunctionalSpec-v2.0.docx` and `scripts/
 
 ## Reference docs (load when relevant)
 
+- .context-docs/docs-invariants.md — all 8 Docs module rules (DocSpace, roles, revisions, file lifecycle)
+- .context-docs/data-integrity.md — A2 audit invariants (key gen, kanban positions, S3 cleanup, caps)
 - .context-docs/rich-text.md — TipTap packages, HTML storage, empty-state normalization
 - .context-docs/notifications.md — trigger points, known gaps, UI entry points, server actions
 - .context-docs/avatars.md — S3 upload, proxy route, session refresh

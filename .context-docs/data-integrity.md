@@ -1,0 +1,9 @@
+# Data integrity invariants (A2 audit)
+
+- **Issue key generation is atomic** — `createIssue` in `actions.ts` uses `SELECT ... FOR UPDATE` on the Project row inside a Prisma transaction to serialise concurrent inserts. The `generateIssueKeyWithRetry` retry loop has been replaced; `src/lib/issue-keys.ts` is now unused by the main flow.
+- **Kanban position writes are transactional** — `moveIssue` runs a single `prisma.$transaction` that locks the project row, reindexes both affected columns, and updates the issue `statusId` atomically. `reorderIssues` is also wrapped in a transaction. Position write failures throw an error (client retries). The DEFERRABLE unique constraint is on `(projectId, statusId, position)`.
+- **S3 orphan cleanup on delete** — `DELETE /api/issues/[issueId]` fetches all attachments and deletes their S3 objects before cascading the DB delete. `DELETE /api/docs/[projectKey]/sections/[sectionId]` does the same for DOCUMENT-type pages. `deleteProject` (`src/app/(dashboard)/projects/[projectKey]/actions.ts`) also fetches and deletes all attachment and DOCUMENT-page S3 objects before the Prisma delete.
+- **PageRevision cap = 50** — see `.context-docs/docs-invariants.md` invariant #6.
+- **Notification cap = 100** — `src/lib/notifications.ts` prunes the oldest notifications beyond 100 after every insert. See `.context-docs/notifications.md`.
+- **ActivityLog.userId is nullable** — `SET NULL` on user delete preserves audit history. `issueId` still cascades on issue delete.
+- **SavedFilter requires projectId** — filters are project-scoped to prevent cross-tenant data leaks. `getMyFilters(projectId)` and `saveFilter(..., projectId)` require a projectId. The global `/search` page cannot save/load filters; use the project-specific search panel for that.
