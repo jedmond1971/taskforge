@@ -34,6 +34,10 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
       create: vi.fn(),
       delete: vi.fn(),
     },
+    projectStatus: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+    },
     issue: {
       findUnique: vi.fn(),
       findFirst: vi.fn(),
@@ -261,6 +265,7 @@ describe("createIssue", () => {
     mockProjectWithOrg();
     mockPrisma.issue.count.mockResolvedValue(0);
     mockPrisma.issue.findFirst.mockResolvedValue(null);
+    mockPrisma.projectStatus.findFirst.mockResolvedValue({ id: "status-todo" });
     mockPrisma.$transaction.mockImplementation(
       (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma)
     );
