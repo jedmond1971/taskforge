@@ -44,9 +44,9 @@ export const PRIORITY_CONFIG: Record<IssuePriority, { label: string; color: stri
   LOW: { label: "Low", color: "text-zinc-600 dark:text-zinc-400", bg: "bg-zinc-100 dark:bg-zinc-800" },
 };
 
-export const TYPE_CONFIG: Record<IssueType, { label: string; icon: string }> = {
-  BUG: { label: "Bug", icon: "🐛" },
-  TASK: { label: "Task", icon: "✓" },
-  STORY: { label: "Story", icon: "📖" },
-  EPIC: { label: "Epic", icon: "⚡" },
+export const TYPE_CONFIG: Record<IssueType, { label: string }> = {
+  BUG: { label: "Bug" },
+  TASK: { label: "Task" },
+  STORY: { label: "Story" },
+  EPIC: { label: "Epic" },
 };

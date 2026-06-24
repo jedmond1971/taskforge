@@ -185,7 +185,7 @@ export function IssueForm({
             className={selectClass}
           >
             {(Object.keys(TYPE_CONFIG) as IssueType[]).map((t) => (
-              <option key={t} value={t}>{TYPE_CONFIG[t].icon} {TYPE_CONFIG[t].label}</option>
+              <option key={t} value={t}>{TYPE_CONFIG[t].label}</option>
             ))}
           </select>
         </div>

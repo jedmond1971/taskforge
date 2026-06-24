@@ -274,7 +274,7 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
   }));
   const typeOptions = (Object.keys(TYPE_CONFIG) as IssueType[]).map((t) => ({
     value: t,
-    label: `${TYPE_CONFIG[t].icon} ${TYPE_CONFIG[t].label}`,
+    label: TYPE_CONFIG[t].label,
   }));
   const assigneeOptions: { value: string; label: string }[] = [
     { value: "", label: "Unassigned" },

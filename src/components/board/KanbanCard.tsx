@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { StatusCategory, IssuePriority, IssueType } from "@prisma/client";
 import { PriorityBadge } from "@/components/issues/PriorityBadge";
 import { TYPE_CONFIG } from "@/lib/issue-utils";
+import { IssueTypeIcon } from "@/components/icons/IssueTypeIcon";
 import { cn } from "@/lib/utils";
 import { AlertCircle, Calendar } from "lucide-react";
 
@@ -62,7 +63,7 @@ export function KanbanCard({ issue, projectKey, isDragOverlay = false }: KanbanC
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <span className="text-sm leading-none" title={TYPE_CONFIG[issue.type].label}>{TYPE_CONFIG[issue.type].icon}</span>
+          <span className="leading-none" title={TYPE_CONFIG[issue.type].label}><IssueTypeIcon type={issue.type} /></span>
           <span className="text-xs font-mono text-zinc-400 dark:text-zinc-600">{issue.key}</span>
         </div>
         <PriorityBadge priority={issue.priority} />

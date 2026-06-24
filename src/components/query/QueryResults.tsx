@@ -6,6 +6,7 @@ import { StatusCategory, IssuePriority, IssueType } from "@prisma/client";
 import { StatusBadge } from "@/components/issues/StatusBadge";
 import { PriorityBadge } from "@/components/issues/PriorityBadge";
 import { TYPE_CONFIG } from "@/lib/issue-utils";
+import { IssueTypeIcon } from "@/components/icons/IssueTypeIcon";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface QueryIssue {
@@ -174,11 +175,8 @@ export function QueryResults({ results, isLoading }: QueryResultsProps) {
                   </td>
                   <td className="px-4 py-3">
                     {typeConfig && (
-                      <span
-                        title={typeConfig.label}
-                        className="text-base"
-                      >
-                        {typeConfig.icon}
+                      <span title={typeConfig.label}>
+                        <IssueTypeIcon type={issue.type as IssueType} />
                       </span>
                     )}
                   </td>

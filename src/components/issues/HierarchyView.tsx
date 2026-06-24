@@ -7,6 +7,7 @@ import { ChevronRight, ChevronDown, Link2Off, Layers } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { PriorityBadge } from "./PriorityBadge";
 import { TYPE_CONFIG } from "@/lib/issue-utils";
+import { IssueTypeIcon } from "@/components/icons/IssueTypeIcon";
 type HierarchyIssue = {
   id: string;
   key: string;
@@ -85,8 +86,8 @@ function IssueRow({
             ) : (
               <span className="flex-shrink-0 w-5" />
             )}
-            <span className="flex-shrink-0 text-sm mr-1.5" title={TYPE_CONFIG[issue.type].label}>
-              {TYPE_CONFIG[issue.type].icon}
+            <span className="flex-shrink-0 mr-1.5" title={TYPE_CONFIG[issue.type].label}>
+              <IssueTypeIcon type={issue.type} />
             </span>
             <Link
               href={`/projects/${projectKey}/issues/${issue.key}`}
@@ -113,8 +114,8 @@ function IssueRow({
         <td className="py-2.5 px-3 whitespace-nowrap">
           <PriorityBadge priority={issue.priority} />
         </td>
-        <td className="py-2.5 px-3 text-center text-sm" title={TYPE_CONFIG[issue.type].label}>
-          {TYPE_CONFIG[issue.type].icon}
+        <td className="py-2.5 px-3 text-center" title={TYPE_CONFIG[issue.type].label}>
+          <IssueTypeIcon type={issue.type} />
         </td>
         <td className="py-2.5 px-3 whitespace-nowrap">
           {issue.assignee ? (

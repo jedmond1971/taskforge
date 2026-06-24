@@ -6,6 +6,7 @@ import { StatusCategory, IssuePriority, IssueType } from "@prisma/client";
 import { StatusBadge } from "./StatusBadge";
 import { PriorityBadge } from "./PriorityBadge";
 import { TYPE_CONFIG } from "@/lib/issue-utils";
+import { IssueTypeIcon } from "@/components/icons/IssueTypeIcon";
 import { ChevronUp, ChevronDown, MessageSquare, CheckSquare, AlertCircle, X } from "lucide-react";
 import { bulkUpdateIssues } from "@/app/(dashboard)/projects/[projectKey]/actions";
 
@@ -235,8 +236,8 @@ export function IssueList({ issues, projectKey, statuses }: IssueListProps) {
                 <PriorityBadge priority={issue.priority} />
               </td>
               <td className="px-4 py-3">
-                <span className="text-base" title={TYPE_CONFIG[issue.type].label}>
-                  {TYPE_CONFIG[issue.type].icon}
+                <span title={TYPE_CONFIG[issue.type].label}>
+                  <IssueTypeIcon type={issue.type} />
                 </span>
               </td>
               <td className="px-4 py-3 hidden sm:table-cell">
