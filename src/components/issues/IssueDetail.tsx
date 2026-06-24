@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { StatusCategory, IssuePriority, IssueType, DocPageType } from "@prisma/client";
+import { StatusCategory, IssuePriority, IssueType, IssueLinkType, DocPageType } from "@prisma/client";
 import { updateIssue, deleteIssue } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { CATEGORY_COLOR, PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
 import { Pencil, Trash2, Check, X, ChevronRight, Plus } from "lucide-react";
@@ -19,6 +19,7 @@ import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { RichTextDisplay } from "@/components/ui/rich-text-display";
 import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
 import { RelatedDocsSection } from "@/components/issues/RelatedDocsSection";
+import { LinkedIssuesSection } from "@/components/issues/LinkedIssuesSection";
 
 type User = { id: string; name: string; avatarUrl: string | null };
 type ActivityLog = {
@@ -58,6 +59,14 @@ type DocLink = {
   pageId: string;
   page: { id: string; title: string; type: DocPageType };
 };
+type LinkedIssueItem = {
+  id: string;
+  key: string;
+  title: string;
+  projectStatus: ProjectStatus;
+};
+type OutgoingLink = { id: string; linkType: IssueLinkType; targetIssue: LinkedIssueItem };
+type IncomingLink = { id: string; linkType: IssueLinkType; sourceIssue: LinkedIssueItem };
 
 type Issue = {
   id: string;
@@ -82,6 +91,8 @@ type Issue = {
   activityLogs: ActivityLog[];
   project: { id: string; key: string; name: string };
   docLinks: DocLink[];
+  outgoingLinks: OutgoingLink[];
+  incomingLinks: IncomingLink[];
 };
 
 interface IssueDetailProps {
@@ -425,6 +436,15 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
             issueId={issue.id}
             projectKey={projectKey}
             initialLinks={issue.docLinks}
+            canEdit={canEdit}
+          />
+
+          {/* Linked Issues */}
+          <LinkedIssuesSection
+            issueId={issue.id}
+            projectKey={projectKey}
+            initialOutgoing={issue.outgoingLinks}
+            initialIncoming={issue.incomingLinks}
             canEdit={canEdit}
           />
 

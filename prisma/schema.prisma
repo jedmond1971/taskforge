@@ -71,6 +71,11 @@ enum DocPageType {
   DOCUMENT
 }
 
+enum IssueLinkType {
+  BLOCKS
+  RELATES_TO
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -94,6 +99,7 @@ model User {
   docPages       DocPage[]
   pageRevisions  PageRevision[]
   issueDocLinks  IssueDocLink[]
+  issueLinks     IssueLink[]
 }
 
 model Project {
@@ -160,6 +166,8 @@ model Issue {
   attachments   Attachment[]
   notifications Notification[]
   docLinks      IssueDocLink[]
+  outgoingLinks IssueLink[]    @relation("SourceLinks")
+  incomingLinks IssueLink[]    @relation("TargetLinks")
 
   @@index([projectId])
   @@index([assigneeId])
@@ -438,4 +446,21 @@ model IssueDocLink {
   @@unique([issueId, pageId])
   @@index([issueId])
   @@index([pageId])
+}
+
+model IssueLink {
+  id            String        @id @default(cuid())
+  sourceIssueId String
+  targetIssueId String
+  linkType      IssueLinkType
+  createdById   String
+  createdAt     DateTime      @default(now())
+
+  sourceIssue Issue @relation("SourceLinks", fields: [sourceIssueId], references: [id], onDelete: Cascade)
+  targetIssue Issue @relation("TargetLinks", fields: [targetIssueId], references: [id], onDelete: Cascade)
+  createdBy   User  @relation(fields: [createdById], references: [id])
+
+  @@unique([sourceIssueId, targetIssueId, linkType])
+  @@index([sourceIssueId])
+  @@index([targetIssueId])
 }

@@ -12,7 +12,7 @@ import {
   canManageMembers,
   canManageProject,
 } from "@/lib/permissions";
-import { IssuePriority, IssueType, ProjectMemberRole, StatusCategory, Prisma } from "@prisma/client";
+import { IssuePriority, IssueType, IssueLinkType, ProjectMemberRole, StatusCategory, Prisma } from "@prisma/client";
 import { CATEGORY_ORDER } from "@/lib/issue-utils";
 import bcrypt from "bcryptjs";
 import { notificationService } from "@/lib/notifications";
@@ -388,6 +388,32 @@ export async function getIssue(projectKey: string, issueKey: string) {
         },
         orderBy: { createdAt: "asc" },
       },
+      outgoingLinks: {
+        include: {
+          targetIssue: {
+            select: {
+              id: true,
+              key: true,
+              title: true,
+              projectStatus: { select: { id: true, name: true, category: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+      incomingLinks: {
+        include: {
+          sourceIssue: {
+            select: {
+              id: true,
+              key: true,
+              title: true,
+              projectStatus: { select: { id: true, name: true, category: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 }
@@ -435,6 +461,70 @@ export async function unlinkDocPage(projectKey: string, issueId: string, pageId:
   if (!issue) throw new Error("Issue not found");
 
   await prisma.issueDocLink.deleteMany({ where: { issueId, pageId } });
+
+  revalidatePath(`/projects/${projectKey}/issues`);
+}
+
+// --- ISSUE LINK MANAGEMENT ---
+
+export async function searchIssuesForLinking(projectKey: string, query: string, excludeIssueId: string) {
+  const { projectId } = await requireProjectMember(projectKey);
+
+  const issues = await prisma.issue.findMany({
+    where: {
+      projectId,
+      id: { not: excludeIssueId },
+      OR: [
+        { key: { contains: query.toUpperCase() } },
+        { title: { contains: query, mode: "insensitive" } },
+      ],
+    },
+    select: {
+      id: true,
+      key: true,
+      title: true,
+      projectStatus: { select: { id: true, name: true, category: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+
+  return issues;
+}
+
+export async function linkIssue(
+  projectKey: string,
+  sourceIssueId: string,
+  targetIssueId: string,
+  linkType: IssueLinkType
+) {
+  const { userId, projectId } = await requireProjectMember(projectKey);
+
+  // Verify both issues belong to this project
+  const [source, target] = await Promise.all([
+    prisma.issue.findFirst({ where: { id: sourceIssueId, projectId }, select: { id: true } }),
+    prisma.issue.findFirst({ where: { id: targetIssueId, projectId }, select: { id: true } }),
+  ]);
+  if (!source || !target) throw new Error("Issue not found");
+
+  await prisma.issueLink.create({
+    data: { sourceIssueId, targetIssueId, linkType, createdById: userId },
+  });
+
+  revalidatePath(`/projects/${projectKey}/issues`);
+}
+
+export async function unlinkIssue(projectKey: string, linkId: string) {
+  const { projectId } = await requireProjectMember(projectKey);
+
+  // Verify the link belongs to this project via the source issue
+  const link = await prisma.issueLink.findFirst({
+    where: { id: linkId, sourceIssue: { projectId } },
+    select: { id: true },
+  });
+  if (!link) throw new Error("Link not found");
+
+  await prisma.issueLink.delete({ where: { id: linkId } });
 
   revalidatePath(`/projects/${projectKey}/issues`);
 }
