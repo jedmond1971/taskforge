@@ -127,9 +127,11 @@ Routes: `GET/POST /api/v1/issues`, `GET/PATCH/DELETE /api/v1/issues/[key]`, `GET
 
 To update an issue after completing work, use `PATCH /api/v1/issues/[key]` with `statusId` (not `status`) to mark it done. To post a comment, use `POST /api/v1/issues/[key]/comments` with `body` and `authorId`. Use `cmo365psl000vdrd0p63lirlz` as `authorId` to post as Maximus (Claude Code account). See `CLAUDE_API.md` for the full comments API.
 
-**Schema notes:** `IssueStatus` and `IssuePriority` are enums, not database tables. Priority values are `CRITICAL | HIGH | MEDIUM | LOW` (URGENT is accepted as an alias for CRITICAL). Statuses are synthesised from the enum in API responses.
+**Schema notes:** `IssueStatus` enum is **gone** — replaced by the `ProjectStatus` table (per-project rows) and a `StatusCategory` enum (`TODO | IN_PROGRESS | DONE`). `IssuePriority` remains an enum: `CRITICAL | HIGH | MEDIUM | LOW` (URGENT is accepted as an alias for CRITICAL). The v1 API `status` field now returns `{ id: "<cuid>", name: "To Do", category: "TODO" }`. Statuses vary per project.
 
-**Position constraint:** `PATCH /api/v1/issues/[key]` with a `statusId` that differs from the current status automatically appends the issue to the end of the target column (`position = count of issues already in that column`). This is required to satisfy the DEFERRABLE unique constraint on `(projectId, status, position)` — omitting the position update causes a 500 when the existing position value collides with another issue already in the target column.
+**Setting status via v1 API:** `PATCH /api/v1/issues/[key]` accepts `statusId` with a value that is either (a) the actual `ProjectStatus` cuid, (b) a human-readable status name like `"Done"`, or (c) a legacy category key like `"DONE"` (resolved to that project's default DONE status). All three forms work.
+
+**Position constraint:** `PATCH /api/v1/issues/[key]` with a `statusId` that changes the issue's status automatically appends the issue to the end of the target column (`position = count of issues already in that column`). This is required to satisfy the DEFERRABLE unique constraint on `(projectId, statusId, position)` — omitting the position update causes a 500 when the existing position value collides with another issue already in the target column.
 
 **Create an issue at the start of every non-trivial task.** See `CLAUDE_API.md` → Working Convention.
 
@@ -146,7 +148,7 @@ To update an issue after completing work, use `PATCH /api/v1/issues/[key]` with 
 - Seeded test users (all password `password123`): `admin@taskforge.dev` (Alice Chen, `UserRole.ADMIN` — use this account to test any admin-gated feature), `member@taskforge.dev`, `carol@taskforge.dev`, `dave@taskforge.dev`
 - Seeded local projects (keys): `PL` (Product Launch), `MA` (Mobile App), `WR` (Website Redesign), `JFR` (JedForge Roadmap). Production has additional projects (`TFEN`, `JFDOCS`, `WEQUIZ`, etc.) that do not exist in local dev.
 - Auth page logos: `public/logo-light.png` and `public/logo-dark.png` are both **1254×1254 square** images. They are displayed at `w-[200px] sm:w-[260px]` on the login page — do not increase this without checking total page height fits inside a 1080p viewport (logo + card + gaps must stay under ~940px).
-- Playwright v1.59.1 is installed in `node_modules` only (not global). In CJS scripts: `require('/home/jamie/Projects/TaskForge/node_modules/playwright')`. Chromium must be downloaded once with `npx playwright install chromium`. `tmux` is not available — start the dev server in the background: `npm run dev > /tmp/nextdev.log 2>&1 &` then `sleep 8` before driving it.
+- Playwright v1.59.1 is installed in `node_modules` only (not global). In CJS scripts: `require('/home/jamie/Projects/TaskForge/node_modules/playwright')`. **`npx playwright install chromium` requires sudo and will fail** — instead use `executablePath: '/usr/bin/google-chrome'` in `chromium.launch()`. `tmux` is not available — start the dev server in the background: `npm run dev > /tmp/nextdev.log 2>&1 &` then `sleep 8` before driving it.
 
 ---
 
@@ -193,7 +195,7 @@ Then commit both `.context-docs/JedForge-FunctionalSpec-v2.0.docx` and `scripts/
 ## Data integrity invariants (A2 audit)
 
 - **Issue key generation is atomic** — `createIssue` in `actions.ts` uses `SELECT ... FOR UPDATE` on the Project row inside a Prisma transaction to serialise concurrent inserts. The `generateIssueKeyWithRetry` retry loop has been replaced; `src/lib/issue-keys.ts` is now unused by the main flow.
-- **Kanban position writes are transactional** — `moveIssue` runs a single `prisma.$transaction` that locks the project row, reindexes both affected columns, and updates the issue status atomically. `reorderIssues` is also wrapped in a transaction. Position write failures throw an error (client retries).
+- **Kanban position writes are transactional** — `moveIssue` runs a single `prisma.$transaction` that locks the project row, reindexes both affected columns, and updates the issue `statusId` atomically. `reorderIssues` is also wrapped in a transaction. Position write failures throw an error (client retries). The DEFERRABLE unique constraint is on `(projectId, statusId, position)`.
 - **S3 orphan cleanup on delete** — `DELETE /api/issues/[issueId]` fetches all attachments and deletes their S3 objects before cascading the DB delete. `DELETE /api/docs/[projectKey]/sections/[sectionId]` does the same for DOCUMENT-type pages. `deleteProject` (`src/app/(dashboard)/projects/[projectKey]/actions.ts`) also fetches and deletes all attachment and DOCUMENT-page S3 objects before the Prisma delete.
 - **PageRevision cap = 50** — see Docs module invariant #6.
 - **Notification cap = 100** — `src/lib/notifications.ts` prunes the oldest notifications beyond 100 after every insert. See `.context-docs/notifications.md`.
