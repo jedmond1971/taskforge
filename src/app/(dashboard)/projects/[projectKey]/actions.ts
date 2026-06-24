@@ -259,6 +259,41 @@ export async function updateIssue(
   return { success: true, issue };
 }
 
+// --- BULK UPDATE ISSUES ---
+export async function bulkUpdateIssues(
+  projectKey: string,
+  issueIds: string[],
+  statusId: string
+) {
+  if (!issueIds.length) return { success: true, count: 0 };
+
+  const { userId, projectId } = await requireProjectRole(projectKey, canEditIssues);
+
+  const status = await prisma.projectStatus.findFirst({
+    where: { id: statusId, projectId },
+  });
+  if (!status) throw new Error("Invalid status");
+
+  await prisma.issue.updateMany({
+    where: { id: { in: issueIds }, projectId },
+    data: { statusId },
+  });
+
+  await prisma.activityLog.createMany({
+    data: issueIds.map((issueId) => ({
+      issueId,
+      userId,
+      action: "updated",
+      field: "status",
+      newValue: status.name,
+    })),
+  });
+
+  revalidatePath(`/projects/${projectKey}/issues`);
+  revalidatePath(`/projects/${projectKey}/board`);
+  return { success: true, count: issueIds.length };
+}
+
 // --- DELETE ISSUE ---
 export async function deleteIssue(projectKey: string, issueId: string) {
   const { projectId } = await requireProjectRole(projectKey, canEditIssues);

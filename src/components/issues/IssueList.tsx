@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { StatusCategory, IssuePriority, IssueType } from "@prisma/client";
 import { StatusBadge } from "./StatusBadge";
 import { PriorityBadge } from "./PriorityBadge";
 import { TYPE_CONFIG } from "@/lib/issue-utils";
-import { ChevronUp, ChevronDown, MessageSquare, CheckSquare, AlertCircle } from "lucide-react";
+import { ChevronUp, ChevronDown, MessageSquare, CheckSquare, AlertCircle, X } from "lucide-react";
+import { bulkUpdateIssues } from "@/app/(dashboard)/projects/[projectKey]/actions";
 
 type IssueWithRelations = {
   id: string;
@@ -23,12 +24,14 @@ type IssueWithRelations = {
   _count: { comments: number };
 };
 
+type ProjectStatus = { id: string; name: string; category: StatusCategory };
 type SortField = "key" | "priority" | "createdAt" | "updatedAt" | "dueDate";
 type SortOrder = "asc" | "desc";
 
 interface IssueListProps {
   issues: IssueWithRelations[];
   projectKey: string;
+  statuses: ProjectStatus[];
 }
 
 const priorityWeight: Record<IssuePriority, number> = {
@@ -38,9 +41,11 @@ const priorityWeight: Record<IssuePriority, number> = {
   LOW: 3,
 };
 
-export function IssueList({ issues, projectKey }: IssueListProps) {
+export function IssueList({ issues, projectKey, statuses }: IssueListProps) {
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isPending, startTransition] = useTransition();
 
   function handleSort(field: SortField) {
     if (sortField === field) {
@@ -69,6 +74,29 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
     return (new Date(a[sortField]).getTime() - new Date(b[sortField]).getTime()) * dir;
   });
 
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === sorted.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sorted.map((i) => i.id)));
+    }
+  }
+
+  function handleBulkStatus(statusId: string) {
+    startTransition(async () => {
+      await bulkUpdateIssues(projectKey, Array.from(selectedIds), statusId);
+      setSelectedIds(new Set());
+    });
+  }
+
   function SortIcon({ field }: { field: SortField }) {
     if (sortField !== field) return <ChevronUp className="w-3 h-3 text-zinc-400 dark:text-zinc-600" />;
     return sortOrder === "asc"
@@ -92,11 +120,48 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
     );
   }
 
+  const selectClass =
+    "px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer disabled:opacity-50";
+
   return (
-    <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-x-auto">
+    <div className="space-y-2">
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg">
+          <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+            {selectedIds.size} selected
+          </span>
+          <select
+            value=""
+            onChange={(e) => { if (e.target.value) handleBulkStatus(e.target.value); }}
+            className={selectClass}
+            disabled={isPending}
+          >
+            <option value="">Set Status...</option>
+            {statuses.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+            Clear
+          </button>
+        </div>
+      )}
+      <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-x-auto">
       <table className="w-full text-sm min-w-[640px]">
         <thead>
           <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+            <th className="px-4 py-2.5 w-10">
+              <input
+                type="checkbox"
+                checked={sorted.length > 0 && selectedIds.size === sorted.length}
+                onChange={toggleSelectAll}
+                className="rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+            </th>
             <th
               className="text-left px-4 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 w-24"
               onClick={() => handleSort("key")}
@@ -131,8 +196,16 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
           {sorted.map((issue, i) => (
             <tr
               key={issue.id}
-              className={`border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors ${i === sorted.length - 1 ? "border-b-0" : ""}`}
+              className={`border-b border-zinc-100 dark:border-zinc-800/50 transition-colors ${i === sorted.length - 1 ? "border-b-0" : ""} ${selectedIds.has(issue.id) ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-zinc-50 dark:hover:bg-zinc-800/30"}`}
             >
+              <td className="px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(issue.id)}
+                  onChange={() => toggleSelect(issue.id)}
+                  className="rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
+              </td>
               <td className="px-4 py-3">
                 <Link
                   href={`/projects/${projectKey}/issues/${issue.key}`}
@@ -199,6 +272,7 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

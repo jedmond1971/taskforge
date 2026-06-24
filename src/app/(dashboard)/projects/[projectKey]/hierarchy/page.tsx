@@ -23,7 +23,7 @@ export default async function HierarchyPage({ params }: PageProps) {
           {issues.length} issue{issues.length !== 1 ? "s" : ""}
         </p>
       </div>
-      <HierarchyView issues={issues} />
+      <HierarchyView issues={issues} projectKey={params.projectKey} />
     </div>
   );
 }

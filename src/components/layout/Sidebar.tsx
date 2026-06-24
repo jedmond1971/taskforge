@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -13,6 +14,7 @@ import {
   LogOut,
   Settings,
   ChevronRight,
+  ChevronDown,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,8 +30,6 @@ import {
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/search", label: "Search", icon: Search },
-  { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/projects/closed", label: "Closed Projects", icon: FolderX },
   { href: "/docs", label: "Docs", icon: BookOpen },
 ];
 
@@ -40,6 +40,9 @@ interface SidebarProps {
 export function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [projectsExpanded, setProjectsExpanded] = useState(() =>
+    pathname.startsWith("/projects")
+  );
 
   const user = session?.user;
   const initials = user?.name
@@ -106,6 +109,59 @@ export function Sidebar({ onClose }: SidebarProps) {
             </Link>
           );
         })}
+
+        {/* Projects — expandable with Closed Projects nested below */}
+        {(() => {
+          const projectsActive =
+            pathname.startsWith("/projects") && !pathname.startsWith("/projects/closed");
+          const closedActive = pathname.startsWith("/projects/closed");
+          return (
+            <div>
+              <div
+                className={cn(
+                  "flex items-center rounded-lg text-sm font-medium transition-colors",
+                  projectsActive
+                    ? "bg-indigo-600/20 text-indigo-400"
+                    : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                )}
+              >
+                <Link
+                  href="/projects"
+                  className="flex items-center gap-3 flex-1 px-3 py-2.5 min-h-[44px]"
+                >
+                  <FolderKanban className="w-4 h-4 flex-shrink-0" />
+                  Projects
+                </Link>
+                <button
+                  onClick={() => setProjectsExpanded((v) => !v)}
+                  className="px-2 py-2.5 rounded-r-lg"
+                  aria-label={projectsExpanded ? "Collapse projects" : "Expand projects"}
+                >
+                  {projectsExpanded ? (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
+              {projectsExpanded && (
+                <Link
+                  href="/projects/closed"
+                  className={cn(
+                    "flex items-center gap-3 pl-8 pr-3 py-2 rounded-lg text-sm font-medium transition-colors min-h-[40px] mt-0.5",
+                    closedActive
+                      ? "bg-indigo-600/20 text-indigo-400"
+                      : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                  )}
+                >
+                  <FolderX className="w-4 h-4 flex-shrink-0" />
+                  Closed Projects
+                  {closedActive && <ChevronRight className="w-3 h-3 ml-auto text-indigo-400" />}
+                </Link>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Admin link — only visible to users with ADMIN role */}
         {user?.role === "ADMIN" && (

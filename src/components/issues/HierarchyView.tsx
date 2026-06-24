@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { StatusCategory, IssuePriority, IssueType } from "@prisma/client";
 import { ChevronRight, ChevronDown, Link2Off, Layers } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
@@ -19,6 +20,7 @@ type HierarchyIssue = {
 
 interface HierarchyViewProps {
   issues: HierarchyIssue[];
+  projectKey: string;
 }
 
 function buildTree(issues: HierarchyIssue[]) {
@@ -46,12 +48,14 @@ function countDescendants(id: string, childrenOf: Map<string | null, HierarchyIs
 function IssueRow({
   issue,
   depth,
+  projectKey,
   childrenOf,
   collapsed,
   onToggle,
 }: {
   issue: HierarchyIssue;
   depth: number;
+  projectKey: string;
   childrenOf: Map<string | null, HierarchyIssue[]>;
   collapsed: Set<string>;
   onToggle: (id: string) => void;
@@ -84,12 +88,18 @@ function IssueRow({
             <span className="flex-shrink-0 text-sm mr-1.5" title={TYPE_CONFIG[issue.type].label}>
               {TYPE_CONFIG[issue.type].icon}
             </span>
-            <span className="flex-shrink-0 font-mono text-xs text-zinc-400 dark:text-zinc-500 mr-2">
+            <Link
+              href={`/projects/${projectKey}/issues/${issue.key}`}
+              className="flex-shrink-0 font-mono text-xs text-zinc-400 dark:text-zinc-500 mr-2 hover:text-indigo-600 dark:hover:text-indigo-400"
+            >
               {issue.key}
-            </span>
-            <span className="text-sm text-zinc-900 dark:text-zinc-100 truncate">
+            </Link>
+            <Link
+              href={`/projects/${projectKey}/issues/${issue.key}`}
+              className="text-sm text-zinc-900 dark:text-zinc-100 truncate hover:text-indigo-600 dark:hover:text-indigo-300"
+            >
               {issue.title}
-            </span>
+            </Link>
             {hasChildren && (
               <span className="flex-shrink-0 ml-1.5 text-xs text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-full px-1.5 py-px">
                 {descendantCount}
@@ -129,6 +139,7 @@ function IssueRow({
             key={child.id}
             issue={child}
             depth={depth + 1}
+            projectKey={projectKey}
             childrenOf={childrenOf}
             collapsed={collapsed}
             onToggle={onToggle}
@@ -138,7 +149,7 @@ function IssueRow({
   );
 }
 
-export function HierarchyView({ issues }: HierarchyViewProps) {
+export function HierarchyView({ issues, projectKey }: HierarchyViewProps) {
   const { childrenOf, parents, unparented } = buildTree(issues);
 
   const [collapsed, setCollapsed] = useState<Set<string>>(
@@ -191,6 +202,7 @@ export function HierarchyView({ issues }: HierarchyViewProps) {
               key={issue.id}
               issue={issue}
               depth={0}
+              projectKey={projectKey}
               childrenOf={childrenOf}
               collapsed={collapsed}
               onToggle={toggle}
@@ -215,6 +227,7 @@ export function HierarchyView({ issues }: HierarchyViewProps) {
                   key={issue.id}
                   issue={issue}
                   depth={0}
+                  projectKey={projectKey}
                   childrenOf={childrenOf}
                   collapsed={collapsed}
                   onToggle={toggle}

@@ -74,7 +74,7 @@ export default async function IssuesPage({ params, searchParams }: PageProps) {
           currentFilters={searchParams}
         />
       </Suspense>
-      <IssueList issues={issues} projectKey={params.projectKey} />
+      <IssueList issues={issues} projectKey={params.projectKey} statuses={allStatuses} />
     </div>
   );
 }
