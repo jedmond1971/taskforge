@@ -127,7 +127,7 @@ Internal API for Claude Code to track work. Full docs in `CLAUDE_API.md`. **Crea
 
 ## Local dev environment (Windows / Jed's machine)
 
-- **No local `.env` file** — the project root has no `.env` on this machine. `V1_API_KEY` and other secrets must be provided manually or sourced from Railway env vars. Create `.env` from `.env.example` before running the dev server.
+- **Local `.env` exists** — `/home/jamie/Projects/TaskForge/.env` is present and contains `V1_API_KEY`, `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`. If it ever goes missing, recreate from `.env.example` and re-add secrets from Railway.
 - **PowerShell git commit heredocs** — the bash `$(cat <<'EOF'…EOF)` pattern fails in PowerShell. Use the PowerShell here-string syntax instead: `git commit -m @'` … `'@` (closing `'@` must be at column 0).
 - Docker Postgres on port 5433 — start with `docker start taskforge-db` if not running (see startup checklist above)
 - **Railway CLI is unusable in this environment** — every command (`whoami`, `status`, `variables`) produces no output and exits 1, even with `RAILWAY_API_TOKEN` set. Use the **Railway GraphQL API** instead: `POST https://backboard.railway.com/graphql/v2` with header `Authorization: Bearer $RAILWAY_API_TOKEN`. The token is exported in `~/.bashrc` (non-interactive shells may not source it — read it from the file directly). TaskForge production lives in project "striking-strength" (`7a369174-b77d-49c0-9ef0-f651541fe383`), environment `816d8546-3458-4855-9699-b77c855019b9`, services `taskforge` and `Postgres` (`a303a6b4-af40-457d-a017-08bfcf3647ff`).
@@ -137,6 +137,7 @@ Internal API for Claude Code to track work. Full docs in `CLAUDE_API.md`. **Crea
 - Seeded local projects (keys): `PL` (Product Launch), `MA` (Mobile App), `WR` (Website Redesign), `JFR` (JedForge Roadmap). Production has additional projects (`TFEN`, `JFDOCS`, `WEQUIZ`, etc.) that do not exist in local dev.
 - Auth page logos: `public/logo-light.png` and `public/logo-dark.png` are both **1254×1254 square** images. They are displayed at `w-[200px] sm:w-[260px]` on the login page — do not increase this without checking total page height fits inside a 1080p viewport (logo + card + gaps must stay under ~940px).
 - Playwright v1.59.1 is installed in `node_modules` only (not global). In CJS scripts: `require('/home/jamie/Projects/TaskForge/node_modules/playwright')`. **`npx playwright install chromium` requires sudo and will fail** — instead use `executablePath: '/usr/bin/google-chrome'` in `chromium.launch()`. `tmux` is not available — start the dev server in the background: `npm run dev > /tmp/nextdev.log 2>&1 &` then `sleep 8` before driving it.
+- **Playwright + Next.js App Router client-side navigation** — after clicking a link that triggers client-side routing, `page.url()` and `waitForLoadState('networkidle')` are unreliable. Use `page.goto('http://localhost:3000/projects/PL/issues/PL-1')` directly instead of clicking through from a list page.
 
 ---
 
