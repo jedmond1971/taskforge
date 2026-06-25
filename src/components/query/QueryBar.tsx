@@ -240,12 +240,15 @@ export function QueryBar({
     const trimmed = query.trim();
     if (!trimmed || isLoading) return;
 
-    // Clear validation errors and dropdowns on execute
+    // Clear validation errors, dropdowns, and pending timers on execute
     setErrors([]);
     setShowAutocomplete(false);
     setShowHistory(false);
     if (validationTimerRef.current) {
       clearTimeout(validationTimerRef.current);
+    }
+    if (autocompleteTimerRef.current) {
+      clearTimeout(autocompleteTimerRef.current);
     }
 
     // Add to history
@@ -380,8 +383,8 @@ export function QueryBar({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      // Ctrl/Cmd+Enter to execute
-      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      // Ctrl/Cmd+Enter to execute (e.repeat guard prevents multiple fires on key-hold)
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.repeat) {
         e.preventDefault();
         handleExecute();
         return;
@@ -422,8 +425,8 @@ export function QueryBar({
         }
       }
 
-      // Plain Enter to execute
-      if (e.key === "Enter") {
+      // Plain Enter to execute (e.repeat guard prevents multiple fires on key-hold)
+      if (e.key === "Enter" && !e.repeat) {
         e.preventDefault();
         handleExecute();
       }
