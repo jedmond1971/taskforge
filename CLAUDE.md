@@ -55,11 +55,11 @@ Projects have an `isClosed Boolean @default(false)` field. Rules enforced in cod
 
 1. **Only `UserRole.ADMIN` can close or reopen a project** — `closeProject`/`reopenProject` actions in `src/app/(dashboard)/admin/actions.ts` call `requireAdmin()` before mutating.
 2. **Active projects listing filters closed projects** — `src/app/(dashboard)/projects/page.tsx` adds `isClosed: false` to its Prisma query. Closed projects do not appear on the main Projects page for any user.
-3. **Non-admins are redirected from closed project URLs** — `src/app/(dashboard)/projects/[projectKey]/layout.tsx` redirects to `/projects` if `project.isClosed && session.user.role !== "ADMIN"`. Admins can still navigate into closed projects.
+3. **Non-admins are redirected from most closed project URLs** — `src/app/(dashboard)/projects/[projectKey]/layout.tsx` redirects to `/projects` if the project is closed and the user is not an admin, **unless** the path matches `/projects/[key]/docs` (including sub-pages). Docs are intentionally accessible on closed projects. The layout reads the current path via `headers().get('x-pathname')`, which the middleware sets on every request. Admins can navigate anywhere in a closed project.
 4. **`/projects/closed` is visible to all authenticated users** — non-admins see only closed projects they are members of; admins see all closed projects.
 5. **Re-Open button is disabled for non-admins** — the button renders with `disabled` attribute and reduced opacity. The server action (`src/app/(dashboard)/projects/closed-actions.ts`) also re-checks admin role server-side.
 6. **`getAdminProjects` uses explicit `select`** — if you add fields to the `Project` model that the admin panel needs to display, add them to the `select` block in that function (`src/app/(dashboard)/admin/actions.ts`).
-7. **Dashboard and global Docs page filter closed projects** — all four queries in `src/app/(dashboard)/page.tsx` (`getUserProjects`, `getAssignedIssues`, `getUpcomingDueDates`, `getRecentActivity`) add `isClosed: false`. The global Docs page (`src/app/(dashboard)/docs/page.tsx`) also filters `isClosed: false` from project memberships.
+7. **Dashboard filters closed projects; global Docs page does not** — all four queries in `src/app/(dashboard)/page.tsx` (`getUserProjects`, `getAssignedIssues`, `getUpcomingDueDates`, `getRecentActivity`) add `isClosed: false`. The global Docs page (`src/app/(dashboard)/docs/page.tsx`) shows all member projects — open ones at the top, closed ones in a separate "Closed Projects" section with a lock badge and read-only subtitle.
 8. **There is no Archive concept** — the `isArchived` field and `archiveProject` action have been removed. Close (`isClosed`, admin-only) is the only project deactivation mechanism. Project settings Danger Zone contains only "Project Visibility" (admin-only toggle) and "Delete Project".
 
 ---
@@ -141,6 +141,8 @@ Internal API for Claude Code to track work. Full docs in `CLAUDE_API.md`. **Crea
 - Auth page logos: `public/logo-light.png` and `public/logo-dark.png` are both **1254×1254 square** images. They are displayed at `w-[200px] sm:w-[260px]` on the login page — do not increase this without checking total page height fits inside a 1080p viewport (logo + card + gaps must stay under ~940px).
 - Playwright v1.59.1 is installed in `node_modules` only (not global). In CJS scripts: `require('/home/jamie/Projects/TaskForge/node_modules/playwright')`. **`npx playwright install chromium` requires sudo and will fail** — instead use `executablePath: '/usr/bin/google-chrome'` in `chromium.launch()`. `tmux` is not available — start the dev server in the background: `npm run dev > /tmp/nextdev.log 2>&1 &` then `sleep 8` before driving it.
 - **Playwright + Next.js App Router client-side navigation** — after clicking a link that triggers client-side routing, `page.url()` and `waitForLoadState('networkidle')` are unreliable. Use `page.goto('http://localhost:3000/projects/PL/issues/PL-1')` directly instead of clicking through from a list page.
+- **Playwright `waitForURL` with glob patterns** — `page.waitForURL('http://localhost:3000/**')` resolves immediately if the page is already at a matching URL (e.g., you're already on `/login`). When waiting for login to complete, use a predicate instead: `page.waitForURL(url => !url.toString().includes('/login'), { timeout: 15000 })`.
+- **Playwright `page.$('text=...')` with special characters** — the middle-dot `·` and similar Unicode characters can silently fail to match. Use `(await page.content()).includes('...')` for reliable substring checks.
 
 ---
 
@@ -162,6 +164,12 @@ Spec: `.context-docs/JedForge-FunctionalSpec-v2.0.docx` — regenerate with `nod
 **Tooling notes for .docx:**
 - Read with `python3` + `python-docx` (`pip3 install python-docx --break-system-packages`). `extract-text` does not exist.
 - `docx` npm package: `/home/jamie/.npm-global/lib/node_modules/docx`, import via `dist/index.mjs`. Font `size` is half-points: 10pt = `size: 20`.
+
+---
+
+## Middleware and server component patterns
+
+- **Reading the current path in a server component layout** — Next.js layouts receive `params` but not the full URL path. The middleware (`src/middleware.ts`) sets `x-pathname` on every request via `new Headers(req.headers); requestHeaders.set('x-pathname', nextUrl.pathname)` passed to `NextResponse.next({ request: { headers: requestHeaders } })`. Server components can then read it with `import { headers } from 'next/headers'; headers().get('x-pathname')`. This is how the project layout distinguishes docs paths from other paths for closed-project access control.
 
 ---
 
