@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { ProjectNav } from "@/components/projects/ProjectNav";
 import { ProjectShortcuts } from "@/components/projects/ProjectShortcuts";
 
@@ -26,7 +27,13 @@ export default async function ProjectLayout({
 
   const project = await getProject(params.projectKey, session.user.id);
   if (!project) notFound();
-  if (project.isClosed && session.user.role !== "ADMIN") redirect("/projects");
+
+  const isAdmin = session.user.role === "ADMIN";
+  if (project.isClosed && !isAdmin) {
+    const pathname = headers().get("x-pathname") ?? "";
+    const isDocsPath = /\/projects\/[^/]+\/docs(\/|$)/i.test(pathname);
+    if (!isDocsPath) redirect("/projects");
+  }
 
   return (
     <div className="space-y-0 -m-4 sm:-m-6">
@@ -43,7 +50,7 @@ export default async function ProjectLayout({
             )}
           </div>
         </div>
-        <ProjectNav projectKey={params.projectKey} />
+        <ProjectNav projectKey={params.projectKey} isClosed={project.isClosed} isAdmin={isAdmin} />
       </div>
       <div className="p-4 sm:p-6">{children}</div>
       <ProjectShortcuts projectKey={params.projectKey} />

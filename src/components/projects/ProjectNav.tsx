@@ -6,13 +6,15 @@ import { cn } from "@/lib/utils";
 
 interface ProjectNavProps {
   projectKey: string;
+  isClosed?: boolean;
+  isAdmin?: boolean;
 }
 
-export function ProjectNav({ projectKey }: ProjectNavProps) {
+export function ProjectNav({ projectKey, isClosed, isAdmin }: ProjectNavProps) {
   const pathname = usePathname();
   const base = `/projects/${projectKey}`;
 
-  const tabs = [
+  const allTabs = [
     { href: `${base}/board`, label: "Board" },
     { href: `${base}/issues`, label: "Issues" },
     { href: `${base}/hierarchy`, label: "Hierarchy" },
@@ -20,6 +22,10 @@ export function ProjectNav({ projectKey }: ProjectNavProps) {
     { href: `${base}/activity`, label: "Activity" },
     { href: `${base}/settings`, label: "Settings" },
   ];
+
+  const tabs = isClosed && !isAdmin
+    ? allTabs.filter((t) => t.href === `${base}/docs`)
+    : allTabs;
 
   return (
     <nav className="flex gap-1 overflow-x-auto -mx-6 px-6 scrollbar-none">

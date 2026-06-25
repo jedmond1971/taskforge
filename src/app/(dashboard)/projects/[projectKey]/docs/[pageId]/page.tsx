@@ -9,7 +9,7 @@ import { ProjectMemberRole } from "@prisma/client";
 async function getPageData(projectKey: string, pageId: string, userId: string) {
   const project = await prisma.project.findFirst({
     where: { key: projectKey.toUpperCase() },
-    select: { id: true, key: true, name: true },
+    select: { id: true, key: true, name: true, isClosed: true },
   });
   if (!project) return null;
 
@@ -41,7 +41,7 @@ async function getPageData(projectKey: string, pageId: string, userId: string) {
     },
   });
 
-  return { project, page, revisions, role: member.role as ProjectMemberRole };
+  return { project, page, revisions, role: member.role as ProjectMemberRole, isClosed: project.isClosed };
 }
 
 export default async function DocPagePage({
@@ -55,8 +55,8 @@ export default async function DocPagePage({
   const data = await getPageData(params.projectKey, params.pageId, session.user.id);
   if (!data) notFound();
 
-  const { project, page, revisions, role } = data;
-  const readOnly = !canEditIssues(role);
+  const { project, page, revisions, role, isClosed } = data;
+  const readOnly = isClosed || !canEditIssues(role);
 
   const serializedPage = {
     ...page,

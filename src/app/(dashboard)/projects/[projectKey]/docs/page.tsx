@@ -12,7 +12,7 @@ import { ProjectMemberRole } from "@prisma/client";
 async function getDocSpaceData(projectKey: string, userId: string) {
   const project = await prisma.project.findFirst({
     where: { key: projectKey.toUpperCase() },
-    select: { id: true, key: true, name: true },
+    select: { id: true, key: true, name: true, isClosed: true },
   });
   if (!project) return null;
 
@@ -55,8 +55,8 @@ export default async function ProjectDocsPage({ params }: { params: { projectKey
   if (!data) redirect("/projects");
 
   const { project, docSpace, role } = data;
-  const canEdit = canEditIssues(role);
-  const canManage = canManageProject(role);
+  const canEdit = !project.isClosed && canEditIssues(role);
+  const canManage = !project.isClosed && canManageProject(role);
 
   const totalPages = docSpace.sections.reduce((sum, s) => sum + s.pages.length, 0) + docSpace.pages.length;
   const isEmpty = totalPages === 0 && docSpace.sections.length === 0;

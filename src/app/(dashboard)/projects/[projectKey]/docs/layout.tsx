@@ -8,7 +8,7 @@ import { DocsSidebarLayout } from "@/components/docs/docs-sidebar-layout";
 async function getDocsSidebarData(projectKey: string, userId: string) {
   const project = await prisma.project.findFirst({
     where: { key: projectKey.toUpperCase() },
-    select: { id: true, key: true, name: true },
+    select: { id: true, key: true, name: true, isClosed: true },
   });
   if (!project) return null;
 
@@ -57,8 +57,8 @@ export default async function DocsLayout({
   if (!data) redirect("/projects");
 
   const { project, docSpace, role } = data;
-  const canEdit = canEditIssues(role);
-  const canManage = canManageProject(role);
+  const canEdit = !project.isClosed && canEditIssues(role);
+  const canManage = !project.isClosed && canManageProject(role);
 
   const sections = docSpace.sections.map((s) => ({
     id: s.id,
@@ -79,6 +79,7 @@ export default async function DocsLayout({
       canEdit={canEdit}
       canManage={canManage}
       isPublic={docSpace.isPublic}
+      isClosed={project.isClosed}
     >
       {children}
     </DocsSidebarLayout>

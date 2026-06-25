@@ -11,11 +11,14 @@ export default auth((req) => {
   const isAuthRoute = nextUrl.pathname.startsWith("/login") || nextUrl.pathname.startsWith("/register");
   const isApiRoute = nextUrl.pathname.startsWith("/api");
 
-  if (isApiRoute) return NextResponse.next();
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", nextUrl.pathname);
+
+  if (isApiRoute) return NextResponse.next({ request: { headers: requestHeaders } });
 
   if (isAuthRoute) {
     if (isLoggedIn) return NextResponse.redirect(new URL("/", nextUrl));
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   if (!isLoggedIn) {
@@ -24,7 +27,7 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: requestHeaders } });
 });
 
 export const config = {

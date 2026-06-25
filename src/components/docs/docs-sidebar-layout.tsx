@@ -10,6 +10,7 @@ import {
   ChevronDown,
   FolderOpen,
   BookOpen,
+  Lock,
 } from "lucide-react";
 import { DocsSearchBar } from "./docs-search-bar";
 import { DocVisibilityToggle } from "./doc-visibility-toggle";
@@ -34,6 +35,7 @@ interface DocsSidebarLayoutProps {
   canEdit: boolean;
   canManage: boolean;
   isPublic: boolean;
+  isClosed?: boolean;
   children: React.ReactNode;
 }
 
@@ -44,6 +46,7 @@ export function DocsSidebarLayout({
   canEdit,
   canManage,
   isPublic,
+  isClosed,
   children,
 }: DocsSidebarLayoutProps) {
   const pathname = usePathname();
@@ -69,6 +72,13 @@ export function DocsSidebarLayout({
     <div className="flex -m-4 sm:-m-6">
       {/* Sidebar — desktop only */}
       <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 min-h-[calc(100vh-12rem)]">
+        {/* Closed banner */}
+        {isClosed && (
+          <div className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 shrink-0">
+            <Lock className="w-3 h-3 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">Project closed · read-only</span>
+          </div>
+        )}
         {/* Search */}
         <div className="p-3 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
           <DocsSearchBar projectKey={projectKey} />
