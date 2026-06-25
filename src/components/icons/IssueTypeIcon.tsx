@@ -1,8 +1,8 @@
 import { IssueType } from "@prisma/client";
 
-function BugIcon() {
+function BugIcon({ size }: { size: number }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="12" r="11" fill="#E5534B" fillOpacity="0.18" />
       <circle cx="12" cy="12" r="8" fill="#E5534B" />
       <path d="M9 9L15 15M15 9L9 15" stroke="white" strokeWidth="2" strokeLinecap="round" />
@@ -10,9 +10,9 @@ function BugIcon() {
   );
 }
 
-function TaskIcon() {
+function TaskIcon({ size }: { size: number }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="12" r="11" fill="#4B9EE5" fillOpacity="0.18" />
       <circle cx="12" cy="12" r="8" fill="#4B9EE5" />
       <path d="M7.5 12L10.5 15L16.5 9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -20,9 +20,9 @@ function TaskIcon() {
   );
 }
 
-function StoryIcon() {
+function StoryIcon({ size }: { size: number }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="12" r="11" fill="#4BAE8A" fillOpacity="0.18" />
       <circle cx="12" cy="12" r="8" fill="#4BAE8A" />
       <path d="M8.5 6.5L13.5 6.5L15.5 8.5L15.5 17L8.5 17Z" fill="white" />
@@ -34,9 +34,9 @@ function StoryIcon() {
   );
 }
 
-function EpicIcon() {
+function EpicIcon({ size }: { size: number }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="12" r="11" fill="#9B59D0" fillOpacity="0.18" />
       <circle cx="12" cy="12" r="8" fill="#9B59D0" />
       <path d="M12 6L18 12L12 18L6 12L12 6Z" fill="white" />
@@ -44,14 +44,14 @@ function EpicIcon() {
   );
 }
 
-const ICONS: Record<IssueType, () => JSX.Element> = {
+const ICONS: Record<IssueType, ({ size }: { size: number }) => JSX.Element> = {
   BUG: BugIcon,
   TASK: TaskIcon,
   STORY: StoryIcon,
   EPIC: EpicIcon,
 };
 
-export function IssueTypeIcon({ type }: { type: IssueType }) {
+export function IssueTypeIcon({ type, size = 16 }: { type: IssueType; size?: number }) {
   const Icon = ICONS[type];
-  return Icon ? <Icon /> : null;
+  return Icon ? <Icon size={size} /> : null;
 }

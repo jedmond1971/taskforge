@@ -7,6 +7,7 @@ import { StatusCategory, IssuePriority, IssueType, IssueLinkType, DocPageType } 
 import { updateIssue, deleteIssue } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { CATEGORY_COLOR, PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
 import { Pencil, Trash2, Check, X, ChevronRight, Plus } from "lucide-react";
+import { IssueTypeIcon } from "@/components/icons/IssueTypeIcon";
 import { LabelInput } from "@/components/issues/LabelInput";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -312,10 +313,16 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
               {issue.parent.key}
             </Link>
             <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-            <span className="font-mono text-indigo-600 dark:text-indigo-400">{issue.key}</span>
+            <span className="flex items-center gap-1.5">
+              <IssueTypeIcon type={issue.type} size={20} />
+              <span className="font-mono text-indigo-600 dark:text-indigo-400">{issue.key}</span>
+            </span>
           </>
         ) : (
-          <span className="font-mono text-indigo-600 dark:text-indigo-400">{issue.key}</span>
+          <span className="flex items-center gap-1.5">
+            <IssueTypeIcon type={issue.type} size={20} />
+            <span className="font-mono text-indigo-600 dark:text-indigo-400">{issue.key}</span>
+          </span>
         )}
         <span>·</span>
         <span>{issue.project.name}</span>
@@ -324,29 +331,13 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
         {/* Main content */}
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
-            <div className="flex-1 min-w-0 w-full sm:w-auto">
-              <EditableTitle
-                value={issue.title}
-                issueId={issue.id}
-                projectKey={projectKey}
-                onSaved={refresh}
-                canEdit={canEdit}
-              />
-            </div>
-            {canEdit && (
-              <Button
-                onClick={handleDelete}
-                variant="destructive"
-                size="sm"
-                disabled={isPending}
-                className="flex-shrink-0"
-              >
-                <Trash2 className="w-3.5 h-3.5 mr-1" />
-                Delete
-              </Button>
-            )}
-          </div>
+          <EditableTitle
+            value={issue.title}
+            issueId={issue.id}
+            projectKey={projectKey}
+            onSaved={refresh}
+            canEdit={canEdit}
+          />
 
           {/* Description */}
           <div>
@@ -586,6 +577,19 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
               <p className="text-zinc-700 dark:text-zinc-300 mt-0.5">{new Date(issue.updatedAt).toLocaleString()}</p>
             </div>
           </div>
+
+          {canEdit && (
+            <Button
+              onClick={handleDelete}
+              variant="destructive"
+              size="sm"
+              disabled={isPending}
+              className="w-full"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1" />
+              Delete Issue
+            </Button>
+          )}
         </div>
       </div>
     </div>
