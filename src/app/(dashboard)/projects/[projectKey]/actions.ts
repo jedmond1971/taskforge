@@ -767,15 +767,15 @@ export async function updateComment(
   commentId: string,
   body: string
 ) {
-  const session = await auth();
-  if (!session?.user) throw new Error("Unauthorized");
+  const { userId, projectId } = await requireProjectMember(projectKey);
 
   const comment = await prisma.comment.findUnique({
     where: { id: commentId },
     include: { issue: { select: { projectId: true, project: { select: { key: true } }, key: true } } },
   });
   if (!comment) throw new Error("Comment not found");
-  if (comment.authorId !== session.user.id) throw new Error("Forbidden");
+  if (comment.issue.projectId !== projectId) throw new Error("Comment not found");
+  if (comment.authorId !== userId) throw new Error("Forbidden");
 
   const updated = await prisma.comment.update({
     where: { id: commentId },
@@ -789,15 +789,15 @@ export async function updateComment(
 
 // --- DELETE COMMENT ---
 export async function deleteComment(projectKey: string, commentId: string) {
-  const session = await auth();
-  if (!session?.user) throw new Error("Unauthorized");
+  const { userId, projectId } = await requireProjectMember(projectKey);
 
   const comment = await prisma.comment.findUnique({
     where: { id: commentId },
-    include: { issue: { select: { key: true } } },
+    include: { issue: { select: { projectId: true, key: true } } },
   });
   if (!comment) throw new Error("Comment not found");
-  if (comment.authorId !== session.user.id) throw new Error("Forbidden");
+  if (comment.issue.projectId !== projectId) throw new Error("Comment not found");
+  if (comment.authorId !== userId) throw new Error("Forbidden");
 
   await prisma.comment.delete({ where: { id: commentId } });
 
