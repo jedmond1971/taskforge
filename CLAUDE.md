@@ -111,6 +111,8 @@ Production picks up the migration automatically via `prisma migrate deploy` in `
 
 **Before writing any route or server action that queries Prisma, verify every field referenced exists in the current `schema.prisma`.** If a field is absent, note it and either adapt the query or plan a migration before proceeding.
 
+**`Board` and `Column` models are dead code** — both exist in `schema.prisma` but `prisma.board` and `prisma.column` are never called anywhere in `src/`. The Kanban view is driven entirely by `ProjectStatus` rows. Do not use these models; they can be dropped from the schema when convenient.
+
 ---
 
 ## Internal v1 REST API
@@ -139,7 +141,7 @@ Internal API for Claude Code to track work. Full docs in `CLAUDE_API.md`. **Crea
 - Seeded test users (all password `password123`): `admin@taskforge.dev` (Alice Chen, `UserRole.ADMIN` — use this account to test any admin-gated feature), `member@taskforge.dev`, `carol@taskforge.dev`, `dave@taskforge.dev`
 - Seeded local projects (keys): `PL` (Product Launch), `MA` (Mobile App), `WR` (Website Redesign), `JFR` (JedForge Roadmap). Production has additional projects (`TFEN`, `JFDOCS`, `WEQUIZ`, etc.) that do not exist in local dev.
 - Auth page logos: `public/logo-light.png` and `public/logo-dark.png` are both **1254×1254 square** images. They are displayed at `w-[200px] sm:w-[260px]` on the login page — do not increase this without checking total page height fits inside a 1080p viewport (logo + card + gaps must stay under ~940px).
-- Playwright v1.59.1 is installed in `node_modules` only (not global). In CJS scripts: `require('/home/jamie/Projects/TaskForge/node_modules/playwright')`. **`npx playwright install chromium` requires sudo and will fail** — instead use `executablePath: '/usr/bin/google-chrome'` in `chromium.launch()`. `tmux` is not available — start the dev server in the background: `npm run dev > /tmp/nextdev.log 2>&1 &` then `sleep 8` before driving it.
+- Playwright v1.59.1 is installed in `node_modules` only (not global). In CJS scripts: `require('/home/jamie/Projects/TaskForge/node_modules/playwright')`. **`npx playwright install chromium` requires sudo and will fail** — instead use `executablePath: '/usr/bin/google-chrome'` in `chromium.launch()`. `tmux` is not available — start the dev server in the background: `npm run dev > /tmp/nextdev.log 2>&1 &` then `sleep 8` before driving it. **Port 3000 may already be in use** (e.g. a leftover dev server from a prior session) — Next.js will silently fall back to 3001 or higher. Always resolve the actual port before writing Playwright URLs: `grep "Local:" /tmp/nextdev.log | head -1`.
 - **Playwright + Next.js App Router client-side navigation** — after clicking a link that triggers client-side routing, `page.url()` and `waitForLoadState('networkidle')` are unreliable. Use `page.goto('http://localhost:3000/projects/PL/issues/PL-1')` directly instead of clicking through from a list page.
 - **Playwright `waitForURL` with glob patterns** — `page.waitForURL('http://localhost:3000/**')` resolves immediately if the page is already at a matching URL (e.g., you're already on `/login`). When waiting for login to complete, use a predicate instead: `page.waitForURL(url => !url.toString().includes('/login'), { timeout: 15000 })`.
 - **Playwright `page.$('text=...')` with special characters** — the middle-dot `·` and similar Unicode characters can silently fail to match. Use `(await page.content()).includes('...')` for reliable substring checks.
@@ -171,6 +173,8 @@ Spec: `.context-docs/JedForge-FunctionalSpec-v2.0.docx` — regenerate with `nod
 
 - **Reading the current path in a server component layout** — Next.js layouts receive `params` but not the full URL path. The middleware (`src/middleware.ts`) sets `x-pathname` on every request via `new Headers(req.headers); requestHeaders.set('x-pathname', nextUrl.pathname)` passed to `NextResponse.next({ request: { headers: requestHeaders } })`. Server components can then read it with `import { headers } from 'next/headers'; headers().get('x-pathname')`. This is how the project layout distinguishes docs paths from other paths for closed-project access control.
 
+- **Dynamic breadcrumb titles — `PageTitleContext`** — `Header.tsx` builds breadcrumbs from URL segments using `segmentLabel()`, which cannot resolve database values (e.g. a doc page cuid becomes a garbled crumb). The fix is `src/components/layout/PageTitleContext.tsx`: render `<SetPageTitle title={someTitle} />` (a null-rendering client component) from any server page component, and `Header` will replace the last breadcrumb label with that title. The context resets to `null` on every pathname change, so stale titles never bleed across navigation. `DashboardShell` wraps the whole layout in `PageTitleProvider` — no additional provider setup is needed. Use this pattern on any page whose last URL segment is a cuid or other opaque ID.
+
 ---
 
 ## Server action pitfalls
@@ -195,6 +199,8 @@ See `.context-docs/data-integrity.md` for full details. Key facts:
 - **v1 API requires shared secret** — every request to `/api/v1/...` must include `X-Internal-Api-Key: <V1_API_KEY>`. The guard is in `src/lib/v1-auth.ts` (constant-time comparison). Set `V1_API_KEY` in Railway environment variables and in local `.env`. Never commit the actual value.
 - **Avatar GET requires authentication** — `GET /api/avatar` returns 401 without a valid session. The PUT handler was already protected; the GET was added in the same security pass.
 - **TipTap HTML is sanitized server-side** — all write paths that persist issue descriptions, comment bodies, and doc page content call `sanitizeTipTapHtml()` from `src/lib/sanitize-html.ts` (backed by `isomorphic-dompurify`) before the Prisma call. The viewer component (`rich-text-display.tsx`) does not sanitize — it relies on content already being clean in the database.
+- **Known gap M-1 — comment edit/delete lacks membership check** — `updateComment` and `deleteComment` in `src/app/(dashboard)/projects/[projectKey]/actions.ts` (lines ~778, ~800) check only `comment.authorId === session.user.id`. A user who was removed from the project can still edit or delete their own comments if they know the comment ID. Fix: add a `requireProjectMember` check before the author test.
+- **Known gap M-3 — attachment delete uploader path lacks membership check** — `DELETE /api/attachments/[id]/route.ts` allows deletion if `attachment.uploaderId === session.user.id` regardless of current project membership. A removed member who originally uploaded a file can still delete it. The `PROJECT_LEAD` path does check membership. Same structural fix as M-1.
 
 ---
 
