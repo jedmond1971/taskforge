@@ -7,6 +7,7 @@ import { Plus, ChevronRight } from "lucide-react";
 import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { usePageTitle } from "./PageTitleContext";
 
 function segmentLabel(segment: string): string {
   // Issue keys like TF-1, MYPROJECT-42 — preserve as-is
@@ -55,7 +56,14 @@ function getProjectKey(pathname: string): string | null {
 
 export function Header() {
   const pathname = usePathname();
-  const breadcrumbs = getBreadcrumbs(pathname);
+  const { title: dynamicTitle } = usePageTitle();
+  const rawCrumbs = getBreadcrumbs(pathname);
+  const breadcrumbs =
+    dynamicTitle !== null && rawCrumbs.length > 1
+      ? rawCrumbs.map((c, i) =>
+          i === rawCrumbs.length - 1 ? { ...c, label: dynamicTitle } : c
+        )
+      : rawCrumbs;
   const title = getPageTitle(pathname);
   const projectKey = getProjectKey(pathname);
   const [dialogOpen, setDialogOpen] = useState(false);

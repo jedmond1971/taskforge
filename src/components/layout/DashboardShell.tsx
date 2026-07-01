@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import { PageTitleProvider } from "./PageTitleContext";
 import { Menu } from "lucide-react";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -37,6 +38,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }, [pathname, router]);
 
   return (
+    <PageTitleProvider>
     <div className="flex h-screen bg-stone-50 dark:bg-zinc-950 overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -86,5 +88,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
+    </PageTitleProvider>
   );
 }

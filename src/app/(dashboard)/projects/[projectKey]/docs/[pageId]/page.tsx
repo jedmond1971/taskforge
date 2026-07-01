@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
 import { DocPageEditor } from "@/components/docs/doc-page-editor";
 import { DocDocumentView } from "@/components/docs/doc-document-view";
+import { SetPageTitle } from "@/components/layout/PageTitleContext";
 import { canEditIssues } from "@/lib/permissions";
 import { ProjectMemberRole } from "@prisma/client";
 
@@ -66,11 +67,14 @@ export default async function DocPagePage({
 
   if (page.type === "DOCUMENT") {
     return (
-      <DocDocumentView
-        page={serializedPage}
-        projectKey={project.key.toLowerCase()}
-        readOnly={readOnly}
-      />
+      <>
+        <SetPageTitle title={page.title} />
+        <DocDocumentView
+          page={serializedPage}
+          projectKey={project.key.toLowerCase()}
+          readOnly={readOnly}
+        />
+      </>
     );
   }
 
@@ -80,12 +84,15 @@ export default async function DocPagePage({
   }));
 
   return (
-    <DocPageEditor
-      page={serializedPage}
-      initialRevisions={serializedRevisions}
-      projectKey={project.key.toLowerCase()}
-      projectName={project.name}
-      readOnly={readOnly}
-    />
+    <>
+      <SetPageTitle title={page.title} />
+      <DocPageEditor
+        page={serializedPage}
+        initialRevisions={serializedRevisions}
+        projectKey={project.key.toLowerCase()}
+        projectName={project.name}
+        readOnly={readOnly}
+      />
+    </>
   );
 }
