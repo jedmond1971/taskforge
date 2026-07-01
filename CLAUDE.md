@@ -44,6 +44,8 @@ Every project belongs to exactly one organization, and every user-to-project rel
 
 **There is no feature to move a project between organizations** — neither in the UI, admin actions, nor the v1 API. When a move is needed, do it via direct SQL in a single transaction: upsert `OrgMember` rows (MEMBER) in the target org for every `ProjectMember` of the moving project first, then update `Project.orgId` — otherwise invariants 2–5 break. `OrgMember.id` has no DB default (Prisma generates cuids); `gen_random_uuid()::text` works for manual inserts.
 
+**`ProjectMember` has no timestamp columns** — the table schema is `(id, "userId", "projectId", role)` only. Direct psql inserts must omit `createdAt`/`updatedAt`: `INSERT INTO "ProjectMember" (id, "userId", "projectId", role) VALUES (gen_random_uuid()::text, ..., 'TEAM_MEMBER') ON CONFLICT DO NOTHING`.
+
 **Non-goals (do not implement without a separate product decision):**
 Org switching UI, full invite system, billing changes, broad project membership role redesign, cascading project deletion on org delete.
 
@@ -199,8 +201,8 @@ See `.context-docs/data-integrity.md` for full details. Key facts:
 - **v1 API requires shared secret** — every request to `/api/v1/...` must include `X-Internal-Api-Key: <V1_API_KEY>`. The guard is in `src/lib/v1-auth.ts` (constant-time comparison). Set `V1_API_KEY` in Railway environment variables and in local `.env`. Never commit the actual value.
 - **Avatar GET requires authentication** — `GET /api/avatar` returns 401 without a valid session. The PUT handler was already protected; the GET was added in the same security pass.
 - **TipTap HTML is sanitized server-side** — all write paths that persist issue descriptions, comment bodies, and doc page content call `sanitizeTipTapHtml()` from `src/lib/sanitize-html.ts` (backed by `isomorphic-dompurify`) before the Prisma call. The viewer component (`rich-text-display.tsx`) does not sanitize — it relies on content already being clean in the database.
-- **Known gap M-1 — comment edit/delete lacks membership check** — `updateComment` and `deleteComment` in `src/app/(dashboard)/projects/[projectKey]/actions.ts` (lines ~778, ~800) check only `comment.authorId === session.user.id`. A user who was removed from the project can still edit or delete their own comments if they know the comment ID. Fix: add a `requireProjectMember` check before the author test.
-- **Known gap M-3 — attachment delete uploader path lacks membership check** — `DELETE /api/attachments/[id]/route.ts` allows deletion if `attachment.uploaderId === session.user.id` regardless of current project membership. A removed member who originally uploaded a file can still delete it. The `PROJECT_LEAD` path does check membership. Same structural fix as M-1.
+- **Comment edit/delete requires current membership** — `updateComment` and `deleteComment` in `src/app/(dashboard)/projects/[projectKey]/actions.ts` call `requireProjectMember(projectKey)` before the author check. A cross-project guard (`comment.issue.projectId !== projectId`) also returns "Comment not found" if the comment belongs to a different project than the key in the URL.
+- **Attachment delete requires current membership** — `DELETE /api/attachments/[id]/route.ts` gates both the uploader and `PROJECT_LEAD` paths on `!!member`, so a former member cannot delete their own uploaded files.
 
 ---
 
