@@ -96,10 +96,11 @@ model User {
   ownedOrgs      Organization[]  @relation("OwnedOrgs")
   orgMembers     OrgMember[]
   notifications  Notification[]
-  docPages       DocPage[]
-  pageRevisions  PageRevision[]
-  issueDocLinks  IssueDocLink[]
-  issueLinks     IssueLink[]
+  docPages           DocPage[]
+  pageRevisions      PageRevision[]
+  issueDocLinks      IssueDocLink[]
+  issueLinks         IssueLink[]
+  invitedOrgInvites  OrgInvite[]    @relation("InvitedBy")
 }
 
 model Project {
@@ -314,16 +315,19 @@ model OrgMember {
 }
 
 model OrgInvite {
-  id        String   @id @default(cuid())
-  orgId     String
-  email     String
-  token     String   @unique @default(cuid())
-  role      OrgRole  @default(MEMBER)
-  accepted  Boolean  @default(false)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  orgId       String
+  email       String
+  token       String    @unique @default(cuid())
+  role        OrgRole   @default(MEMBER)
+  accepted    Boolean   @default(false)
+  acceptedAt  DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  invitedById String
 
-  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invitedBy User         @relation("InvitedBy", fields: [invitedById], references: [id])
 
   @@unique([orgId, email])
   @@index([token])

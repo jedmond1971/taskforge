@@ -1,4 +1,4 @@
-import { ProjectMemberRole } from "@prisma/client";
+import { OrgRole, ProjectMemberRole } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -87,6 +87,43 @@ export async function requireProjectRole(
     orgId: project.orgId,
     role: membership.role,
   };
+}
+
+// ─── Org-level permissions ────────────────────────────────────────────────────
+
+export type OrgRoleType = OrgRole;
+
+/** OWNER + ADMIN can invite members to the org */
+export function canInviteOrgMembers(role: OrgRoleType): boolean {
+  return role === "OWNER" || role === "ADMIN";
+}
+
+/**
+ * Checks the current user's OrgMember role for a given orgId and validates
+ * it against `check`. Platform UserRole.ADMIN bypasses the membership
+ * requirement entirely (mirrors how requireAdmin() works elsewhere).
+ * Throws "Unauthorized" if not logged in, "Not an organization member" if
+ * no OrgMember row and not a platform admin, "Forbidden" if role check fails.
+ */
+export async function requireOrgRole(
+  orgId: string,
+  check: (role: OrgRoleType) => boolean
+): Promise<{ userId: string; orgId: string; role: OrgRoleType | "PLATFORM_ADMIN" }> {
+  const session = await auth();
+  if (!session?.user) throw new Error("Unauthorized");
+
+  if (session.user.role === "ADMIN") {
+    return { userId: session.user.id, orgId, role: "PLATFORM_ADMIN" };
+  }
+
+  const membership = await prisma.orgMember.findUnique({
+    where: { orgId_userId: { orgId, userId: session.user.id } },
+    select: { role: true },
+  });
+  if (!membership) throw new Error("Not an organization member");
+  if (!check(membership.role)) throw new Error("Forbidden");
+
+  return { userId: session.user.id, orgId, role: membership.role };
 }
 
 /**
