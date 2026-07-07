@@ -87,6 +87,19 @@ Claude Code cannot run `npm install` directly. To add packages:
 2. Ask Jamie to run `npm install` locally to update `package-lock.json`.
 3. Commit both files and push. Railway uses `npm ci` which requires the lockfile to be in sync.
 
+## Email sending (Resend + React Email)
+
+Email templates live in `src/emails/`. The send helper is `sendOrgInviteEmail()` in `src/lib/invites.ts`.
+
+**`react:` option in `resend.emails.send()` fails at runtime** ("render is not a function") even though TypeScript accepts it. Always render manually first and pass the result as `html:`:
+```ts
+import { render } from "@react-email/components";
+const html = await render(MyEmail({ ...props }));
+await resend.emails.send({ ..., html });
+```
+
+Sending domain `jedforge.com` is verified with Resend. From address: `invites@jedforge.com` (the specific mailbox does not need to exist).
+
 ## Subagent file-write limitation in worktrees
 
 Worktree agents (`isolation: "worktree"`) can read and run bash but cannot Edit/Write source files. Do all file editing in the main context after the subagent returns its findings.
