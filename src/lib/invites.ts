@@ -10,8 +10,6 @@ export function getInviteExpiryDate(from: Date = new Date()): Date {
   return d;
 }
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function sendOrgInviteEmail(params: {
   to: string;
   orgName: string;
@@ -19,6 +17,7 @@ export async function sendOrgInviteEmail(params: {
   token: string;
   expiresAt: Date;
 }): Promise<{ success: boolean; error?: string }> {
+  const resend = new Resend(process.env.RESEND_API_KEY);
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://www.jedforge.com";
   const acceptUrl = `${baseUrl}/invite/${params.token}`;
   try {
