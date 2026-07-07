@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { UserRole, OrgRole, Plan, ProjectMemberRole } from "@prisma/client";
 import { deleteObject } from "@/lib/s3";
+import { sendOrgInviteEmail, getInviteExpiryDate } from "@/lib/invites";
 
 async function requireAdmin() {
   const session = await auth();
@@ -359,4 +360,168 @@ export async function reopenProject(projectId: string) {
   await requireAdmin();
   await prisma.project.update({ where: { id: projectId }, data: { isClosed: false } });
   revalidatePath('/admin/projects');
+}
+
+// ─── Invite actions ───────────────────────────────────────────────────────────
+
+export async function getAdminInvites(search?: string, orgId?: string) {
+  await requireAdmin();
+
+  const now = new Date();
+  const invites = await prisma.orgInvite.findMany({
+    where: {
+      ...(orgId ? { orgId } : {}),
+      ...(search
+        ? {
+            OR: [
+              { email: { contains: search, mode: "insensitive" as const } },
+              { org: { name: { contains: search, mode: "insensitive" as const } } },
+            ],
+          }
+        : {}),
+    },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      accepted: true,
+      acceptedAt: true,
+      expiresAt: true,
+      createdAt: true,
+      org: { select: { id: true, name: true, slug: true } },
+      invitedBy: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return invites.map((invite) => ({
+    ...invite,
+    status: invite.accepted
+      ? ("ACCEPTED" as const)
+      : invite.expiresAt < now
+        ? ("EXPIRED" as const)
+        : ("PENDING" as const),
+  }));
+}
+
+export async function adminGetOrgsForSelect() {
+  await requireAdmin();
+  return prisma.organization.findMany({
+    select: { id: true, name: true, slug: true },
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function adminCreateInvite(orgId: string, email: string, role: OrgRole) {
+  const { userId } = await requireAdmin();
+
+  if (role === "OWNER") throw new Error("Cannot invite with OWNER role");
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("Invalid email address");
+  }
+
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    const isMember = await prisma.orgMember.findUnique({
+      where: { orgId_userId: { orgId, userId: existingUser.id } },
+    });
+    if (isMember) throw new Error("This person is already a member of this organization.");
+  }
+
+  const expiresAt = getInviteExpiryDate();
+
+  const invite = await prisma.orgInvite.upsert({
+    where: { orgId_email: { orgId, email } },
+    update: {
+      token: crypto.randomUUID(),
+      expiresAt,
+      invitedById: userId,
+      accepted: false,
+      acceptedAt: null,
+    },
+    create: {
+      orgId,
+      email,
+      role,
+      expiresAt,
+      invitedById: userId,
+    },
+    select: { token: true, expiresAt: true },
+  });
+
+  const [org, admin] = await Promise.all([
+    prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
+  ]);
+
+  const emailResult = await sendOrgInviteEmail({
+    to: email,
+    orgName: org!.name,
+    inviterName: admin!.name,
+    token: invite.token,
+    expiresAt: invite.expiresAt,
+  });
+
+  revalidatePath("/admin/invites");
+
+  if (!emailResult.success) {
+    return { success: true, emailError: emailResult.error };
+  }
+  return { success: true };
+}
+
+export async function adminResendInvite(inviteId: string) {
+  const { userId } = await requireAdmin();
+
+  const existing = await prisma.orgInvite.findUnique({
+    where: { id: inviteId },
+    select: { accepted: true, email: true, orgId: true },
+  });
+  if (!existing) throw new Error("Invite not found");
+  if (existing.accepted) throw new Error("Cannot resend an accepted invite");
+
+  const expiresAt = getInviteExpiryDate();
+  const invite = await prisma.orgInvite.update({
+    where: { id: inviteId },
+    data: { token: crypto.randomUUID(), expiresAt, invitedById: userId },
+    select: { token: true, expiresAt: true, email: true, orgId: true },
+  });
+
+  const [org, admin] = await Promise.all([
+    prisma.organization.findUnique({ where: { id: invite.orgId }, select: { name: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
+  ]);
+
+  const emailResult = await sendOrgInviteEmail({
+    to: invite.email,
+    orgName: org!.name,
+    inviterName: admin!.name,
+    token: invite.token,
+    expiresAt: invite.expiresAt,
+  });
+
+  revalidatePath("/admin/invites");
+
+  if (!emailResult.success) {
+    return { success: true, emailError: emailResult.error };
+  }
+  return { success: true };
+}
+
+export async function adminRevokeInvite(inviteId: string) {
+  await requireAdmin();
+
+  const existing = await prisma.orgInvite.findUnique({
+    where: { id: inviteId },
+    select: { accepted: true },
+  });
+  if (!existing) throw new Error("Invite not found");
+  if (existing.accepted) {
+    throw new Error("Cannot revoke an accepted invite — the member is already part of the org");
+  }
+
+  await prisma.orgInvite.delete({ where: { id: inviteId } });
+  revalidatePath("/admin/invites");
+  return { success: true };
 }

@@ -1,13 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { Users, FolderKanban, CircleDot, Building2 } from "lucide-react";
+import { Users, FolderKanban, CircleDot, Building2, Mail } from "lucide-react";
 
 export default async function AdminPage() {
-  const [userCount, projectCount, issueCount, orgCount] = await Promise.all([
+  const [userCount, projectCount, issueCount, orgCount, pendingInviteCount] = await Promise.all([
     prisma.user.count(),
     prisma.project.count(),
     prisma.issue.count(),
     prisma.organization.count(),
+    prisma.orgInvite.count({ where: { accepted: false, expiresAt: { gt: new Date() } } }),
   ]);
 
   const stats = [
@@ -15,6 +16,7 @@ export default async function AdminPage() {
     { label: "Organizations", value: orgCount, icon: Building2 },
     { label: "Total Projects", value: projectCount, icon: FolderKanban },
     { label: "Total Issues", value: issueCount, icon: CircleDot },
+    { label: "Pending Invites", value: pendingInviteCount, icon: Mail },
   ];
 
   const sections = [
@@ -38,6 +40,13 @@ export default async function AdminPage() {
       description: "View and manage all projects. Delete projects or review their status.",
       icon: FolderKanban,
       stat: `${projectCount} projects`,
+    },
+    {
+      href: "/admin/invites",
+      title: "Invite Management",
+      description: "Send and manage organization invites.",
+      icon: Mail,
+      stat: `${pendingInviteCount} pending`,
     },
   ];
 
@@ -65,7 +74,7 @@ export default async function AdminPage() {
       </div>
 
       {/* Navigation Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {sections.map((section) => {
           const Icon = section.icon;
           return (
