@@ -47,7 +47,7 @@ Every project belongs to exactly one organization, and every user-to-project rel
 **`ProjectMember` has no timestamp columns** — the table schema is `(id, "userId", "projectId", role)` only. Direct psql inserts must omit `createdAt`/`updatedAt`: `INSERT INTO "ProjectMember" (id, "userId", "projectId", role) VALUES (gen_random_uuid()::text, ..., 'TEAM_MEMBER') ON CONFLICT DO NOTHING`.
 
 **Non-goals (do not implement without a separate product decision):**
-Org switching UI, full invite system, billing changes, broad project membership role redesign, cascading project deletion on org delete.
+Org switching UI, billing changes, broad project membership role redesign, cascading project deletion on org delete.
 
 ---
 
@@ -123,7 +123,7 @@ Internal API for Claude Code to track work. Full docs in `CLAUDE_API.md`. **Crea
 
 - **Local:** `http://localhost:3000/api/v1` | **Production:** `https://taskforge-production-099b.up.railway.app/api/v1`
 - Auth: `X-Internal-Api-Key: <V1_API_KEY>` on every request. Never commit the key.
-- Post comments as Maximus: `authorId: "cmo365psl000vdrd0p63lirlz"`
+- Post comments as Maximus: `authorId: "cmo365psl000vdrd0p63lirlz"` — **production only**. Maximus does not exist in the local dev DB. For local v1 API calls that require an authorId, use Alice Chen (`cmo37pswr00007vd13y3cgzqz`).
 - `statusId` accepts a cuid, a human name (`"Done"`), or a category key (`"DONE"`) — all three forms work.
 - `IssueStatus` enum is gone — use `ProjectStatus` rows. `IssuePriority`: `CRITICAL | HIGH | MEDIUM | LOW`.
 - **Use Python `urllib` for API calls whose JSON body contains backticks** — bash interprets backticks in curl `-d` strings as command substitution, causing the call to fail silently with a 500. `python3 -c "..."` double-quoted strings have the **same problem** — bash still expands backticks inside `"`. Use `python3 -c '...'` (single-quoted outer string, no literal single quotes in data) or a heredoc Python script (`python3 << 'PYEOF' ... PYEOF`) instead.
