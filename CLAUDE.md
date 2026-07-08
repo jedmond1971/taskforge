@@ -93,6 +93,8 @@ Claude Code cannot run `npm install` directly. To add packages:
 
 Email templates live in `src/emails/`. The send helper is `sendOrgInviteEmail()` in `src/lib/invites.ts`.
 
+**Resend client must be instantiated lazily** — `new Resend(process.env.RESEND_API_KEY)` at module level throws during Next.js static page data collection in CI (where the env var is absent), crashing the build. Always instantiate inside the function that uses it, not at module top level.
+
 **`react:` option in `resend.emails.send()` fails at runtime** ("render is not a function") even though TypeScript accepts it. Always render manually first and pass the result as `html:`:
 ```ts
 import { render } from "@react-email/components";
@@ -143,6 +145,7 @@ Internal API for Claude Code to track work. Full docs in `CLAUDE_API.md`. **Crea
 - `IssueStatus` enum is gone — use `ProjectStatus` rows. `IssuePriority`: `CRITICAL | HIGH | MEDIUM | LOW`.
 - **Use Python `urllib` for API calls whose JSON body contains backticks** — bash interprets backticks in curl `-d` strings as command substitution, causing the call to fail silently with a 500. `python3 -c "..."` double-quoted strings have the **same problem** — bash still expands backticks inside `"`. Use `python3 -c '...'` (single-quoted outer string, no literal single quotes in data) or a heredoc Python script (`python3 << 'PYEOF' ... PYEOF`) instead.
 - **Issue creation is `POST /api/v1/issues` with `projectId` in the body** — there is no `/api/v1/projects/[key]/issues` route; using it returns 404. `projectId` must be the cuid, not the project key. Get the cuid from `GET /api/v1/projects` if you only know the key.
+- **`GET` and `PATCH /api/v1/issues/[id]` accept the issue key** (e.g. `JFR-88`) as well as the cuid. Using a cuid for PATCH returns 404 — always use the key form (e.g. `JFR-88`) for single-issue operations.
 
 ---
 
