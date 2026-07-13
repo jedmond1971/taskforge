@@ -49,8 +49,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
         token.orgId = membership?.orgId;
       }
-      if (trigger === "update" && (session as { image?: string })?.image) {
-        token.picture = (session as { image?: string }).image;
+      if (trigger === "update") {
+        if ((session as { image?: string })?.image) {
+          token.picture = (session as { image?: string }).image;
+        }
+        const membership = await prisma.orgMember.findFirst({
+          where: { userId: token.id as string },
+          select: { orgId: true },
+        });
+        if (membership) token.orgId = membership.orgId;
       }
       return token;
     },

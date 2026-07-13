@@ -21,6 +21,11 @@ export default auth((req) => {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
+  const isInviteRoute = nextUrl.pathname.startsWith("/invite/");
+  if (isInviteRoute) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
   if (!isLoggedIn) {
     const loginUrl = new URL("/login", nextUrl);
     loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);

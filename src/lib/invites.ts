@@ -1,6 +1,25 @@
 import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { OrgInviteEmail } from "@/emails/OrgInviteEmail";
+import { prisma } from "@/lib/prisma";
+import { OrgRole } from "@prisma/client";
+
+export type InviteLookupResult =
+  | { status: "NOT_FOUND" }
+  | { status: "EXPIRED"; orgName: string }
+  | { status: "ALREADY_ACCEPTED"; orgName: string }
+  | { status: "VALID"; orgId: string; orgName: string; email: string; role: OrgRole; token: string };
+
+export async function getInviteWithStatus(token: string): Promise<InviteLookupResult> {
+  const invite = await prisma.orgInvite.findUnique({
+    where: { token },
+    include: { org: { select: { id: true, name: true } } },
+  });
+  if (!invite) return { status: "NOT_FOUND" };
+  if (invite.accepted) return { status: "ALREADY_ACCEPTED", orgName: invite.org.name };
+  if (invite.expiresAt < new Date()) return { status: "EXPIRED", orgName: invite.org.name };
+  return { status: "VALID", orgId: invite.org.id, orgName: invite.org.name, email: invite.email, role: invite.role, token: invite.token };
+}
 
 export const INVITE_EXPIRY_DAYS = 14;
 
