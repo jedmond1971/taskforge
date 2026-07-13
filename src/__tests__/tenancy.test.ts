@@ -56,6 +56,9 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
       findMany: vi.fn().mockResolvedValue([]),
       deleteMany: vi.fn().mockResolvedValue({}),
     },
+    adminAuditLog: {
+      create: vi.fn().mockResolvedValue({}),
+    },
     $executeRaw: vi.fn().mockResolvedValue(0),
     $transaction: vi.fn(),
   };
