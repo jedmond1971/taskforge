@@ -180,9 +180,18 @@ export async function updateIssue(
     updates.description = sanitizeTipTapHtml(updates.description);
   }
 
+  // Changing statusId without updating position would violate the unique constraint
+  // (projectId, statusId, position). Append to the end of the destination column.
+  let newPosition: number | undefined;
+  if ("statusId" in updates && updates.statusId !== undefined && updates.statusId !== existing.statusId) {
+    newPosition = await prisma.issue.count({
+      where: { projectId, statusId: updates.statusId, id: { not: issueId } },
+    });
+  }
+
   const issue = await prisma.issue.update({
     where: { id: issueId },
-    data: updates,
+    data: { ...updates, ...(newPosition !== undefined ? { position: newPosition } : {}) },
     include: { projectStatus: { select: { id: true, name: true, category: true } } },
   });
 
@@ -274,10 +283,16 @@ export async function bulkUpdateIssues(
   });
   if (!status) throw new Error("Invalid status");
 
-  await prisma.issue.updateMany({
-    where: { id: { in: issueIds }, projectId },
-    data: { statusId },
+  // Assign sequential positions starting after existing issues in the destination
+  // column to satisfy the unique (projectId, statusId, position) constraint.
+  const basePosition = await prisma.issue.count({
+    where: { projectId, statusId, id: { notIn: issueIds } },
   });
+  await prisma.$transaction(
+    issueIds.map((id, i) =>
+      prisma.issue.update({ where: { id }, data: { statusId, position: basePosition + i } })
+    )
+  );
 
   await prisma.activityLog.createMany({
     data: issueIds.map((issueId) => ({
