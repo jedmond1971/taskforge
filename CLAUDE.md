@@ -208,6 +208,12 @@ Spec: `.context-docs/JedForge-FunctionalSpec-v2.0.docx` — regenerate with `nod
 
 ---
 
+## Testing
+
+- **`src/__tests__/tenancy.test.ts` has a hand-written Prisma mock** — the `mockPrisma` object in the `vi.hoisted()` block lists every Prisma model and method explicitly. When you add a new model that's called from any admin action (or any code covered by that test file), you must add it to the mock or tests fail with `TypeError: Cannot read properties of undefined (reading 'create')`. Add the model with whatever methods it uses, e.g. `adminAuditLog: { create: vi.fn().mockResolvedValue({}) }`. The other test files (`permissions.test.ts`, `docs.test.ts`, etc.) have their own separate mocks — check each one if your new code is exercised by multiple test files.
+
+---
+
 ## Data integrity invariants
 
 See `.context-docs/data-integrity.md` for full details. Key facts:
