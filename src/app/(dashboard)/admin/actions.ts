@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import { UserRole, OrgRole, Plan, ProjectMemberRole } from "@prisma/client";
 import { deleteObject } from "@/lib/s3";
 import { sendOrgInviteEmail, getInviteExpiryDate } from "@/lib/invites";
+import { logAdminAction } from "@/lib/audit-log";
 
 async function requireAdmin() {
   const session = await auth();
@@ -50,7 +51,7 @@ export async function adminCreateUser(data: {
   password: string;
   role: UserRole;
 }) {
-  await requireAdmin();
+  const { userId: actorId } = await requireAdmin();
 
   const existing = await prisma.user.findUnique({ where: { email: data.email } });
   if (existing) throw new Error("Email already in use");
@@ -59,6 +60,14 @@ export async function adminCreateUser(data: {
   const user = await prisma.user.create({
     data: { name: data.name, email: data.email, passwordHash, role: data.role },
     select: { id: true, name: true, email: true, role: true },
+  });
+
+  await logAdminAction({
+    actorId,
+    action: "USER_CREATED",
+    targetType: "User",
+    targetId: user.id,
+    targetLabel: user.email,
   });
 
   revalidatePath("/admin/users");
@@ -70,7 +79,7 @@ export async function adminUpdateUser(
   userId: string,
   updates: { name?: string; email?: string; role?: UserRole }
 ) {
-  await requireAdmin();
+  const { userId: actorId } = await requireAdmin();
 
   if (updates.email) {
     const existing = await prisma.user.findFirst({
@@ -79,11 +88,34 @@ export async function adminUpdateUser(
     if (existing) throw new Error("Email already in use");
   }
 
+  const before = updates.role
+    ? await prisma.user.findUnique({ where: { id: userId }, select: { role: true, email: true } })
+    : await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+
   const user = await prisma.user.update({
     where: { id: userId },
     data: updates,
     select: { id: true, name: true, email: true, role: true },
   });
+
+  if (updates.role && before && "role" in before) {
+    await logAdminAction({
+      actorId,
+      action: "ROLE_CHANGED",
+      targetType: "User",
+      targetId: user.id,
+      targetLabel: user.email,
+      metadata: { from: before.role, to: updates.role },
+    });
+  } else if (updates.name || updates.email) {
+    await logAdminAction({
+      actorId,
+      action: "USER_UPDATED",
+      targetType: "User",
+      targetId: user.id,
+      targetLabel: user.email,
+    });
+  }
 
   revalidatePath("/admin/users");
   return user;
@@ -91,12 +123,22 @@ export async function adminUpdateUser(
 
 // Reset any user's password (admin override — no current password required)
 export async function adminResetUserPassword(userId: string, newPassword: string) {
-  await requireAdmin();
+  const { userId: actorId } = await requireAdmin();
 
   if (newPassword.length < 8) throw new Error("Password must be at least 8 characters");
 
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+  await logAdminAction({
+    actorId,
+    action: "PASSWORD_RESET",
+    targetType: "User",
+    targetId: userId,
+    targetLabel: target?.email ?? userId,
+  });
 
   revalidatePath("/admin/users");
   return { success: true };
@@ -109,7 +151,7 @@ export async function adminAddUserToProject(
   projectId: string,
   role: ProjectMemberRole
 ) {
-  await requireAdmin();
+  const { userId: actorId } = await requireAdmin();
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -122,6 +164,8 @@ export async function adminAddUserToProject(
   });
   if (existing) throw new Error("User is already a member of this project");
 
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+
   await prisma.orgMember.upsert({
     where: { orgId_userId: { orgId: project.orgId, userId } },
     create: { orgId: project.orgId, userId, role: "MEMBER" },
@@ -129,6 +173,15 @@ export async function adminAddUserToProject(
   });
 
   await prisma.projectMember.create({ data: { userId, projectId, role } });
+
+  await logAdminAction({
+    actorId,
+    action: "USER_ADDED_TO_PROJECT",
+    targetType: "User",
+    targetId: userId,
+    targetLabel: target?.email ?? userId,
+    metadata: { projectId, role },
+  });
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/projects");
@@ -146,12 +199,23 @@ export async function adminGetProjectsForSelect() {
 
 // Delete user
 export async function adminDeleteUser(userId: string) {
-  await requireAdmin();
+  const { userId: actorId } = await requireAdmin();
   // Prevent deleting yourself
   const session = await auth();
   if (userId === session?.user?.id) throw new Error("Cannot delete your own account");
 
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+
   await prisma.user.delete({ where: { id: userId } });
+
+  await logAdminAction({
+    actorId,
+    action: "USER_DELETED",
+    targetType: "User",
+    targetId: userId,
+    targetLabel: target?.email ?? userId,
+  });
+
   revalidatePath("/admin/users");
   return { success: true };
 }
@@ -233,7 +297,7 @@ export async function adminCreateOrg(data: {
   plan: Plan;
   ownerId: string;
 }) {
-  await requireAdmin();
+  const { userId: actorId } = await requireAdmin();
 
   const existing = await prisma.organization.findUnique({ where: { slug: data.slug } });
   if (existing) throw new Error("Slug already in use");
@@ -249,27 +313,47 @@ export async function adminCreateOrg(data: {
     select: { id: true, name: true, slug: true },
   });
 
+  await logAdminAction({
+    actorId,
+    action: "ORG_CREATED",
+    targetType: "Organization",
+    targetId: org.id,
+    targetLabel: org.name,
+  });
+
   revalidatePath("/admin/orgs");
   return org;
 }
 
 export async function adminAddOrgMember(orgId: string, userId: string, role: OrgRole) {
-  await requireAdmin();
+  const { userId: actorId } = await requireAdmin();
 
   const existing = await prisma.orgMember.findUnique({
     where: { orgId_userId: { orgId, userId } },
   });
   if (existing) throw new Error("User is already a member of this org");
 
+  const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } });
+
   await prisma.orgMember.create({ data: { orgId, userId, role } });
+
+  await logAdminAction({
+    actorId,
+    action: "ORG_MEMBER_ADDED",
+    targetType: "Organization",
+    targetId: orgId,
+    targetLabel: org?.name ?? orgId,
+    metadata: { addedUserId: userId, role },
+  });
+
   revalidatePath("/admin/orgs");
   return { success: true };
 }
 
 export async function adminRemoveOrgMember(orgId: string, userId: string) {
-  await requireAdmin();
+  const { userId: actorId } = await requireAdmin();
 
-  const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { ownerId: true } });
+  const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { ownerId: true, name: true } });
   if (org?.ownerId === userId) throw new Error("Cannot remove the org owner");
 
   const projectCount = await prisma.projectMember.count({
@@ -282,12 +366,22 @@ export async function adminRemoveOrgMember(orgId: string, userId: string) {
   }
 
   await prisma.orgMember.delete({ where: { orgId_userId: { orgId, userId } } });
+
+  await logAdminAction({
+    actorId,
+    action: "ORG_MEMBER_REMOVED",
+    targetType: "Organization",
+    targetId: orgId,
+    targetLabel: org?.name ?? orgId,
+    metadata: { removedUserId: userId },
+  });
+
   revalidatePath("/admin/orgs");
   return { success: true };
 }
 
 export async function adminDeleteOrg(orgId: string) {
-  await requireAdmin();
+  const { userId: actorId } = await requireAdmin();
 
   const org = await prisma.organization.findUnique({
     where: { id: orgId },
@@ -302,6 +396,15 @@ export async function adminDeleteOrg(orgId: string) {
   }
 
   await prisma.organization.delete({ where: { id: orgId } });
+
+  await logAdminAction({
+    actorId,
+    action: "ORG_DELETED",
+    targetType: "Organization",
+    targetId: orgId,
+    targetLabel: org.name,
+  });
+
   revalidatePath("/admin/orgs");
   return { success: true };
 }
@@ -310,7 +413,7 @@ export async function adminDeleteOrg(orgId: string) {
 
 // Delete project (admin override - no ownership check needed)
 export async function adminDeleteProject(projectId: string) {
-  await requireAdmin();
+  const { userId: actorId } = await requireAdmin();
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { key: true },
@@ -344,6 +447,15 @@ export async function adminDeleteProject(projectId: string) {
   }
 
   await prisma.project.delete({ where: { id: projectId } });
+
+  await logAdminAction({
+    actorId,
+    action: "PROJECT_DELETED",
+    targetType: "Project",
+    targetId: projectId,
+    targetLabel: project.key,
+  });
+
   revalidatePath("/admin/projects");
   return { success: true };
 }
@@ -351,14 +463,30 @@ export async function adminDeleteProject(projectId: string) {
 // ─── Close / Reopen project ──────────────────────────────────────────────────
 
 export async function closeProject(projectId: string) {
-  await requireAdmin();
+  const { userId: actorId } = await requireAdmin();
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { key: true } });
   await prisma.project.update({ where: { id: projectId }, data: { isClosed: true } });
+  await logAdminAction({
+    actorId,
+    action: "PROJECT_CLOSED",
+    targetType: "Project",
+    targetId: projectId,
+    targetLabel: project?.key ?? projectId,
+  });
   revalidatePath('/admin/projects');
 }
 
 export async function reopenProject(projectId: string) {
-  await requireAdmin();
+  const { userId: actorId } = await requireAdmin();
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { key: true } });
   await prisma.project.update({ where: { id: projectId }, data: { isClosed: false } });
+  await logAdminAction({
+    actorId,
+    action: "PROJECT_REOPENED",
+    targetType: "Project",
+    targetId: projectId,
+    targetLabel: project?.key ?? projectId,
+  });
   revalidatePath('/admin/projects');
 }
 
@@ -463,6 +591,13 @@ export async function adminCreateInvite(orgId: string, email: string, role: OrgR
     expiresAt: invite.expiresAt,
   });
 
+  await logAdminAction({
+    actorId: userId,
+    action: "INVITE_CREATED",
+    targetType: "OrgInvite",
+    targetLabel: email,
+  });
+
   revalidatePath("/admin/invites");
 
   if (!emailResult.success) {
@@ -501,6 +636,14 @@ export async function adminResendInvite(inviteId: string) {
     expiresAt: invite.expiresAt,
   });
 
+  await logAdminAction({
+    actorId: userId,
+    action: "INVITE_RESENT",
+    targetType: "OrgInvite",
+    targetId: inviteId,
+    targetLabel: invite.email,
+  });
+
   revalidatePath("/admin/invites");
 
   if (!emailResult.success) {
@@ -510,11 +653,11 @@ export async function adminResendInvite(inviteId: string) {
 }
 
 export async function adminRevokeInvite(inviteId: string) {
-  await requireAdmin();
+  const { userId: actorId } = await requireAdmin();
 
   const existing = await prisma.orgInvite.findUnique({
     where: { id: inviteId },
-    select: { accepted: true },
+    select: { accepted: true, email: true },
   });
   if (!existing) throw new Error("Invite not found");
   if (existing.accepted) {
@@ -522,6 +665,37 @@ export async function adminRevokeInvite(inviteId: string) {
   }
 
   await prisma.orgInvite.delete({ where: { id: inviteId } });
+
+  await logAdminAction({
+    actorId,
+    action: "INVITE_REVOKED",
+    targetType: "OrgInvite",
+    targetId: inviteId,
+    targetLabel: existing.email,
+  });
+
   revalidatePath("/admin/invites");
   return { success: true };
+}
+
+// ─── Audit log ────────────────────────────────────────────────────────────────
+
+export async function getAdminAuditLog(search?: string) {
+  await requireAdmin();
+  const where = search
+    ? {
+        OR: [
+          { actorName: { contains: search, mode: "insensitive" as const } },
+          { actorEmail: { contains: search, mode: "insensitive" as const } },
+          { targetLabel: { contains: search, mode: "insensitive" as const } },
+          { action: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+
+  return prisma.adminAuditLog.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
 }

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { Users, FolderKanban, CircleDot, Building2, Mail } from "lucide-react";
+import { Users, FolderKanban, CircleDot, Building2, Mail, ScrollText } from "lucide-react";
 
 export default async function AdminPage() {
   const [userCount, projectCount, issueCount, orgCount, pendingInviteCount] = await Promise.all([
@@ -48,6 +48,13 @@ export default async function AdminPage() {
       icon: Mail,
       stat: `${pendingInviteCount} pending`,
     },
+    {
+      href: "/admin/audit-log",
+      title: "Audit Log",
+      description: "Permanent record of all admin actions — user, org, project, and invite changes.",
+      icon: ScrollText,
+      stat: "Admin writes only",
+    },
   ];
 
   return (
@@ -74,7 +81,7 @@ export default async function AdminPage() {
       </div>
 
       {/* Navigation Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {sections.map((section) => {
           const Icon = section.icon;
           return (

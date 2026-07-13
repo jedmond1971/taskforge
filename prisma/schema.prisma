@@ -101,6 +101,7 @@ model User {
   issueDocLinks      IssueDocLink[]
   issueLinks         IssueLink[]
   invitedOrgInvites  OrgInvite[]    @relation("InvitedBy")
+  adminAuditLogs     AdminAuditLog[]
 }
 
 model Project {
@@ -467,4 +468,24 @@ model IssueLink {
   @@unique([sourceIssueId, targetIssueId, linkType])
   @@index([sourceIssueId])
   @@index([targetIssueId])
+}
+
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actorName   String
+  actorEmail  String
+  action      String
+  targetType  String
+  targetId    String?
+  targetLabel String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt])
 }
