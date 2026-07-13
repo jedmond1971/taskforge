@@ -196,6 +196,10 @@ Spec: `.context-docs/JedForge-FunctionalSpec-v2.0.docx` — regenerate with `nod
 
 - **Dynamic breadcrumb titles — `PageTitleContext`** — `Header.tsx` builds breadcrumbs from URL segments using `segmentLabel()`, which cannot resolve database values (e.g. a doc page cuid becomes a garbled crumb). The fix is `src/components/layout/PageTitleContext.tsx`: render `<SetPageTitle title={someTitle} />` (a null-rendering client component) from any server page component, and `Header` will replace the last breadcrumb label with that title. The context resets to `null` on every pathname change, so stale titles never bleed across navigation. `DashboardShell` wraps the whole layout in `PageTitleProvider` — no additional provider setup is needed. Use this pattern on any page whose last URL segment is a cuid or other opaque ID.
 
+- **Middleware invite-route exemption** — `/invite/[token]` routes must be accessible regardless of auth state (unauthenticated users can create accounts via them; logged-in users need to reach them too). In `src/middleware.ts`, add `const isInviteRoute = nextUrl.pathname.startsWith("/invite/")` and return `NextResponse.next()` immediately after the `isAuthRoute` block, before the `if (!isLoggedIn)` redirect. Unlike `/login` and `/register`, invite routes do NOT redirect logged-in users away.
+
+- **JWT callback `orgId` refresh on `session.update()`** — The jwt callback only sets `token.orgId` when the `user` param is present (i.e., initial sign-in). If an existing logged-in user joins a new org and you call `update({})` to refresh the session, the old `orgId` will remain unless the `trigger === "update"` branch also re-queries `prisma.orgMember.findFirst`. The fix (in `src/lib/auth.ts`): inside the `trigger === "update"` block, always re-fetch the membership and update `token.orgId`. This is what lets the existing-user invite accept path pick up the new org without a logout/login cycle.
+
 ---
 
 ## Server action pitfalls
