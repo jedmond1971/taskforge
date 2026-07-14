@@ -339,12 +339,11 @@ describe("adminRemoveOrgMember", () => {
     mockPrisma.organization.findUnique.mockResolvedValue({ ownerId: "other-user" });
   });
 
-  it("throws when the user still belongs to projects in the org", async () => {
+  it("returns error when the user still belongs to projects in the org", async () => {
     mockPrisma.projectMember.count.mockResolvedValue(2);
 
-    await expect(adminRemoveOrgMember("org-1", "user-2")).rejects.toThrow(
-      "still belong to 2 project(s)"
-    );
+    const result = await adminRemoveOrgMember("org-1", "user-2");
+    expect(result).toEqual({ success: false, error: expect.stringContaining("still belong to 2 project(s)") });
     expect(mockPrisma.orgMember.delete).not.toHaveBeenCalled();
   });
 
@@ -359,10 +358,11 @@ describe("adminRemoveOrgMember", () => {
     });
   });
 
-  it("throws when trying to remove the org owner", async () => {
+  it("returns error when trying to remove the org owner", async () => {
     mockPrisma.organization.findUnique.mockResolvedValue({ ownerId: "user-2" });
 
-    await expect(adminRemoveOrgMember("org-1", "user-2")).rejects.toThrow("Cannot remove the org owner");
+    const result = await adminRemoveOrgMember("org-1", "user-2");
+    expect(result).toEqual({ success: false, error: "Cannot remove the org owner" });
     expect(mockPrisma.projectMember.count).not.toHaveBeenCalled();
   });
 });
@@ -465,13 +465,14 @@ describe("adminDeleteOrg", () => {
     mockAuthFn.mockResolvedValue({ user: { id: "admin-1", role: "ADMIN" } });
   });
 
-  it("throws when the org has projects", async () => {
+  it("returns error when the org has projects", async () => {
     mockPrisma.organization.findUnique.mockResolvedValue({
       name: "Acme Corp",
       _count: { projects: 3 },
     });
 
-    await expect(adminDeleteOrg("org-1")).rejects.toThrow("still has 3 project(s)");
+    const result = await adminDeleteOrg("org-1");
+    expect(result).toEqual({ success: false, error: expect.stringContaining("still has 3 project(s)") });
     expect(mockPrisma.organization.delete).not.toHaveBeenCalled();
   });
 
