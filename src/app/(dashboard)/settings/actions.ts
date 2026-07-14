@@ -4,34 +4,38 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+type ActionResult = { success: true } | { success: false; error: string };
+
 export async function changePassword(
   currentPassword: string,
   newPassword: string
-): Promise<{ success: true }> {
+): Promise<ActionResult> {
   const session = await auth();
-  if (!session?.user) throw new Error("Unauthorized");
+  if (!session?.user) return { success: false, error: "Unauthorized" };
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { passwordHash: true },
   });
 
-  if (!user) throw new Error("User not found");
+  if (!user) return { success: false, error: "User not found" };
 
   const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
-  if (!isValid) throw new Error("Current password is incorrect");
+  if (!isValid) return { success: false, error: "Current password is incorrect" };
 
   if (newPassword.length < 8)
-    throw new Error("New password must be at least 8 characters");
+    return { success: false, error: "New password must be at least 8 characters" };
 
   if (newPassword === currentPassword)
-    throw new Error("New password must be different from your current password");
+    return { success: false, error: "New password must be different from your current password" };
 
   await prisma.user.update({
     where: { id: session.user.id },
-    data: { passwordHash: await bcrypt.hash(newPassword, 12) },
+    data: {
+      passwordHash: await bcrypt.hash(newPassword, 12),
+      sessionVersion: { increment: 1 },
+    },
   });
 
   return { success: true };
 }
-

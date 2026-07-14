@@ -34,6 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           role: user.role,
           image: user.avatarUrl,
+          sessionVersion: user.sessionVersion,
         };
       },
     }),
@@ -43,12 +44,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
+        token.sessionVersion = (user as { sessionVersion?: number }).sessionVersion;
         const membership = await prisma.orgMember.findFirst({
           where: { userId: user.id! },
           select: { orgId: true },
         });
         token.orgId = membership?.orgId;
       }
+
       if (trigger === "update") {
         if ((session as { image?: string })?.image) {
           token.picture = (session as { image?: string }).image;
@@ -59,6 +62,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
         if (membership) token.orgId = membership.orgId;
       }
+
+      // Check sessionVersion on every invocation where a session exists.
+      // This is the core invalidation mechanism: if the DB version has advanced
+      // past the token's version, the token is dead until the user signs in again.
+      if (token.id) {
+        const fresh = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { sessionVersion: true },
+        });
+
+        if (!fresh || fresh.sessionVersion !== token.sessionVersion) {
+          token.invalidated = true;
+          // Leave token.sessionVersion stale so the mismatch persists.
+        } else {
+          token.invalidated = false;
+        }
+
+        // On a deliberate session.update() call (e.g. after self-service password
+        // change) re-arm this token with the current DB version so it stays valid.
+        if (trigger === "update" && fresh) {
+          token.sessionVersion = fresh.sessionVersion;
+          token.invalidated = false;
+        }
+      } else {
+        token.invalidated = false;
+      }
+
       return token;
     },
     session({ session, token }) {
@@ -67,6 +97,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as string;
         session.user.orgId = token.orgId as string;
         if (token.picture) session.user.image = token.picture as string;
+        if (token.invalidated) {
+          (session as { invalidated?: boolean }).invalidated = true;
+        }
       }
       return session;
     },
@@ -76,6 +109,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 export async function getCurrentUser() {
   const session = await auth();
   if (!session?.user) return null;
+  if ((session as { invalidated?: boolean }).invalidated) return null;
   return session.user;
 }
 

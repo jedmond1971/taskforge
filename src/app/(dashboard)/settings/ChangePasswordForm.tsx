@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { changePassword } from "./actions";
@@ -12,6 +13,7 @@ export function ChangePasswordForm() {
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const { update } = useSession();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,16 +25,18 @@ export function ChangePasswordForm() {
     }
 
     startTransition(async () => {
-      try {
-        await changePassword(current, next);
-        toast.success("Password changed successfully");
-        setCurrent("");
-        setNext("");
-        setConfirm("");
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Something went wrong";
-        setError(msg);
+      const result = await changePassword(current, next);
+      if (!result.success) {
+        setError(result.error);
+        return;
       }
+      // Re-arm this session so it stays logged in while other sessions are
+      // invalidated. The jwt callback re-syncs sessionVersion on trigger === "update".
+      await update({});
+      toast.success("Password changed successfully");
+      setCurrent("");
+      setNext("");
+      setConfirm("");
     });
   }
 

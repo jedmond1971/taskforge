@@ -15,5 +15,7 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: string;
     orgId?: string;
+    sessionVersion?: number;
+    invalidated?: boolean;
   }
 }

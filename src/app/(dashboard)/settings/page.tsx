@@ -31,7 +31,7 @@ export default async function SettingsPage() {
         <div>
           <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Change password</h2>
           <p className="text-sm text-zinc-500 mt-0.5">
-            You&apos;ll be prompted to sign in again after your next session expires.
+            Other active sessions (other browsers or devices) will be signed out immediately. This session stays active.
           </p>
         </div>
         <ChangePasswordForm />

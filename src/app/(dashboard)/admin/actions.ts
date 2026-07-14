@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
@@ -16,11 +16,11 @@ type ActionResult = { success: true } | { success: false; error: string };
 type InviteResult = { success: true; emailError?: string } | { success: false; error: string };
 
 async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "ADMIN") {
     throw new Error("Forbidden: Admin access required");
   }
-  return { userId: session.user.id };
+  return { userId: user.id };
 }
 
 // Get all users with project count
@@ -98,9 +98,13 @@ export async function adminUpdateUser(
     ? await prisma.user.findUnique({ where: { id: userId }, select: { role: true, email: true } })
     : await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
 
+  const data = updates.role && before && "role" in before && updates.role !== before.role
+    ? { ...updates, sessionVersion: { increment: 1 } }
+    : updates;
+
   const user = await prisma.user.update({
     where: { id: userId },
-    data: updates,
+    data,
     select: { id: true, name: true, email: true, role: true },
   });
 
@@ -140,7 +144,10 @@ export async function adminResetUserPassword(
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
-  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash, sessionVersion: { increment: 1 } },
+  });
 
   await logAdminAction({
     actorId,
@@ -211,8 +218,7 @@ export async function adminGetProjectsForSelect() {
 export async function adminDeleteUser(userId: string): Promise<ActionResult> {
   const { userId: actorId } = await requireAdmin();
 
-  const session = await auth();
-  if (userId === session?.user?.id)
+  if (userId === actorId)
     return { success: false, error: "Cannot delete your own account" };
 
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });

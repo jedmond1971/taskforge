@@ -82,9 +82,10 @@ model User {
   email        String   @unique
   passwordHash String
   avatarUrl    String?
-  role         UserRole @default(TEAM_MEMBER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role           UserRole @default(TEAM_MEMBER)
+  sessionVersion Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   projectMembers ProjectMember[]
   assignedIssues Issue[]         @relation("AssignedIssues")
