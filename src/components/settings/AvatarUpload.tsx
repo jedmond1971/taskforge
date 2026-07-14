@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Camera, Loader2 } from "lucide-react";
@@ -48,6 +49,7 @@ function resizeToJpeg(file: File): Promise<Blob> {
 }
 
 export function AvatarUpload({ currentImage, userName }: AvatarUploadProps) {
+  const router = useRouter();
   const { update } = useSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -77,6 +79,7 @@ export function AvatarUpload({ currentImage, userName }: AvatarUploadProps) {
 
       setPreviewUrl(avatarUrl + "&t=" + Date.now());
       await update({ image: avatarUrl });
+      router.refresh();
       toast.success("Avatar updated");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
