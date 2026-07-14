@@ -206,6 +206,36 @@ export async function adminDeleteUser(userId: string) {
 
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
 
+  // Pre-flight: check ON DELETE RESTRICT relations before attempting the delete
+  const [orgs, reportedIssues, attachments, docPages, pageRevisions, issueDocLinks, issueLinks, orgInvites] =
+    await Promise.all([
+      prisma.organization.count({ where: { ownerId: userId } }),
+      prisma.issue.count({ where: { reporterId: userId } }),
+      prisma.attachment.count({ where: { uploaderId: userId } }),
+      prisma.docPage.count({ where: { authorId: userId } }),
+      prisma.pageRevision.count({ where: { authorId: userId } }),
+      prisma.issueDocLink.count({ where: { createdById: userId } }),
+      prisma.issueLink.count({ where: { createdById: userId } }),
+      prisma.orgInvite.count({ where: { invitedById: userId } }),
+    ]);
+
+  const blockers: string[] = [];
+  if (orgs > 0) blockers.push(`${orgs} ${orgs === 1 ? "organization" : "organizations"}`);
+  if (reportedIssues > 0) blockers.push(`reporter on ${reportedIssues} ${reportedIssues === 1 ? "issue" : "issues"}`);
+  if (attachments > 0) blockers.push(`${attachments} uploaded ${attachments === 1 ? "attachment" : "attachments"}`);
+  if (docPages > 0) blockers.push(`${docPages} doc ${docPages === 1 ? "page" : "pages"}`);
+  if (pageRevisions > 0) blockers.push(`${pageRevisions} doc page ${pageRevisions === 1 ? "revision" : "revisions"}`);
+  if (issueDocLinks > 0) blockers.push(`${issueDocLinks} issue-doc ${issueDocLinks === 1 ? "link" : "links"}`);
+  if (issueLinks > 0) blockers.push(`${issueLinks} issue ${issueLinks === 1 ? "link" : "links"}`);
+  if (orgInvites > 0) blockers.push(`${orgInvites} pending org ${orgInvites === 1 ? "invite" : "invites"}`);
+
+  if (blockers.length > 0) {
+    const list = blockers.length === 1
+      ? blockers[0]
+      : blockers.slice(0, -1).join(", ") + ", and " + blockers[blockers.length - 1];
+    throw new Error(`Can't delete this user — they own or are linked to ${list}. Reassign or resolve these first.`);
+  }
+
   await prisma.user.delete({ where: { id: userId } });
 
   await logAdminAction({
