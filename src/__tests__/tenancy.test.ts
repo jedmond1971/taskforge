@@ -67,7 +67,13 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
 });
 
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
-vi.mock("@/lib/auth", () => ({ auth: mockAuthFn }));
+vi.mock("@/lib/auth", () => ({
+  auth: mockAuthFn,
+  getCurrentUser: async () => {
+    const session = await mockAuthFn();
+    return session?.user ?? null;
+  },
+}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("bcryptjs", () => ({
