@@ -115,6 +115,7 @@ export function AdminInvitesClient({
     setCreating(true);
     try {
       const result = await adminCreateInvite(createOrgId, createEmail, createRole);
+      if (!result.success) { toast.error(result.error); return; }
       if (result.emailError) {
         toast.success("Invite created, but email failed to send: " + result.emailError);
       } else {
@@ -125,8 +126,8 @@ export function AdminInvitesClient({
       setCreateOrgId(orgs[0]?.id ?? "");
       setCreateRole("MEMBER");
       router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create invite");
+    } catch {
+      toast.error("Something went wrong");
     } finally {
       setCreating(false);
     }
@@ -135,14 +136,15 @@ export function AdminInvitesClient({
   const handleResend = async (invite: AdminInvite) => {
     try {
       const result = await adminResendInvite(invite.id);
+      if (!result.success) { toast.error(result.error); return; }
       if (result.emailError) {
         toast.success("Invite refreshed, but email failed to send: " + result.emailError);
       } else {
         toast.success("Invite resent successfully");
       }
       router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to resend invite");
+    } catch {
+      toast.error("Something went wrong");
     }
   };
 
@@ -150,12 +152,13 @@ export function AdminInvitesClient({
     if (!revokeInvite) return;
     setRevoking(true);
     try {
-      await adminRevokeInvite(revokeInvite.id);
+      const result = await adminRevokeInvite(revokeInvite.id);
+      if (!result.success) { toast.error(result.error); return; }
       toast.success("Invite revoked");
       setRevokeInvite(null);
       router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to revoke invite");
+    } catch {
+      toast.error("Something went wrong");
     } finally {
       setRevoking(false);
     }

@@ -68,13 +68,14 @@ export function AdminProjectsClient({
     if (!deleteProject || confirmKey !== deleteProject.key) return;
     setDeleting(true);
     try {
-      await adminDeleteProject(deleteProject.id);
+      const result = await adminDeleteProject(deleteProject.id);
+      if (!result.success) { toast.error(result.error); return; }
       toast.success("Project deleted successfully");
       setDeleteProject(null);
       setConfirmKey("");
       router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete project");
+    } catch {
+      toast.error("Something went wrong");
     } finally {
       setDeleting(false);
     }

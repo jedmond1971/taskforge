@@ -9,6 +9,12 @@ import { deleteObject } from "@/lib/s3";
 import { sendOrgInviteEmail, getInviteExpiryDate } from "@/lib/invites";
 import { logAdminAction } from "@/lib/audit-log";
 
+// Discriminated union returned by all admin mutation actions.
+// Expected validation failures return { success: false, error } instead of throwing,
+// so Next.js production mode cannot redact the message.
+type ActionResult = { success: true } | { success: false; error: string };
+type InviteResult = { success: true; emailError?: string } | { success: false; error: string };
+
 async function requireAdmin() {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") {
@@ -50,11 +56,11 @@ export async function adminCreateUser(data: {
   email: string;
   password: string;
   role: UserRole;
-}) {
+}): Promise<ActionResult> {
   const { userId: actorId } = await requireAdmin();
 
   const existing = await prisma.user.findUnique({ where: { email: data.email } });
-  if (existing) throw new Error("Email already in use");
+  if (existing) return { success: false, error: "Email already in use" };
 
   const passwordHash = await bcrypt.hash(data.password, 12);
   const user = await prisma.user.create({
@@ -71,21 +77,21 @@ export async function adminCreateUser(data: {
   });
 
   revalidatePath("/admin/users");
-  return user;
+  return { success: true };
 }
 
 // Update user (name, email, role)
 export async function adminUpdateUser(
   userId: string,
   updates: { name?: string; email?: string; role?: UserRole }
-) {
+): Promise<ActionResult> {
   const { userId: actorId } = await requireAdmin();
 
   if (updates.email) {
     const existing = await prisma.user.findFirst({
       where: { email: updates.email, NOT: { id: userId } },
     });
-    if (existing) throw new Error("Email already in use");
+    if (existing) return { success: false, error: "Email already in use" };
   }
 
   const before = updates.role
@@ -118,14 +124,18 @@ export async function adminUpdateUser(
   }
 
   revalidatePath("/admin/users");
-  return user;
+  return { success: true };
 }
 
 // Reset any user's password (admin override — no current password required)
-export async function adminResetUserPassword(userId: string, newPassword: string) {
+export async function adminResetUserPassword(
+  userId: string,
+  newPassword: string
+): Promise<ActionResult> {
   const { userId: actorId } = await requireAdmin();
 
-  if (newPassword.length < 8) throw new Error("Password must be at least 8 characters");
+  if (newPassword.length < 8)
+    return { success: false, error: "Password must be at least 8 characters" };
 
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
 
@@ -150,19 +160,19 @@ export async function adminAddUserToProject(
   userId: string,
   projectId: string,
   role: ProjectMemberRole
-) {
+): Promise<ActionResult> {
   const { userId: actorId } = await requireAdmin();
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { orgId: true },
   });
-  if (!project) throw new Error("Project not found");
+  if (!project) return { success: false, error: "Project not found" };
 
   const existing = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
   });
-  if (existing) throw new Error("User is already a member of this project");
+  if (existing) return { success: false, error: "User is already a member of this project" };
 
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
 
@@ -198,11 +208,12 @@ export async function adminGetProjectsForSelect() {
 }
 
 // Delete user
-export async function adminDeleteUser(userId: string) {
+export async function adminDeleteUser(userId: string): Promise<ActionResult> {
   const { userId: actorId } = await requireAdmin();
-  // Prevent deleting yourself
+
   const session = await auth();
-  if (userId === session?.user?.id) throw new Error("Cannot delete your own account");
+  if (userId === session?.user?.id)
+    return { success: false, error: "Cannot delete your own account" };
 
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
 
@@ -220,20 +231,24 @@ export async function adminDeleteUser(userId: string) {
     ]);
 
   const blockers: string[] = [];
-  if (orgs > 0) blockers.push(`${orgs} ${orgs === 1 ? "organization" : "organizations"}`);
-  if (reportedIssues > 0) blockers.push(`reporter on ${reportedIssues} ${reportedIssues === 1 ? "issue" : "issues"}`);
-  if (attachments > 0) blockers.push(`${attachments} uploaded ${attachments === 1 ? "attachment" : "attachments"}`);
-  if (docPages > 0) blockers.push(`${docPages} doc ${docPages === 1 ? "page" : "pages"}`);
-  if (pageRevisions > 0) blockers.push(`${pageRevisions} doc page ${pageRevisions === 1 ? "revision" : "revisions"}`);
-  if (issueDocLinks > 0) blockers.push(`${issueDocLinks} issue-doc ${issueDocLinks === 1 ? "link" : "links"}`);
-  if (issueLinks > 0) blockers.push(`${issueLinks} issue ${issueLinks === 1 ? "link" : "links"}`);
-  if (orgInvites > 0) blockers.push(`${orgInvites} pending org ${orgInvites === 1 ? "invite" : "invites"}`);
+  if (orgs > 0) blockers.push(`own ${orgs} ${orgs === 1 ? "organization" : "organizations"}`);
+  if (reportedIssues > 0) blockers.push(`are the reporter on ${reportedIssues} ${reportedIssues === 1 ? "issue" : "issues"}`);
+  if (attachments > 0) blockers.push(`have uploaded ${attachments} ${attachments === 1 ? "attachment" : "attachments"}`);
+  if (docPages > 0) blockers.push(`have authored ${docPages} doc ${docPages === 1 ? "page" : "pages"}`);
+  if (pageRevisions > 0) blockers.push(`have authored ${pageRevisions} doc page ${pageRevisions === 1 ? "revision" : "revisions"}`);
+  if (issueDocLinks > 0) blockers.push(`have created ${issueDocLinks} issue-doc ${issueDocLinks === 1 ? "link" : "links"}`);
+  if (issueLinks > 0) blockers.push(`have created ${issueLinks} issue ${issueLinks === 1 ? "link" : "links"}`);
+  if (orgInvites > 0) blockers.push(`have sent ${orgInvites} pending org ${orgInvites === 1 ? "invite" : "invites"}`);
 
   if (blockers.length > 0) {
-    const list = blockers.length === 1
-      ? blockers[0]
-      : blockers.slice(0, -1).join(", ") + ", and " + blockers[blockers.length - 1];
-    throw new Error(`Can't delete this user — they own or are linked to ${list}. Reassign or resolve these first.`);
+    const list =
+      blockers.length === 1
+        ? blockers[0]
+        : blockers.slice(0, -1).join(", ") + ", and " + blockers[blockers.length - 1];
+    return {
+      success: false,
+      error: `Can't delete this user — they ${list}. Reassign or resolve these first.`,
+    };
   }
 
   await prisma.user.delete({ where: { id: userId } });
@@ -326,11 +341,11 @@ export async function adminCreateOrg(data: {
   slug: string;
   plan: Plan;
   ownerId: string;
-}) {
+}): Promise<ActionResult> {
   const { userId: actorId } = await requireAdmin();
 
   const existing = await prisma.organization.findUnique({ where: { slug: data.slug } });
-  if (existing) throw new Error("Slug already in use");
+  if (existing) return { success: false, error: "Slug already in use" };
 
   const org = await prisma.organization.create({
     data: {
@@ -352,16 +367,20 @@ export async function adminCreateOrg(data: {
   });
 
   revalidatePath("/admin/orgs");
-  return org;
+  return { success: true };
 }
 
-export async function adminAddOrgMember(orgId: string, userId: string, role: OrgRole) {
+export async function adminAddOrgMember(
+  orgId: string,
+  userId: string,
+  role: OrgRole
+): Promise<ActionResult> {
   const { userId: actorId } = await requireAdmin();
 
   const existing = await prisma.orgMember.findUnique({
     where: { orgId_userId: { orgId, userId } },
   });
-  if (existing) throw new Error("User is already a member of this org");
+  if (existing) return { success: false, error: "User is already a member of this org" };
 
   const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } });
 
@@ -380,19 +399,20 @@ export async function adminAddOrgMember(orgId: string, userId: string, role: Org
   return { success: true };
 }
 
-export async function adminRemoveOrgMember(orgId: string, userId: string) {
+export async function adminRemoveOrgMember(orgId: string, userId: string): Promise<ActionResult> {
   const { userId: actorId } = await requireAdmin();
 
   const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { ownerId: true, name: true } });
-  if (org?.ownerId === userId) throw new Error("Cannot remove the org owner");
+  if (org?.ownerId === userId) return { success: false, error: "Cannot remove the org owner" };
 
   const projectCount = await prisma.projectMember.count({
     where: { userId, project: { orgId } },
   });
   if (projectCount > 0) {
-    throw new Error(
-      `Cannot remove this member — they still belong to ${projectCount} project(s) in this organization. Remove them from those projects first.`
-    );
+    return {
+      success: false,
+      error: `Cannot remove this member — they still belong to ${projectCount} project(s) in this organization. Remove them from those projects first.`,
+    };
   }
 
   await prisma.orgMember.delete({ where: { orgId_userId: { orgId, userId } } });
@@ -410,19 +430,20 @@ export async function adminRemoveOrgMember(orgId: string, userId: string) {
   return { success: true };
 }
 
-export async function adminDeleteOrg(orgId: string) {
+export async function adminDeleteOrg(orgId: string): Promise<ActionResult> {
   const { userId: actorId } = await requireAdmin();
 
   const org = await prisma.organization.findUnique({
     where: { id: orgId },
     select: { name: true, _count: { select: { projects: true } } },
   });
-  if (!org) throw new Error("Organization not found");
+  if (!org) return { success: false, error: "Organization not found" };
 
   if (org._count.projects > 0) {
-    throw new Error(
-      `Cannot delete "${org.name}" — it still has ${org._count.projects} project(s). Delete or reassign all projects first.`
-    );
+    return {
+      success: false,
+      error: `Cannot delete "${org.name}" — it still has ${org._count.projects} project(s). Delete or reassign all projects first.`,
+    };
   }
 
   await prisma.organization.delete({ where: { id: orgId } });
@@ -442,13 +463,13 @@ export async function adminDeleteOrg(orgId: string) {
 // ─── Project actions ─────────────────────────────────────────────────────────
 
 // Delete project (admin override - no ownership check needed)
-export async function adminDeleteProject(projectId: string) {
+export async function adminDeleteProject(projectId: string): Promise<ActionResult> {
   const { userId: actorId } = await requireAdmin();
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { key: true },
   });
-  if (!project) throw new Error("Project not found");
+  if (!project) return { success: false, error: "Project not found" };
 
   const attachments = await prisma.attachment.findMany({
     where: { issue: { projectId } },
@@ -570,13 +591,17 @@ export async function adminGetOrgsForSelect() {
   });
 }
 
-export async function adminCreateInvite(orgId: string, email: string, role: OrgRole) {
+export async function adminCreateInvite(
+  orgId: string,
+  email: string,
+  role: OrgRole
+): Promise<InviteResult> {
   const { userId } = await requireAdmin();
 
-  if (role === "OWNER") throw new Error("Cannot invite with OWNER role");
+  if (role === "OWNER") return { success: false, error: "Cannot invite with OWNER role" };
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new Error("Invalid email address");
+    return { success: false, error: "Invalid email address" };
   }
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -584,7 +609,8 @@ export async function adminCreateInvite(orgId: string, email: string, role: OrgR
     const isMember = await prisma.orgMember.findUnique({
       where: { orgId_userId: { orgId, userId: existingUser.id } },
     });
-    if (isMember) throw new Error("This person is already a member of this organization.");
+    if (isMember)
+      return { success: false, error: "This person is already a member of this organization." };
   }
 
   const expiresAt = getInviteExpiryDate();
@@ -636,15 +662,15 @@ export async function adminCreateInvite(orgId: string, email: string, role: OrgR
   return { success: true };
 }
 
-export async function adminResendInvite(inviteId: string) {
+export async function adminResendInvite(inviteId: string): Promise<InviteResult> {
   const { userId } = await requireAdmin();
 
   const existing = await prisma.orgInvite.findUnique({
     where: { id: inviteId },
     select: { accepted: true, email: true, orgId: true },
   });
-  if (!existing) throw new Error("Invite not found");
-  if (existing.accepted) throw new Error("Cannot resend an accepted invite");
+  if (!existing) return { success: false, error: "Invite not found" };
+  if (existing.accepted) return { success: false, error: "Cannot resend an accepted invite" };
 
   const expiresAt = getInviteExpiryDate();
   const invite = await prisma.orgInvite.update({
@@ -682,16 +708,19 @@ export async function adminResendInvite(inviteId: string) {
   return { success: true };
 }
 
-export async function adminRevokeInvite(inviteId: string) {
+export async function adminRevokeInvite(inviteId: string): Promise<ActionResult> {
   const { userId: actorId } = await requireAdmin();
 
   const existing = await prisma.orgInvite.findUnique({
     where: { id: inviteId },
     select: { accepted: true, email: true },
   });
-  if (!existing) throw new Error("Invite not found");
+  if (!existing) return { success: false, error: "Invite not found" };
   if (existing.accepted) {
-    throw new Error("Cannot revoke an accepted invite — the member is already part of the org");
+    return {
+      success: false,
+      error: "Cannot revoke an accepted invite — the member is already part of the org",
+    };
   }
 
   await prisma.orgInvite.delete({ where: { id: inviteId } });

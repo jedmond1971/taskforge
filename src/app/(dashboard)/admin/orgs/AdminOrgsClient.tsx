@@ -132,7 +132,8 @@ export function AdminOrgsClient({
     }
     setCreating(true);
     try {
-      await adminCreateOrg({ name: createName, slug: createSlug, plan: createPlan, ownerId: createOwnerId });
+      const result = await adminCreateOrg({ name: createName, slug: createSlug, plan: createPlan, ownerId: createOwnerId });
+      if (!result.success) { toast.error(result.error); return; }
       toast.success("Organization created");
       setCreateOpen(false);
       setCreateName("");
@@ -140,8 +141,8 @@ export function AdminOrgsClient({
       setCreatePlan("FREE");
       setCreateOwnerId(allUsers[0]?.id ?? "");
       router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create org");
+    } catch {
+      toast.error("Something went wrong");
     } finally {
       setCreating(false);
     }
@@ -151,15 +152,16 @@ export function AdminOrgsClient({
     if (!manageOrg || !addUserId) return;
     setAddingMember(true);
     try {
-      await adminAddOrgMember(manageOrg.id, addUserId, addRole);
+      const result = await adminAddOrgMember(manageOrg.id, addUserId, addRole);
+      if (!result.success) { toast.error(result.error); return; }
       toast.success("Member added");
-      const result = await getAdminOrgMembers(manageOrg.id);
-      setMembers(result);
+      const members = await getAdminOrgMembers(manageOrg.id);
+      setMembers(members);
       setAddUserId("");
       setAddRole("MEMBER");
       router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to add member");
+    } catch {
+      toast.error("Something went wrong");
     } finally {
       setAddingMember(false);
     }
@@ -169,12 +171,13 @@ export function AdminOrgsClient({
     if (!manageOrg) return;
     setRemovingUserId(userId);
     try {
-      await adminRemoveOrgMember(manageOrg.id, userId);
+      const result = await adminRemoveOrgMember(manageOrg.id, userId);
+      if (!result.success) { toast.error(result.error); return; }
       toast.success("Member removed");
       setMembers((prev) => prev.filter((m) => m.user.id !== userId));
       router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to remove member");
+    } catch {
+      toast.error("Something went wrong");
     } finally {
       setRemovingUserId(null);
     }
@@ -184,13 +187,14 @@ export function AdminOrgsClient({
     if (!deleteOrg || confirmName !== deleteOrg.name) return;
     setDeleting(true);
     try {
-      await adminDeleteOrg(deleteOrg.id);
+      const result = await adminDeleteOrg(deleteOrg.id);
+      if (!result.success) { toast.error(result.error); return; }
       toast.success("Organization deleted");
       setDeleteOrg(null);
       setConfirmName("");
       router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete org");
+    } catch {
+      toast.error("Something went wrong");
     } finally {
       setDeleting(false);
     }

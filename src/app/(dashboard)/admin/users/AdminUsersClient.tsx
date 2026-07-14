@@ -123,12 +123,13 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
     }
     setCreating(true);
     try {
-      await adminCreateUser({
+      const result = await adminCreateUser({
         name: createName,
         email: createEmail,
         password: createPassword,
         role: createRole,
       });
+      if (!result.success) { toast.error(result.error); return; }
       toast.success("User created successfully");
       setCreateOpen(false);
       setCreateName("");
@@ -136,8 +137,8 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
       setCreatePassword("");
       setCreateRole("TEAM_MEMBER");
       router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create user");
+    } catch {
+      toast.error("Something went wrong");
     } finally {
       setCreating(false);
     }
@@ -147,16 +148,17 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
     if (!editUser) return;
     setEditing(true);
     try {
-      await adminUpdateUser(editUser.id, {
+      const result = await adminUpdateUser(editUser.id, {
         name: editName,
         email: editEmail,
         role: editRole,
       });
+      if (!result.success) { toast.error(result.error); return; }
       toast.success("User updated successfully");
       setEditUser(null);
       router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update user");
+    } catch {
+      toast.error("Something went wrong");
     } finally {
       setEditing(false);
     }
@@ -166,12 +168,13 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
     if (!deleteUser) return;
     setDeleting(true);
     try {
-      await adminDeleteUser(deleteUser.id);
+      const result = await adminDeleteUser(deleteUser.id);
+      if (!result.success) { toast.error(result.error); return; }
       toast.success("User deleted successfully");
       setDeleteUser(null);
       router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete user");
+    } catch {
+      toast.error("Something went wrong");
     } finally {
       setDeleting(false);
     }
@@ -195,11 +198,12 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
     }
     setResettingPassword(true);
     try {
-      await adminResetUserPassword(resetPasswordUser.id, resetNewPassword);
+      const result = await adminResetUserPassword(resetPasswordUser.id, resetNewPassword);
+      if (!result.success) { toast.error(result.error); return; }
       toast.success("Password reset successfully");
       setResetPasswordUser(null);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to reset password");
+    } catch {
+      toast.error("Something went wrong");
     } finally {
       setResettingPassword(false);
     }
@@ -225,12 +229,13 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
     if (!addToProjectUser || !selectedProjectId) return;
     setAddingToProject(true);
     try {
-      await adminAddUserToProject(addToProjectUser.id, selectedProjectId, selectedProjectRole);
+      const result = await adminAddUserToProject(addToProjectUser.id, selectedProjectId, selectedProjectRole);
+      if (!result.success) { toast.error(result.error); return; }
       toast.success(`${addToProjectUser.name} added to project`);
       setAddToProjectUser(null);
       router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to add user to project");
+    } catch {
+      toast.error("Something went wrong");
     } finally {
       setAddingToProject(false);
     }
