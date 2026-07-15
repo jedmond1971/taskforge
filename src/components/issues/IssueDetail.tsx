@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { StatusCategory, IssuePriority, IssueType, IssueLinkType, DocPageType, CustomFieldType } from "@prisma/client";
@@ -241,6 +241,9 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [subIssueDialogOpen, setSubIssueDialogOpen] = useState(false);
   const [dueDate, setDueDate] = useState<string>(
+    issue.dueDate ? new Date(issue.dueDate).toISOString().split("T")[0] : ""
+  );
+  const savedDueDate = useRef<string>(
     issue.dueDate ? new Date(issue.dueDate).toISOString().split("T")[0] : ""
   );
 
@@ -558,8 +561,13 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
                 value={dueDate}
                 onChange={(e) => {
                   if (!canEdit) return;
+                  setDueDate(e.target.value);
+                }}
+                onBlur={(e) => {
+                  if (!canEdit) return;
                   const newVal = e.target.value;
-                  setDueDate(newVal);
+                  if (newVal === savedDueDate.current) return;
+                  savedDueDate.current = newVal;
                   startTransition(async () => {
                     await updateIssue(projectKey, issue.id, {
                       dueDate: newVal ? new Date(newVal) : null,

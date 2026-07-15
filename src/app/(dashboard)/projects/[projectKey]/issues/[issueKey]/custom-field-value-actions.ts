@@ -114,7 +114,8 @@ export async function setCustomFieldValue(
   switch (customField.type) {
     case "TEXT": {
       if (typeof value !== "string") throw new Error("TEXT field requires a string value");
-      const trimmed = value.trim().slice(0, 500);
+      const trimmed = value.trim();
+      if (trimmed.length > 255) throw new Error("Text fields are limited to 255 characters");
       data = { textValue: trimmed, numberValue: null, dateValue: null, boolValue: null, selectValue: null, multiValues: [] };
       coercedValue = trimmed;
       break;

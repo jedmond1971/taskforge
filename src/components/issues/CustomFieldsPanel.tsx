@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useLayoutEffect, useRef } from "react";
 import { CustomFieldType } from "@prisma/client";
 import { toast } from "sonner";
 import { setCustomFieldValue } from "@/app/(dashboard)/projects/[projectKey]/issues/[issueKey]/custom-field-value-actions";
@@ -57,6 +57,14 @@ export function CustomFieldsPanel({
     () => initDisplayValues(fields, initialValues)
   );
   const [isPending, startTransition] = useTransition();
+  const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
+
+  useLayoutEffect(() => {
+    Array.from(textareaRefs.current.values()).forEach((el) => {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    });
+  });
 
   function save(fieldId: string, newValue: string | number | boolean | string[] | null) {
     startTransition(async () => {
@@ -74,25 +82,36 @@ export function CustomFieldsPanel({
     <div className="space-y-4">
       {fields.map((field) => {
         switch (field.type) {
-          case "TEXT":
+          case "TEXT": {
+            const textVal = (values[field.id] as string) ?? "";
             return (
               <div key={field.id}>
                 <p className="text-xs text-zinc-500 font-medium mb-1">{field.name}</p>
-                <input
-                  type="text"
-                  value={(values[field.id] as string) ?? ""}
+                <textarea
+                  ref={(el) => {
+                    if (el) textareaRefs.current.set(field.id, el);
+                    else textareaRefs.current.delete(field.id);
+                  }}
+                  rows={1}
+                  maxLength={255}
+                  value={textVal}
                   onChange={(e) =>
                     setValues((prev) => ({ ...prev, [field.id]: e.target.value }))
                   }
                   onBlur={(e) => save(field.id, e.target.value.trim() || null)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.repeat) e.currentTarget.blur();
+                    if (e.key === "Enter" && !e.repeat) {
+                      e.preventDefault();
+                      e.currentTarget.blur();
+                    }
                   }}
                   disabled={isPending || !canEdit}
-                  className={inputClass}
+                  className={inputClass + " resize-none overflow-hidden"}
                 />
+                <p className="text-xs text-zinc-400 mt-0.5 text-right">{textVal.length}/255</p>
               </div>
             );
+          }
 
           case "NUMBER":
             return (
@@ -126,11 +145,10 @@ export function CustomFieldsPanel({
                 <input
                   type="date"
                   value={(values[field.id] as string) ?? ""}
-                  onChange={(e) => {
-                    const dateStr = e.target.value;
-                    setValues((prev) => ({ ...prev, [field.id]: dateStr }));
-                    save(field.id, dateStr || null);
-                  }}
+                  onChange={(e) =>
+                    setValues((prev) => ({ ...prev, [field.id]: e.target.value }))
+                  }
+                  onBlur={(e) => save(field.id, e.target.value || null)}
                   disabled={isPending || !canEdit}
                   className={inputClass}
                 />
