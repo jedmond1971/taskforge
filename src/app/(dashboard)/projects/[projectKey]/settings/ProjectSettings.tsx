@@ -59,7 +59,7 @@ interface ProjectSettingsProps {
   };
   members: Member[];
   currentUserId: string;
-  currentUserRole: ProjectMemberRole;
+  currentUserRole: ProjectMemberRole | null;
   ownerName: string;
   projectKey: string;
   isAdmin: boolean;
@@ -103,19 +103,17 @@ export function ProjectSettings({
   orgId,
   canManageCustomFields,
 }: ProjectSettingsProps) {
-  const [activeTab, setActiveTab] = useState("general");
-
   const tabs = [
-    { id: "general", label: "General" },
-    { id: "members", label: "Members" },
+    ...(currentUserRole !== null
+      ? [{ id: "general", label: "General" }, { id: "members", label: "Members" }]
+      : []),
     ...(currentUserRole === "PROJECT_LEAD"
-      ? [
-          { id: "board", label: "Board" },
-          { id: "danger", label: "Danger Zone" },
-        ]
+      ? [{ id: "board", label: "Board" }, { id: "danger", label: "Danger Zone" }]
       : []),
     ...(canManageCustomFields ? [{ id: "customFields", label: "Custom Fields" }] : []),
   ];
+
+  const [activeTab, setActiveTab] = useState(tabs[0]?.id ?? "customFields");
 
   return (
     <div className="space-y-6">
@@ -145,7 +143,7 @@ export function ProjectSettings({
           projectKey={projectKey}
         />
       )}
-      {activeTab === "members" && (
+      {activeTab === "members" && currentUserRole !== null && (
         <MembersTab
           members={members}
           currentUserId={currentUserId}

@@ -4,8 +4,9 @@ import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { ProjectNav } from "@/components/projects/ProjectNav";
 import { ProjectShortcuts } from "@/components/projects/ProjectShortcuts";
+import { canManageCustomFields } from "@/lib/permissions";
 
-async function getProject(key: string, userId: string) {
+async function getProjectAsMember(key: string, userId: string) {
   return prisma.project.findFirst({
     where: {
       key: key.toUpperCase(),
@@ -25,12 +26,54 @@ export default async function ProjectLayout({
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const project = await getProject(params.projectKey, session.user.id);
-  if (!project) notFound();
+  const pathname = headers().get("x-pathname") ?? "";
+  const isSettingsPath = /\/projects\/[^/]+\/settings(\/|$)/i.test(pathname);
+
+  let project = await getProjectAsMember(params.projectKey, session.user.id);
+
+  if (!project) {
+    // Org OWNER/ADMIN (and platform ADMIN) can reach the settings page even
+    // without a ProjectMember row — the settings page itself enforces what tabs
+    // they can see. For all other paths, keep the existing notFound() behavior.
+    if (isSettingsPath) {
+      const isPlatformAdmin = session.user.role === "ADMIN";
+      let allowedViaOrgRole = isPlatformAdmin;
+
+      if (!allowedViaOrgRole) {
+        const projectForOrg = await prisma.project.findUnique({
+          where: { key: params.projectKey.toUpperCase() },
+          select: { orgId: true, isPrivate: true },
+        });
+        if (projectForOrg) {
+          const orgMembership = await prisma.orgMember.findUnique({
+            where: {
+              orgId_userId: {
+                orgId: projectForOrg.orgId,
+                userId: session.user.id,
+              },
+            },
+            select: { role: true },
+          });
+          allowedViaOrgRole =
+            orgMembership !== null && canManageCustomFields(orgMembership.role);
+        }
+      }
+
+      if (!allowedViaOrgRole) notFound();
+
+      // Fetch without membership filter for org/platform admins
+      project = await prisma.project.findFirst({
+        where: { key: params.projectKey.toUpperCase() },
+        include: { _count: { select: { issues: true } } },
+      });
+      if (!project) notFound();
+    } else {
+      notFound();
+    }
+  }
 
   const isAdmin = session.user.role === "ADMIN";
   if (project.isClosed && !isAdmin) {
-    const pathname = headers().get("x-pathname") ?? "";
     const isDocsPath = /\/projects\/[^/]+\/docs(\/|$)/i.test(pathname);
     if (!isDocsPath) redirect("/projects");
   }

@@ -12,11 +12,10 @@ export default async function SettingsPage({
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  // Fetch project without a membership filter so org admins who aren't project
+  // members can still reach the Custom Fields tab.
   const project = await prisma.project.findFirst({
-    where: {
-      key: params.projectKey.toUpperCase(),
-      members: { some: { userId: session.user.id } },
-    },
+    where: { key: params.projectKey.toUpperCase() },
     include: {
       members: {
         include: {
@@ -33,7 +32,33 @@ export default async function SettingsPage({
   const currentMember = project.members.find(
     (m) => m.userId === session.user.id
   );
-  if (!currentMember || currentMember.role !== "PROJECT_LEAD") {
+
+  // Determine if the current user can manage org-level custom field definitions.
+  // Platform admins always can; org OWNER/ADMIN role also grants access.
+  let userCanManageCustomFields = session.user.role === "ADMIN";
+  if (!userCanManageCustomFields) {
+    const orgMembership = await prisma.orgMember.findUnique({
+      where: { orgId_userId: { orgId: project.orgId, userId: session.user.id } },
+      select: { role: true },
+    });
+    userCanManageCustomFields =
+      orgMembership !== null && canManageCustomFields(orgMembership.role);
+  }
+
+  // Private projects: hide existence from users who are neither a project member,
+  // a platform admin, nor an org admin who can manage custom fields.
+  if (
+    project.isPrivate &&
+    !currentMember &&
+    session.user.role !== "ADMIN" &&
+    !userCanManageCustomFields
+  ) {
+    notFound();
+  }
+
+  // Page-level access gate: must be PROJECT_LEAD or an org/platform admin.
+  const isProjectLead = currentMember?.role === "PROJECT_LEAD";
+  if (!isProjectLead && !userCanManageCustomFields) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
@@ -49,18 +74,6 @@ export default async function SettingsPage({
   }
 
   const owner = project.members.find((m) => m.role === "PROJECT_LEAD");
-
-  // Determine if the current user can manage org-level custom field definitions.
-  // Platform admins always can; org OWNER/ADMIN role also grants access.
-  let userCanManageCustomFields = session.user.role === "ADMIN";
-  if (!userCanManageCustomFields) {
-    const orgMembership = await prisma.orgMember.findUnique({
-      where: { orgId_userId: { orgId: project.orgId, userId: session.user.id } },
-      select: { role: true },
-    });
-    userCanManageCustomFields =
-      orgMembership !== null && canManageCustomFields(orgMembership.role);
-  }
 
   return (
     <ProjectSettings
@@ -79,7 +92,7 @@ export default async function SettingsPage({
         user: m.user,
       }))}
       currentUserId={session.user.id}
-      currentUserRole={currentMember.role}
+      currentUserRole={currentMember?.role ?? null}
       ownerName={owner?.user.name ?? "Unknown"}
       projectKey={params.projectKey}
       isAdmin={session.user.role === "ADMIN"}
