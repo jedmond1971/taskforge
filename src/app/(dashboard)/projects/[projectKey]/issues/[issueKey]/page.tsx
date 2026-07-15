@@ -5,6 +5,10 @@ import {
   getProjectMembers,
   getProjectStatuses,
 } from "@/app/(dashboard)/projects/[projectKey]/actions";
+import {
+  getApplicableCustomFields,
+  getCustomFieldValues,
+} from "@/app/(dashboard)/projects/[projectKey]/issues/[issueKey]/custom-field-value-actions";
 import { IssueDetail } from "@/components/issues/IssueDetail";
 import { canEditIssues } from "@/lib/permissions";
 
@@ -24,6 +28,11 @@ export default async function IssueDetailPage({ params }: PageProps) {
 
   if (!issue) notFound();
 
+  const [customFields, customFieldValues] = await Promise.all([
+    getApplicableCustomFields(params.projectKey),
+    getCustomFieldValues(params.projectKey, issue.id),
+  ]);
+
   const currentMember = members.find((m) => m.userId === session.user.id);
   const canEdit = currentMember ? canEditIssues(currentMember.role) : false;
 
@@ -36,6 +45,8 @@ export default async function IssueDetailPage({ params }: PageProps) {
       currentUserId={session.user.id}
       currentUserName={session.user.name ?? ""}
       canEdit={canEdit}
+      customFields={customFields}
+      customFieldValues={customFieldValues}
     />
   );
 }

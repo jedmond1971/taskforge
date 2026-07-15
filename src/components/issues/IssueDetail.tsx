@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { StatusCategory, IssuePriority, IssueType, IssueLinkType, DocPageType } from "@prisma/client";
+import { StatusCategory, IssuePriority, IssueType, IssueLinkType, DocPageType, CustomFieldType } from "@prisma/client";
 import { updateIssue, deleteIssue } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { CATEGORY_COLOR, PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
 import { Pencil, Trash2, Check, X, ChevronRight, Plus } from "lucide-react";
@@ -21,6 +21,7 @@ import { RichTextDisplay } from "@/components/ui/rich-text-display";
 import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
 import { RelatedDocsSection } from "@/components/issues/RelatedDocsSection";
 import { LinkedIssuesSection } from "@/components/issues/LinkedIssuesSection";
+import { CustomFieldsPanel } from "@/components/issues/CustomFieldsPanel";
 
 type User = { id: string; name: string; avatarUrl: string | null };
 type ActivityLog = {
@@ -96,6 +97,14 @@ type Issue = {
   incomingLinks: IncomingLink[];
 };
 
+type CustomField = {
+  id: string;
+  name: string;
+  type: CustomFieldType;
+  options: string[];
+  position: number;
+};
+
 interface IssueDetailProps {
   issue: Issue;
   members: User[];
@@ -104,6 +113,8 @@ interface IssueDetailProps {
   currentUserId: string;
   currentUserName: string;
   canEdit: boolean;
+  customFields: CustomField[];
+  customFieldValues: Record<string, string | number | boolean | string[]>;
 }
 
 function EditableTitle({ value, issueId, projectKey, onSaved, canEdit }: {
@@ -221,7 +232,7 @@ function SubIssueRow({ subIssue, projectKey }: { subIssue: SubIssue; projectKey:
   );
 }
 
-export function IssueDetail({ issue, members, statuses, projectKey, currentUserId, currentUserName, canEdit }: IssueDetailProps) {
+export function IssueDetail({ issue, members, statuses, projectKey, currentUserId, currentUserName, canEdit, customFields, customFieldValues }: IssueDetailProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editingDesc, setEditingDesc] = useState(false);
@@ -562,6 +573,20 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
               />
             </div>
           </div>
+
+          {customFields.length > 0 && (
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-3">Custom Fields</p>
+              <CustomFieldsPanel
+                issueId={issue.id}
+                projectKey={projectKey}
+                fields={customFields}
+                initialValues={customFieldValues}
+                canEdit={canEdit}
+                onSaved={refresh}
+              />
+            </div>
+          )}
 
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-3 text-xs">
             <div>
