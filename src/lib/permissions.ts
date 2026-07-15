@@ -98,6 +98,11 @@ export function canInviteOrgMembers(role: OrgRoleType): boolean {
   return role === "OWNER" || role === "ADMIN";
 }
 
+/** OWNER + ADMIN can manage org-level custom field definitions */
+export function canManageCustomFields(role: OrgRoleType): boolean {
+  return role === "OWNER" || role === "ADMIN";
+}
+
 /**
  * Checks the current user's OrgMember role for a given orgId and validates
  * it against `check`. Platform UserRole.ADMIN bypasses the membership

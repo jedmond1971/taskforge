@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
 import { ProjectSettings } from "./ProjectSettings";
+import { canManageCustomFields } from "@/lib/permissions";
 
 export default async function SettingsPage({
   params,
@@ -49,6 +50,18 @@ export default async function SettingsPage({
 
   const owner = project.members.find((m) => m.role === "PROJECT_LEAD");
 
+  // Determine if the current user can manage org-level custom field definitions.
+  // Platform admins always can; org OWNER/ADMIN role also grants access.
+  let userCanManageCustomFields = session.user.role === "ADMIN";
+  if (!userCanManageCustomFields) {
+    const orgMembership = await prisma.orgMember.findUnique({
+      where: { orgId_userId: { orgId: project.orgId, userId: session.user.id } },
+      select: { role: true },
+    });
+    userCanManageCustomFields =
+      orgMembership !== null && canManageCustomFields(orgMembership.role);
+  }
+
   return (
     <ProjectSettings
       project={{
@@ -70,6 +83,8 @@ export default async function SettingsPage({
       ownerName={owner?.user.name ?? "Unknown"}
       projectKey={params.projectKey}
       isAdmin={session.user.role === "ADMIN"}
+      orgId={project.orgId}
+      canManageCustomFields={userCanManageCustomFields}
     />
   );
 }

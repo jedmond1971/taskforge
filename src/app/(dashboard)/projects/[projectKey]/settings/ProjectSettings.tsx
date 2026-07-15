@@ -17,6 +17,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Trash2, UserPlus, Search, UserRoundPlus } from "lucide-react";
 import { BoardSettings } from "./BoardSettings";
+import { CustomFieldsSettings } from "./CustomFieldsSettings";
 import {
   updateProject,
   addProjectMember,
@@ -55,7 +56,6 @@ interface ProjectSettingsProps {
     description: string | null;
     createdAt: string;
     isPrivate: boolean;
-
   };
   members: Member[];
   currentUserId: string;
@@ -63,6 +63,8 @@ interface ProjectSettingsProps {
   ownerName: string;
   projectKey: string;
   isAdmin: boolean;
+  orgId: string;
+  canManageCustomFields: boolean;
 }
 
 const roleColors: Record<string, string> = {
@@ -98,6 +100,8 @@ export function ProjectSettings({
   ownerName,
   projectKey,
   isAdmin,
+  orgId,
+  canManageCustomFields,
 }: ProjectSettingsProps) {
   const [activeTab, setActiveTab] = useState("general");
 
@@ -110,6 +114,7 @@ export function ProjectSettings({
           { id: "danger", label: "Danger Zone" },
         ]
       : []),
+    ...(canManageCustomFields ? [{ id: "customFields", label: "Custom Fields" }] : []),
   ];
 
   return (
@@ -153,6 +158,9 @@ export function ProjectSettings({
       )}
       {activeTab === "danger" && currentUserRole === "PROJECT_LEAD" && (
         <DangerZoneTab project={project} projectKey={projectKey} isAdmin={isAdmin} />
+      )}
+      {activeTab === "customFields" && canManageCustomFields && (
+        <CustomFieldsSettings orgId={orgId} projectKey={projectKey} />
       )}
     </div>
   );
