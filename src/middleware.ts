@@ -26,6 +26,16 @@ export default auth((req) => {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
+  // OAuth consent screen does its own login redirect (preserving the full
+  // authorize query string, which the pathname-only callbackUrl below loses),
+  // and the well-known metadata endpoints must stay unauthenticated for MCP
+  // client discovery.
+  const isOAuthAuthorizeRoute = nextUrl.pathname === "/oauth/authorize";
+  const isWellKnownRoute = nextUrl.pathname.startsWith("/.well-known/");
+  if (isOAuthAuthorizeRoute || isWellKnownRoute) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
   if (!isLoggedIn) {
     const loginUrl = new URL("/login", nextUrl);
     loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);

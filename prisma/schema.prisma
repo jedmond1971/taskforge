@@ -86,33 +86,37 @@ enum CustomFieldType {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  avatarUrl    String?
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  passwordHash   String
+  avatarUrl      String?
   role           UserRole @default(TEAM_MEMBER)
   sessionVersion Int      @default(1)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  projectMembers ProjectMember[]
-  assignedIssues Issue[]         @relation("AssignedIssues")
-  reportedIssues Issue[]         @relation("ReportedIssues")
-  comments       Comment[]
-  activityLogs   ActivityLog[]
-  savedFilters   SavedFilter[]
-  attachments    Attachment[]
-  ownedOrgs      Organization[]  @relation("OwnedOrgs")
-  orgMembers     OrgMember[]
-  notifications  Notification[]
-  docPages           DocPage[]
-  pageRevisions      PageRevision[]
-  issueDocLinks      IssueDocLink[]
-  issueLinks         IssueLink[]
-  invitedOrgInvites  OrgInvite[]    @relation("InvitedBy")
-  adminAuditLogs     AdminAuditLog[]
-  apiKeys            ApiKey[]
+  projectMembers    ProjectMember[]
+  assignedIssues    Issue[]         @relation("AssignedIssues")
+  reportedIssues    Issue[]         @relation("ReportedIssues")
+  comments          Comment[]
+  activityLogs      ActivityLog[]
+  savedFilters      SavedFilter[]
+  attachments       Attachment[]
+  ownedOrgs         Organization[]  @relation("OwnedOrgs")
+  orgMembers        OrgMember[]
+  notifications     Notification[]
+  docPages          DocPage[]
+  pageRevisions     PageRevision[]
+  issueDocLinks     IssueDocLink[]
+  issueLinks        IssueLink[]
+  invitedOrgInvites OrgInvite[]     @relation("InvitedBy")
+  adminAuditLogs    AdminAuditLog[]
+  apiKeys           ApiKey[]
+
+  oauthAuthorizationCodes OAuthAuthorizationCode[]
+  oauthAccessTokens       OAuthAccessToken[]
+  oauthRefreshTokens      OAuthRefreshToken[]
 }
 
 model Project {
@@ -126,14 +130,14 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  org                      Organization         @relation(fields: [orgId], references: [id])
-  members                  ProjectMember[]
-  issues                   Issue[]
-  statuses                 ProjectStatus[]
-  boards                   Board[]
-  docSpace                 DocSpace?
-  savedFilters             SavedFilter[]
-  customFieldRestrictions  CustomFieldProject[]
+  org                     Organization         @relation(fields: [orgId], references: [id])
+  members                 ProjectMember[]
+  issues                  Issue[]
+  statuses                ProjectStatus[]
+  boards                  Board[]
+  docSpace                DocSpace?
+  savedFilters            SavedFilter[]
+  customFieldRestrictions CustomFieldProject[]
 }
 
 model ProjectMember {
@@ -180,8 +184,8 @@ model Issue {
   attachments       Attachment[]
   notifications     Notification[]
   docLinks          IssueDocLink[]
-  outgoingLinks     IssueLink[]         @relation("SourceLinks")
-  incomingLinks     IssueLink[]         @relation("TargetLinks")
+  outgoingLinks     IssueLink[]        @relation("SourceLinks")
+  incomingLinks     IssueLink[]        @relation("TargetLinks")
   customFieldValues CustomFieldValue[]
 
   @@index([projectId])
@@ -276,8 +280,8 @@ model ActivityLog {
 
   // Issue delete cascades and removes all activity log rows for that issue.
   // User delete nullifies userId to preserve audit history (not a hard delete).
-  issue Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
-  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([issueId])
   @@index([userId])
@@ -308,13 +312,17 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner        User           @relation("OwnedOrgs", fields: [ownerId], references: [id])
+  owner        User          @relation("OwnedOrgs", fields: [ownerId], references: [id])
   members      OrgMember[]
   invites      OrgInvite[]
   subscription Subscription?
   projects     Project[]
   customFields CustomField[]
   apiKeys      ApiKey[]
+
+  oauthAuthorizationCodes OAuthAuthorizationCode[]
+  oauthAccessTokens       OAuthAccessToken[]
+  oauthRefreshTokens      OAuthRefreshToken[]
 }
 
 model OrgMember {
@@ -506,19 +514,94 @@ model AdminAuditLog {
 }
 
 model ApiKey {
-  id          String    @id @default(cuid())
+  id          String       @id @default(cuid())
   orgId       String
   org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   name        String
   keyPrefix   String
-  hashedKey   String    @unique
+  hashedKey   String       @unique
   createdById String
-  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdBy   User         @relation(fields: [createdById], references: [id])
   lastUsedAt  DateTime?
   revokedAt   DateTime?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime     @default(now())
 
   @@index([orgId])
+}
+
+// OAuthClient.id doubles as the public OAuth client_id — no separate field needed,
+// same pattern as Stripe-style opaque cuid identifiers.
+model OAuthClient {
+  id                      String   @id @default(cuid())
+  clientSecretHash        String?
+  clientName              String?
+  redirectUris            String[]
+  tokenEndpointAuthMethod String   @default("none")
+  grantTypes              String[] @default(["authorization_code", "refresh_token"])
+  createdAt               DateTime @default(now())
+
+  authorizationCodes OAuthAuthorizationCode[]
+  accessTokens       OAuthAccessToken[]
+  refreshTokens      OAuthRefreshToken[]
+}
+
+model OAuthAuthorizationCode {
+  id                  String       @id @default(cuid())
+  hashedCode          String       @unique
+  clientId            String
+  client              OAuthClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId              String
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgId               String
+  org                 Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  redirectUri         String
+  codeChallenge       String
+  codeChallengeMethod String       @default("S256")
+  scope               String
+  expiresAt           DateTime
+  usedAt              DateTime?
+  createdAt           DateTime     @default(now())
+
+  @@index([clientId])
+}
+
+model OAuthAccessToken {
+  id          String       @id @default(cuid())
+  hashedToken String       @unique
+  clientId    String
+  client      OAuthClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  scope       String
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime     @default(now())
+
+  refreshToken OAuthRefreshToken?
+
+  @@index([clientId])
+  @@index([orgId])
+}
+
+model OAuthRefreshToken {
+  id            String            @id @default(cuid())
+  hashedToken   String            @unique
+  clientId      String
+  client        OAuthClient       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  accessTokenId String?           @unique
+  accessToken   OAuthAccessToken? @relation(fields: [accessTokenId], references: [id])
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgId         String
+  org           Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  scope         String
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  createdAt     DateTime          @default(now())
+
+  @@index([clientId])
 }
 
 model CustomField {
