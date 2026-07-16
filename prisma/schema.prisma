@@ -112,6 +112,7 @@ model User {
   issueLinks         IssueLink[]
   invitedOrgInvites  OrgInvite[]    @relation("InvitedBy")
   adminAuditLogs     AdminAuditLog[]
+  apiKeys            ApiKey[]
 }
 
 model Project {
@@ -313,6 +314,7 @@ model Organization {
   subscription Subscription?
   projects     Project[]
   customFields CustomField[]
+  apiKeys      ApiKey[]
 }
 
 model OrgMember {
@@ -501,6 +503,22 @@ model AdminAuditLog {
   @@index([action])
   @@index([targetType, targetId])
   @@index([createdAt])
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name        String
+  keyPrefix   String
+  hashedKey   String    @unique
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([orgId])
 }
 
 model CustomField {

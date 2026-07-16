@@ -103,6 +103,11 @@ export function canManageCustomFields(role: OrgRoleType): boolean {
   return role === "OWNER" || role === "ADMIN";
 }
 
+/** OWNER + ADMIN can create and revoke org API keys */
+export function canManageApiKeys(role: OrgRoleType): boolean {
+  return role === "OWNER" || role === "ADMIN";
+}
+
 /**
  * Checks the current user's OrgMember role for a given orgId and validates
  * it against `check`. Platform UserRole.ADMIN bypasses the membership

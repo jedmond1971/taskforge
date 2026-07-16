@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   LogOut,
   Settings,
+  Building2,
   ChevronRight,
   ChevronDown,
   X,
@@ -205,6 +206,12 @@ export function Sidebar({ onClose }: SidebarProps) {
               <Link href="/settings" className="flex items-center w-full px-2 py-1.5">
                 <Settings className="w-4 h-4 mr-2" />
                 Settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer p-0">
+              <Link href="/org-settings" className="flex items-center w-full px-2 py-1.5">
+                <Building2 className="w-4 h-4 mr-2" />
+                Org Settings
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
