@@ -21,7 +21,7 @@ function checkRateLimit(apiKeyId: string): boolean {
   return true;
 }
 
-export type ExternalApiContext = { orgId: string; apiKeyId: string };
+export type ExternalApiContext = { orgId: string; apiKeyId: string; createdById: string };
 
 export async function requireExternalApiKey(
   request: Request
@@ -34,7 +34,7 @@ export async function requireExternalApiKey(
   const hashed = hashApiKey(incoming);
   const key = await prisma.apiKey.findUnique({
     where: { hashedKey: hashed },
-    select: { id: true, orgId: true, revokedAt: true },
+    select: { id: true, orgId: true, revokedAt: true, createdById: true },
   });
 
   if (!key || key.revokedAt !== null) {
@@ -50,5 +50,5 @@ export async function requireExternalApiKey(
     .update({ where: { id: key.id }, data: { lastUsedAt: new Date() } })
     .catch(() => {});
 
-  return { orgId: key.orgId, apiKeyId: key.id };
+  return { orgId: key.orgId, apiKeyId: key.id, createdById: key.createdById };
 }
