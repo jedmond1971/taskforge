@@ -52,6 +52,8 @@ Every project belongs to exactly one organization, and every user-to-project rel
 
 **`CustomFieldValue` has `updatedAt` but no `createdAt`** — the model uses `@updatedAt` (auto-managed by Prisma) but has no `createdAt` field. Direct psql inserts must include `"updatedAt"` explicitly (use `now()`); omitting it causes a not-null violation.
 
+**`ApiKey.createdById` uses `ON DELETE RESTRICT`** — you cannot delete a `User` who has created API keys; the FK violation will abort the delete. Any future admin user-deletion action must revoke (set `revokedAt`) or reassign all `ApiKey` rows for that user first.
+
 **Non-goals (do not implement without a separate product decision):**
 Org switching UI, billing changes, broad project membership role redesign, cascading project deletion on org delete.
 
@@ -242,6 +244,20 @@ See `.context-docs/data-integrity.md` for full details. Key facts:
 - S3 objects are cleaned up on delete (issues, doc sections, project delete).
 - Notification cap = 100; PageRevision cap = 50.
 - `SavedFilter` requires `projectId` — global `/search` page cannot save/load filters.
+
+---
+
+## External REST API
+
+Customer-facing API at `/api/external/v1/`. Uses org-scoped API keys — entirely separate from the internal `/api/v1/` shared-secret API.
+
+- **Auth guard**: `requireExternalApiKey(request)` from `src/lib/external-api-auth.ts`. Returns `ExternalApiContext = { orgId, apiKeyId, createdById }` on success or a `NextResponse` (401/429) on failure. Every handler must open with `const ctx = await requireExternalApiKey(request); if (ctx instanceof NextResponse) return ctx;`.
+- **Org isolation**: every query must be scoped by `ctx.orgId`. Use `requireProjectInOrg(projectKey, orgId)` from `src/app/api/external/v1/_helpers.ts` for project lookups — it adds `orgId` and `isClosed: false` filters automatically. Never look up a project by key alone.
+- **Implicit authorship**: `ctx.createdById` is the user who created the API key. Use it as `reporterId` for new issues and `authorId` for comments. Do not accept a caller-supplied `authorId` — that would allow impersonation.
+- **Comment body**: `normalizeBody()` in `_helpers.ts` accepts plain text (wraps in `<p>`) or TipTap HTML (sanitizes). Use it instead of calling `sanitizeTipTapHtml` directly on external comment routes.
+- **Shared helpers**: `src/app/api/external/v1/_helpers.ts` re-exports `resolveStatusForProject`, `PRIORITY_MAP`, `formatIssue` from the v1 helpers and adds `requireProjectInOrg`, `formatComment`, `formatProject`, `normalizeBody`, `ISSUE_INCLUDE`, `TYPE_MAP`.
+- **Rate limiting**: in-memory fixed window (100 req/min per `apiKeyId`) in `external-api-auth.ts`. Resets on redeploy. Not distributed — would over-count on multiple Railway instances.
+- **Key management UI**: `/org-settings` (`src/app/(dashboard)/org-settings/page.tsx`), gated to org ADMIN/OWNER via `canManageApiKeys()`. Accessible from the sidebar user-dropdown "Org Settings" link.
 
 ---
 
