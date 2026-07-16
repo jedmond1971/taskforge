@@ -261,6 +261,26 @@ Customer-facing API at `/api/external/v1/`. Uses org-scoped API keys — entirel
 
 ---
 
+## MCP OAuth authorization server (JFR-100 Phase B1)
+
+OAuth 2.1 authorization server backing the future Claude.ai custom connector (MCP). Entirely separate from both the internal v1 shared-secret API and the external org-API-key API — this is a third, distinct auth system. **No MCP server exists yet** — this phase only issues and validates tokens; nothing consumes them.
+
+- **Models**: `OAuthClient`, `OAuthAuthorizationCode`, `OAuthAccessToken`, `OAuthRefreshToken` in `schema.prisma`. `OAuthClient.id` (a cuid) doubles as the public OAuth `client_id` — no separate field. All codes/tokens are stored as sha256 hashes (`src/lib/oauth/tokens.ts`), never plaintext, same pattern as `ApiKey`.
+- **`@modelcontextprotocol/sdk` is a direct dependency**, added for its OAuth zod schemas/types only (`shared/auth.js` — `OAuthClientMetadataSchema`, etc.). Its `server/auth/router|handlers|middleware` are hard-coupled to Express (`OAuthServerProvider.authorize()` takes an Express `Response`) and cannot be used with Next.js Route Handlers — the actual endpoint logic in this repo is hand-written against the OAuth/MCP spec, using the SDK only for request/response shape validation. It was already a transitive dependency of `shadcn` (devDependency) at a slightly older version — no conflict.
+- **Endpoints**: `POST /api/oauth/register` (RFC 7591 DCR — Claude.ai calls this automatically), `GET+POST /oauth/authorize` (consent screen, page not API route since it renders HTML — lives under `src/app/(auth)/oauth/authorize/`), `POST /api/oauth/token` (authorization_code + refresh_token grants).
+- **PKCE is mandatory, S256 only** — `code_challenge_method` values other than `S256` (including `plain`) are rejected at `/oauth/authorize`. This matches Claude.ai's actual client behavior, not just the spec's recommendation.
+- **Consent screen has no org picker** — it grants access to the user's current `session.user.orgId` only. Building an org-switcher is a documented non-goal elsewhere in this file; don't add one here either.
+- **Redirect safety**: `client_id`/`redirect_uri` are validated against the DB *before* any redirect happens. If either is invalid, the page renders a static error — it never redirects, to avoid becoming an open redirect. Once `redirect_uri` is confirmed registered, later validation failures (bad `response_type`, missing/weak PKCE) bounce back to it with `?error=...`, per spec.
+- **Refresh tokens rotate on every use** — `POST /api/oauth/token` with `grant_type=refresh_token` revokes both the old refresh token and its paired access token, then issues a new pair. Reusing a rotated refresh token returns `invalid_grant`.
+- **Authorization codes are single-use** — claimed via a conditional `updateMany({ where: { usedAt: null } })` rather than a plain update, so a concurrent replay of the same code can't race past the check.
+- **`requireOAuthToken(request)`** in `src/lib/oauth/require-oauth-token.ts` — bearer-token guard scaffolded for the Phase B2 MCP server to import. Returns `{ orgId, userId, clientId, scope }` or a 401 `NextResponse` with a `WWW-Authenticate: Bearer resource_metadata="..."` header (RFC 9728) — not wired into any route yet.
+- **`/.well-known/*` routes require a `next.config.mjs` rewrite** — Next.js App Router's file-based routing silently skips dot-prefixed directories, so `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource` (RFC 8414 / RFC 9728 metadata) are implemented under `src/app/well-known/*` and rewritten from `/.well-known/:path*` → `/well-known/:path*`.
+- **Middleware exemptions**: `/oauth/authorize` and `/.well-known/` are exempted in `src/middleware.ts` from the default auth-redirect, same pattern as the existing `/invite/` exemption. `/oauth/authorize` needs its own exemption (rather than relying on the exemption) because it must preserve the full query string through a login redirect — the middleware's default `callbackUrl` only carries `nextUrl.pathname`, losing `client_id`/`code_challenge`/etc.
+- **Scope model**: `src/lib/oauth/scopes.ts` defines `issues:write`, `search:read`, `docs:read`, `docs:write` — the tool surface named in JFR-100's description. Enforcement happens in the (not-yet-built) MCP server, not here.
+- **Route folders starting with `_` are invisible to Next.js App Router routing** — an underscore-prefixed directory (e.g. `src/app/api/oauth/_debug-guard/`) is a Next.js "private folder" convention and gets silently 404'd/ignored by the router. Discovered while writing a throwaway test route — use any non-underscore name for ad-hoc debug routes.
+
+---
+
 ## Security constraints
 
 - **v1 API requires shared secret** — every request to `/api/v1/...` must include `X-Internal-Api-Key: <V1_API_KEY>`. The guard is in `src/lib/v1-auth.ts` (constant-time comparison). Set `V1_API_KEY` in Railway environment variables and in local `.env`. Never commit the actual value.
