@@ -7,14 +7,45 @@ import { Header } from "./Header";
 import { PageTitleProvider } from "./PageTitleContext";
 import { Menu } from "lucide-react";
 
+const SIDEBAR_COLLAPSED_KEY = "jedforge-sidebar-collapsed";
+
+function loadSidebarCollapsed(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function saveSidebarCollapsed(value: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(value));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    setCollapsed(loadSidebarCollapsed());
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted) saveSidebarCollapsed(collapsed);
+  }, [collapsed, mounted]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -54,7 +85,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <Sidebar onClose={() => setSidebarOpen(false)} />
+        <Sidebar
+          onClose={() => setSidebarOpen(false)}
+          collapsed={collapsed}
+          onToggleCollapse={() => setCollapsed((v) => !v)}
+        />
       </div>
 
       {/* Main */}
