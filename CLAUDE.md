@@ -61,16 +61,11 @@ Org switching UI, billing changes, broad project membership role redesign, casca
 
 ## Closed project invariants
 
-Projects have an `isClosed Boolean @default(false)` field. Rules enforced in code:
+See `.context-docs/closed-projects.md` for all 8 rules. Key facts:
 
-1. **Only `UserRole.ADMIN` can close or reopen a project** — `closeProject`/`reopenProject` actions in `src/app/(dashboard)/admin/actions.ts` call `requireAdmin()` before mutating.
-2. **Active projects listing filters closed projects** — `src/app/(dashboard)/projects/page.tsx` adds `isClosed: false` to its Prisma query. Closed projects do not appear on the main Projects page for any user.
-3. **Non-admins are redirected from most closed project URLs** — `src/app/(dashboard)/projects/[projectKey]/layout.tsx` redirects to `/projects` if the project is closed and the user is not an admin, **unless** the path matches `/projects/[key]/docs` (including sub-pages). Docs are intentionally accessible on closed projects. The layout reads the current path via `headers().get('x-pathname')`, which the middleware sets on every request. Admins can navigate anywhere in a closed project.
-4. **`/projects/closed` is visible to all authenticated users** — non-admins see only closed projects they are members of; admins see all closed projects.
-5. **Re-Open button is disabled for non-admins** — the button renders with `disabled` attribute and reduced opacity. The server action (`src/app/(dashboard)/projects/closed-actions.ts`) also re-checks admin role server-side.
-6. **`getAdminProjects` uses explicit `select`** — if you add fields to the `Project` model that the admin panel needs to display, add them to the `select` block in that function (`src/app/(dashboard)/admin/actions.ts`).
-7. **Dashboard filters closed projects; global Docs page does not** — all four queries in `src/app/(dashboard)/page.tsx` (`getUserProjects`, `getAssignedIssues`, `getUpcomingDueDates`, `getRecentActivity`) add `isClosed: false`. The global Docs page (`src/app/(dashboard)/docs/page.tsx`) shows all member projects — open ones at the top, closed ones in a separate "Closed Projects" section with a lock badge and read-only subtitle.
-8. **There is no Archive concept** — the `isArchived` field and `archiveProject` action have been removed. Close (`isClosed`, admin-only) is the only project deactivation mechanism. Project settings Danger Zone contains only "Project Visibility" (admin-only toggle) and "Delete Project".
+- `isClosed` (admin-only close/reopen) is the only project deactivation mechanism — there is no Archive concept.
+- Active Projects page, Dashboard, and closed-project URLs (except `/projects/[key]/docs`) filter or redirect on `isClosed`.
+- `/projects/closed` is visible to everyone; non-admins see only projects they're a member of.
 
 ---
 
@@ -105,18 +100,7 @@ Claude Code cannot run `npm install` directly. To add packages:
 
 ## Email sending (Resend + React Email)
 
-Email templates live in `src/emails/`. The send helper is `sendOrgInviteEmail()` in `src/lib/invites.ts`.
-
-**Resend client must be instantiated lazily** — `new Resend(process.env.RESEND_API_KEY)` at module level throws during Next.js static page data collection in CI (where the env var is absent), crashing the build. Always instantiate inside the function that uses it, not at module top level.
-
-**`react:` option in `resend.emails.send()` fails at runtime** ("render is not a function") even though TypeScript accepts it. Always render manually first and pass the result as `html:`:
-```ts
-import { render } from "@react-email/components";
-const html = await render(MyEmail({ ...props }));
-await resend.emails.send({ ..., html });
-```
-
-Sending domain `jedforge.com` is verified with Resend. From address: `invites@jedforge.com` (the specific mailbox does not need to exist).
+Email templates live in `src/emails/`, send helper `sendOrgInviteEmail()` in `src/lib/invites.ts`. See `.context-docs/email.md` for the Resend lazy-instantiation and `render()`-before-send gotchas.
 
 ## Subagent file-write limitation in worktrees
 
@@ -126,25 +110,11 @@ Worktree agents (`isolation: "worktree"`) can read and run bash but cannot Edit/
 
 ## Database migrations
 
-For local dev (Docker Postgres on port 5433): `npx prisma migrate dev`
-
-Always update `prisma/schema.prisma` and let Prisma generate the migration with `npx prisma migrate dev`. Run `npx prisma generate` after schema changes.
-
-**`npx prisma migrate dev` requires an interactive TTY** — it will fail with "non-interactive environment" in Claude Code's shell. Workaround for simple DDL migrations (add/drop column, create index): manually create the migration directory and SQL file under `prisma/migrations/<timestamp>_<name>/migration.sql`, apply it with psql directly, then record it in the migrations table:
-```bash
-psql postgresql://postgres:postgres@localhost:5433/taskforge -f prisma/migrations/<dir>/migration.sql
-psql postgresql://postgres:postgres@localhost:5433/taskforge -c \
-  "INSERT INTO \"_prisma_migrations\" (id, checksum, started_at, finished_at, migration_name, applied_steps_count) \
-   VALUES (gen_random_uuid(), 'manual', now(), now(), '<migration_name>', 1) ON CONFLICT DO NOTHING;"
-npx prisma generate
-```
-Production picks up the migration automatically via `prisma migrate deploy` in `railway.toml`.
-
-**Production migrations are auto-applied on every Railway deploy.** `railway.toml` sets `preDeployCommand = "npx prisma migrate deploy"`, which runs before the app starts. No manual psql step is needed — just push and Railway handles it.
+For local dev (Docker Postgres on port 5433): `npx prisma migrate dev`. Always update `prisma/schema.prisma` first and run `npx prisma generate` after schema changes. Production migrations auto-apply on every Railway deploy (`preDeployCommand` in `railway.toml`) — no manual step needed.
 
 **Before writing any route or server action that queries Prisma, verify every field referenced exists in the current `schema.prisma`.** If a field is absent, note it and either adapt the query or plan a migration before proceeding.
 
-**`Board` and `Column` models are dead code** — both exist in `schema.prisma` but `prisma.board` and `prisma.column` are never called anywhere in `src/`. The Kanban view is driven entirely by `ProjectStatus` rows. Do not use these models; they can be dropped from the schema when convenient.
+See `.context-docs/migrations.md` for the non-interactive-TTY workaround and the `Board`/`Column` dead-code note.
 
 ---
 
@@ -169,28 +139,12 @@ Internal API for Claude Code to track work. Full docs in `CLAUDE_API.md`. **Crea
 ## Local dev environment (Windows / Jed's machine)
 
 - **Local `.env` exists** — `/home/jamie/Projects/TaskForge/.env` is present and contains `V1_API_KEY`, `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`. If it ever goes missing, recreate from `.env.example` and re-add secrets from Railway.
-- **V1_API_KEY ends in `=` — use `cut -d= -f2-` to extract it** — the key is a base64 string (e.g., `...h9E1mESb0tU=`). `grep V1_API_KEY .env | cut -d= -f2` silently drops the trailing `=`, causing "Unauthorized" on every API call. Always use `cut -d= -f2-` (field 2 to end-of-line) or hardcode the value in Python scripts.
-- **PowerShell git commit heredocs** — the bash `$(cat <<'EOF'…EOF)` pattern fails in PowerShell. Use the PowerShell here-string syntax instead: `git commit -m @'` … `'@` (closing `'@` must be at column 0).
-- Docker Postgres on port 5433 — start with `docker start taskforge-db` if not running (see startup checklist above)
-- **Railway CLI is unusable in this environment** — every command (`whoami`, `status`, `variables`) produces no output and exits 1, even with `RAILWAY_API_TOKEN` set. Use the **Railway GraphQL API** instead: `POST https://backboard.railway.com/graphql/v2` with header `Authorization: Bearer $RAILWAY_API_TOKEN`. The token is exported in `~/.bashrc` (non-interactive shells may not source it — read it from the file directly). TaskForge production lives in project "striking-strength" (`7a369174-b77d-49c0-9ef0-f651541fe383`), environment `816d8546-3458-4855-9699-b77c855019b9`, service `taskforge` (`63950f57-c892-45d6-8c9e-937e75517994`), service `Postgres` (`a303a6b4-af40-457d-a017-08bfcf3647ff`).
-- **Railway GraphQL API requires a browser-like `User-Agent` header** — requests with a bare/default `User-Agent` (e.g. Python `urllib`'s default) get a `403` with body `error code: 1010`, which is Cloudflare's bot-fight mode in front of `backboard.railway.com`, not an auth failure. This looks exactly like an expired/rotated token — before assuming the token is bad, retry with e.g. `User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36`.
-- **Restarting a crashed Railway service:** use the `serviceInstanceRedeploy` mutation — `mutation { serviceInstanceRedeploy(environmentId: "...", serviceId: "...") }`.
-- **Direct production DB access:** query the GraphQL `variables(projectId, environmentId, serviceId)` field for the Postgres service and use its `DATABASE_PUBLIC_URL` with local `psql`. Fetch it fresh each time; never write it to a file that survives the session or commit it. The `variables` field returns a **flat key/value object** (not edges/nodes) — query it as `{ variables(projectId: "...", environmentId: "...", serviceId: "...") }` with no subfields and access results as `d['data']['variables']['KEY_NAME']`. Queries with `{ edges { node { name value } } }` subfields fail with a schema validation error.
-- Production URL: `https://www.jedforge.com` (also accessible at `https://taskforge-production-099b.up.railway.app`)
-- Seeded test users (all password `password123`): `admin@taskforge.dev` (Alice Chen, `UserRole.ADMIN` — use this account to test any admin-gated feature), `member@taskforge.dev`, `carol@taskforge.dev`, `dave@taskforge.dev`
-- **Seeded users' org membership** — `member`, `carol`, and `dave` are `ProjectMember`s in Alice's workspace projects but are **NOT** `OrgMember`s of Alice's workspace (`cmosw99gk0001dc3hyrc01cym`). Each is the OWNER of their own separate personal workspace org. Testing org-level permissions (e.g., `canManageCustomFields`) for a non-admin user requires temporarily inserting an `OrgMember` row for Alice's workspace, or promoting admin@taskforge.dev to test the OWNER/ADMIN path (which already works since they're platform ADMIN).
+- Docker Postgres on port 5433 — start with `docker start taskforge-db` if not running (see startup checklist above).
+- Seeded test users (all password `password123`): `admin@taskforge.dev` (Alice Chen, `UserRole.ADMIN` — use this account to test any admin-gated feature), `member@taskforge.dev`, `carol@taskforge.dev`, `dave@taskforge.dev`.
 - Seeded local projects (keys): `PL` (Product Launch), `MA` (Mobile App), `WR` (Website Redesign), `JFR` (JedForge Roadmap). Production has additional projects (`TFEN`, `JFDOCS`, `WEQUIZ`, etc.) that do not exist in local dev.
-- Auth page logos: `public/logo-light.png` and `public/logo-dark.png` are both **1254×1254 square** images. They are displayed at `w-[200px] sm:w-[260px]` on the login page — do not increase this without checking total page height fits inside a 1080p viewport (logo + card + gaps must stay under ~940px).
-- **Favicon/icon assets use `.png`, not `.svg`** — `src/app/icon.png`, `public/icons/light/icon.png`, and `public/icons/dark/icon.png` replaced the old hand-crafted `icon.svg` files. Next.js App Router picks up `src/app/icon.png` natively (appears as `/icon.png` route in `next build` output). Do not add `icon.svg` back.
-- **`public/icons/{light,dark}/icon-128.png`** are pre-cropped 128×128 square "JF" glyph marks (same family as the favicons, between the tiny `favicon-*.png` and the huge `icon-1024.png`). Reuse these for any compact UI that needs a small brand mark instead of the full wordmark (e.g. the collapsed sidebar rail in `Sidebar.tsx`, JFR-101) rather than generating a new asset.
-- **Favicon glyph crop box** — to regenerate the icon set from the source logos, crop `(left=335, top=250, right=975, bottom=714)` from either 1254×1254 logo PNG to isolate the "JF" ribbon glyph (640×464px). Center on a 740×740 square canvas, filling with the corner-sampled background color (near-white for light, near-black `#0b0a0e` for dark). Downsample with Lanczos (`Image.LANCZOS` in Pillow). ICO files embed 16×16, 32×32, and 48×48.
-- Playwright v1.59.1 is installed in `node_modules` only (not global). In CJS scripts: `require('/home/jamie/Projects/TaskForge/node_modules/playwright')`. **`npx playwright install chromium` requires sudo and will fail** — instead use `executablePath: '/usr/bin/google-chrome'` in `chromium.launch()`. `tmux` is not available — start the dev server in the background with `nohup`: `nohup npm run dev > /tmp/nextdev.log 2>&1 &` then `sleep 12` before driving it. Plain `npm run dev > /tmp/nextdev.log 2>&1 &` (without `nohup`) exits with code 144 in this environment. **Port 3000 may already be in use** (e.g. a leftover dev server from a prior session) — Next.js will silently fall back to 3001 or higher. Always resolve the actual port before writing Playwright URLs: `grep "Local:" /tmp/nextdev.log | head -1`.
-- **No TypeScript `as X` casts in `.js` Playwright scripts** — `(el as HTMLInputElement).checked` causes `SyntaxError` in Node.js CJS. Write plain `el.checked` directly instead.
-- **Calling Next.js server actions directly (bypass UI) for validation testing** — intercept the action ID at runtime via `page.on('request', req => { const h = req.headers()['next-action']; if (h) console.log(h, req.postData()) })`, then call it from inside `page.evaluate()`: `fetch(pageUrl, { method: 'POST', headers: { 'Next-Action': id, 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify([arg1, arg2, ...]) })`. The JSON array maps positionally to the action's parameters. Action IDs are build-time hashes — find them at runtime, don't hardcode. Useful for passing values that browser input validation would normally block (e.g. non-numeric strings to a `type="number"` field).
-- **psql double-quoted identifiers in Node.js `execSync`** — `execSync('psql ... -c "SELECT \\"col\\" FROM \\"Table\\"')` loses the inner double quotes, causing `ERROR: relation does not exist`. Pass SQL via stdin instead: `execSync('psql postgresql://...', { input: 'SELECT "col" FROM "Table";', encoding: 'utf8' })`. This preserves all quoting.
-- **Playwright + Next.js App Router client-side navigation** — after clicking a link that triggers client-side routing, `page.url()` and `waitForLoadState('networkidle')` are unreliable. Use `page.goto('http://localhost:3000/projects/PL/issues/PL-1')` directly instead of clicking through from a list page.
-- **Playwright `waitForURL` with glob patterns** — `page.waitForURL('http://localhost:3000/**')` resolves immediately if the page is already at a matching URL (e.g., you're already on `/login`). When waiting for login to complete, use a predicate instead: `page.waitForURL(url => !url.toString().includes('/login'), { timeout: 15000 })`.
-- **Playwright `page.$('text=...')` with special characters** — the middle-dot `·` and similar Unicode characters can silently fail to match. Use `(await page.content()).includes('...')` for reliable substring checks.
+- Production URL: `https://www.jedforge.com` (also accessible at `https://taskforge-production-099b.up.railway.app`).
+
+See `.context-docs/local-dev-tooling.md` for the Railway CLI/GraphQL API workarounds, seeded-user org-membership nuance, Playwright setup and gotchas, icon/logo asset crop details, and psql/execSync quoting.
 
 ---
 
@@ -217,18 +171,12 @@ Spec: `.context-docs/JedForge-FunctionalSpec-v2.0.docx` — regenerate with `nod
 
 ## Middleware and server component patterns
 
-- **Project layout is a membership gate** — `src/app/(dashboard)/projects/[projectKey]/layout.tsx` queries the project with `members: { some: { userId } }`, so any user without a `ProjectMember` row gets a 404 before their request reaches the page. If a feature needs to grant access to a project sub-page for non-members (e.g., org admins reaching the settings page), the layout gate must be handled too — not just the page-level guard. The pattern is: detect the specific path via `headers().get('x-pathname')`, check the org-level permission, then re-fetch the project without the membership filter.
+See `.context-docs/middleware-patterns.md` for all 6 patterns. Key facts:
 
-- **Reading the current path in a server component layout** — Next.js layouts receive `params` but not the full URL path. The middleware (`src/middleware.ts`) sets `x-pathname` on every request via `new Headers(req.headers); requestHeaders.set('x-pathname', nextUrl.pathname)` passed to `NextResponse.next({ request: { headers: requestHeaders } })`. Server components can then read it with `import { headers } from 'next/headers'; headers().get('x-pathname')`. This is how the project layout distinguishes docs paths from other paths for closed-project access control.
-
-- **Dynamic breadcrumb titles — `PageTitleContext`** — `Header.tsx` builds breadcrumbs from URL segments using `segmentLabel()`, which cannot resolve database values (e.g. a doc page cuid becomes a garbled crumb). The fix is `src/components/layout/PageTitleContext.tsx`: render `<SetPageTitle title={someTitle} />` (a null-rendering client component) from any server page component, and `Header` will replace the last breadcrumb label with that title. The context resets to `null` on every pathname change, so stale titles never bleed across navigation. `DashboardShell` wraps the whole layout in `PageTitleProvider` — no additional provider setup is needed. Use this pattern on any page whose last URL segment is a cuid or other opaque ID.
-
-- **Middleware invite-route exemption** — `/invite/[token]` routes must be accessible regardless of auth state (unauthenticated users can create accounts via them; logged-in users need to reach them too). In `src/middleware.ts`, add `const isInviteRoute = nextUrl.pathname.startsWith("/invite/")` and return `NextResponse.next()` immediately after the `isAuthRoute` block, before the `if (!isLoggedIn)` redirect. Unlike `/login` and `/register`, invite routes do NOT redirect logged-in users away.
-
-- **JWT callback `orgId` refresh on `session.update()`** — The jwt callback only sets `token.orgId` when the `user` param is present (i.e., initial sign-in). If an existing logged-in user joins a new org and you call `update({})` to refresh the session, the old `orgId` will remain unless the `trigger === "update"` branch also re-queries `prisma.orgMember.findFirst`. The fix (in `src/lib/auth.ts`): inside the `trigger === "update"` block, always re-fetch the membership and update `token.orgId`. This is what lets the existing-user invite accept path pick up the new org without a logout/login cycle.
-- **`token.orgId` resolution is non-deterministic for users in more than one org** (tracked in JFR-109) — both the initial-sign-in and `trigger === "update"` branches call `prisma.orgMember.findFirst({ where: { userId } })` with no `orderBy`. Postgres gives no ordering guarantee without one; confirmed empirically that two differently-shaped unordered queries against the same `OrgMember` rows for the same user returned different first rows. For a single-org user this is invisible. For a multi-org user (e.g. an OWNER of their own personal workspace who's also a member of client orgs), the "active" org for a given session is effectively random per login, with no UI to see or choose which one. This directly broke the first live JFR-100 MCP test: the OAuth consent screen grants access to `session.user.orgId`, so a token got scoped to the wrong org and every tool call 404'd on a project that actually existed in a different org the user belongs to. If a multi-org user reports unexpected "not found" errors on something that should be visible to them, check which org their session actually resolved to before assuming a permissions bug. No fix yet — a general app-wide org-switcher is a documented non-goal, so JFR-109 is scoped to just making resolution deterministic plus adding an org picker to the OAuth consent flow specifically.
-
-- **Next.js Router Cache and client-triggered mutations** — The App Router caches dynamic Server Component payloads on the client for ~30 seconds. When a client component mutates data that a parent Server Component reads from the DB (e.g. a settings page that fetches `avatarUrl`), call `router.refresh()` after the mutation. Without it, navigating away and back within the cache window serves stale server data, so the UI appears to revert. `router.refresh()` does not unmount client components — local state like `previewUrl` is preserved.
+- Server component layouts read the current path via `headers().get('x-pathname')` (set by `src/middleware.ts`), not from `params` — used to gate non-member access and to distinguish docs paths.
+- Use `PageTitleContext` (`<SetPageTitle title={...} />`) to fix breadcrumbs whose last URL segment is a cuid.
+- `token.orgId` resolution is non-deterministic for multi-org users (JFR-109) — check which org a session resolved to before assuming a permissions bug.
+- Call `router.refresh()` after client mutations that a parent Server Component reads from the DB, or navigating back within ~30s serves stale data.
 
 ---
 
@@ -242,8 +190,7 @@ Spec: `.context-docs/JedForge-FunctionalSpec-v2.0.docx` — regenerate with `nod
 
 ## Testing
 
-- **`src/__tests__/tenancy.test.ts` has a hand-written Prisma mock** — the `mockPrisma` object in the `vi.hoisted()` block lists every Prisma model and method explicitly. When you add a new model that's called from any admin action (or any code covered by that test file), you must add it to the mock or tests fail with `TypeError: Cannot read properties of undefined (reading 'create')`. Add the model with whatever methods it uses, e.g. `adminAuditLog: { create: vi.fn().mockResolvedValue({}) }`. The other test files (`permissions.test.ts`, `docs.test.ts`, etc.) have their own separate mocks — check each one if your new code is exercised by multiple test files.
-- **`tenancy.test.ts` also tests admin action *behaviors*, not just the mock structure** — some tests use `.rejects.toThrow(...)` to assert that admin actions throw on invalid input. If you change an action from throwing to returning `{ success: false, error }` (per the Server Action pattern above), those assertions break. Update them to `const result = await action(...); expect(result).toEqual({ success: false, error: expect.stringContaining("...") })`.
+See `.context-docs/testing-notes.md` — hand-written Prisma mocks in `tenancy.test.ts` (and other test files) must be updated when adding models/methods to admin actions; behavior assertions there also assume the throw-based error pattern, not the `{ success, error }` pattern from Server Action pitfalls above.
 
 ---
 
@@ -260,46 +207,13 @@ See `.context-docs/data-integrity.md` for full details. Key facts:
 
 ## External REST API
 
-Customer-facing API at `/api/external/v1/`. Uses org-scoped API keys — entirely separate from the internal `/api/v1/` shared-secret API.
-
-- **Auth guard**: `requireExternalApiKey(request)` from `src/lib/external-api-auth.ts`. Returns `ExternalApiContext = { orgId, apiKeyId, createdById }` on success or a `NextResponse` (401/429) on failure. Every handler must open with `const ctx = await requireExternalApiKey(request); if (ctx instanceof NextResponse) return ctx;`.
-- **Org isolation**: every query must be scoped by `ctx.orgId`. Use `requireProjectInOrg(projectKey, orgId)` from `src/app/api/external/v1/_helpers.ts` for project lookups — it adds `orgId` and `isClosed: false` filters automatically. Never look up a project by key alone.
-- **Implicit authorship**: `ctx.createdById` is the user who created the API key. Use it as `reporterId` for new issues and `authorId` for comments. Do not accept a caller-supplied `authorId` — that would allow impersonation.
-- **Comment body**: `normalizeBody()` in `_helpers.ts` accepts plain text (wraps in `<p>`) or TipTap HTML (sanitizes). Use it instead of calling `sanitizeTipTapHtml` directly on external comment routes.
-- **Shared helpers**: `src/app/api/external/v1/_helpers.ts` re-exports `resolveStatusForProject`, `PRIORITY_MAP`, `formatIssue` from the v1 helpers and adds `requireProjectInOrg`, `formatComment`, `formatProject`, `normalizeBody`, `ISSUE_INCLUDE`, `TYPE_MAP`.
-- **Rate limiting**: in-memory fixed window (100 req/min per `apiKeyId`) in `external-api-auth.ts`. Resets on redeploy. Not distributed — would over-count on multiple Railway instances.
-- **Key management UI**: `/org-settings` (`src/app/(dashboard)/org-settings/page.tsx`), gated to org ADMIN/OWNER via `canManageApiKeys()`. Accessible from the sidebar user-dropdown "Org Settings" link.
+Customer-facing API at `/api/external/v1/`, org-scoped API keys (separate from the internal v1 and OAuth/MCP auth systems). See `.context-docs/external-api.md` for the auth guard, org-isolation rules, and shared helpers.
 
 ---
 
-## MCP OAuth authorization server (JFR-100 Phase B1)
+## MCP OAuth & Streamable HTTP server (JFR-100)
 
-OAuth 2.1 authorization server backing the Claude.ai custom connector (MCP). Entirely separate from both the internal v1 shared-secret API and the external org-API-key API — this is a third, distinct auth system. The MCP server that consumes these tokens is documented separately below (Phase B2).
-
-- **Models**: `OAuthClient`, `OAuthAuthorizationCode`, `OAuthAccessToken`, `OAuthRefreshToken` in `schema.prisma`. `OAuthClient.id` (a cuid) doubles as the public OAuth `client_id` — no separate field. All codes/tokens are stored as sha256 hashes (`src/lib/oauth/tokens.ts`), never plaintext, same pattern as `ApiKey`.
-- **`@modelcontextprotocol/sdk` is a direct dependency**, added for its OAuth zod schemas/types only (`shared/auth.js` — `OAuthClientMetadataSchema`, etc.). Its `server/auth/router|handlers|middleware` are hard-coupled to Express (`OAuthServerProvider.authorize()` takes an Express `Response`) and cannot be used with Next.js Route Handlers — the actual endpoint logic in this repo is hand-written against the OAuth/MCP spec, using the SDK only for request/response shape validation. It was already a transitive dependency of `shadcn` (devDependency) at a slightly older version — no conflict.
-- **Endpoints**: `POST /api/oauth/register` (RFC 7591 DCR — Claude.ai calls this automatically), `GET+POST /oauth/authorize` (consent screen, page not API route since it renders HTML — lives under `src/app/(auth)/oauth/authorize/`), `POST /api/oauth/token` (authorization_code + refresh_token grants).
-- **PKCE is mandatory, S256 only** — `code_challenge_method` values other than `S256` (including `plain`) are rejected at `/oauth/authorize`. This matches Claude.ai's actual client behavior, not just the spec's recommendation.
-- **Consent screen has no org picker** — it grants access to the user's current `session.user.orgId` only. Building an org-switcher is a documented non-goal elsewhere in this file; don't add one here either.
-- **Redirect safety**: `client_id`/`redirect_uri` are validated against the DB *before* any redirect happens. If either is invalid, the page renders a static error — it never redirects, to avoid becoming an open redirect. Once `redirect_uri` is confirmed registered, later validation failures (bad `response_type`, missing/weak PKCE) bounce back to it with `?error=...`, per spec.
-- **Refresh tokens rotate on every use** — `POST /api/oauth/token` with `grant_type=refresh_token` revokes both the old refresh token and its paired access token, then issues a new pair. Reusing a rotated refresh token returns `invalid_grant`.
-- **Authorization codes are single-use** — claimed via a conditional `updateMany({ where: { usedAt: null } })` rather than a plain update, so a concurrent replay of the same code can't race past the check.
-- **`requireOAuthToken(request)`** in `src/lib/oauth/require-oauth-token.ts` — bearer-token guard, wired into `/api/mcp` (Phase B2). Returns `{ orgId, userId, clientId, scope }` or a 401 `NextResponse` with a `WWW-Authenticate: Bearer resource_metadata="..."` header (RFC 9728).
-- **`/.well-known/*` routes require a `next.config.mjs` rewrite** — Next.js App Router's file-based routing silently skips dot-prefixed directories, so `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource` (RFC 8414 / RFC 9728 metadata) are implemented under `src/app/well-known/*` and rewritten from `/.well-known/:path*` → `/well-known/:path*`.
-- **Middleware exemptions**: `/oauth/authorize` and `/.well-known/` are exempted in `src/middleware.ts` from the default auth-redirect, same pattern as the existing `/invite/` exemption. `/oauth/authorize` needs its own exemption (rather than relying on the exemption) because it must preserve the full query string through a login redirect — the middleware's default `callbackUrl` only carries `nextUrl.pathname`, losing `client_id`/`code_challenge`/etc.
-- **Scope model**: `src/lib/oauth/scopes.ts` defines `issues:write`, `search:read`, `docs:read`, `docs:write` — the tool surface named in JFR-100's description. Enforcement happens per-tool in the MCP server (Phase B2), not here.
-- **Route folders starting with `_` are invisible to Next.js App Router routing** — an underscore-prefixed directory (e.g. `src/app/api/oauth/_debug-guard/`) is a Next.js "private folder" convention and gets silently 404'd/ignored by the router. Discovered while writing a throwaway test route — use any non-underscore name for ad-hoc debug routes.
-
-## MCP Streamable HTTP server (JFR-100 Phase B2)
-
-The actual MCP server Claude.ai's connector talks to, at `POST/GET/DELETE /api/mcp`. Consumes the Phase B1 OAuth tokens above via `requireOAuthToken`.
-
-- **Transport**: `WebStandardStreamableHTTPServerTransport` from `@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js` — a Fetch-native (Request/Response) transport, distinct from the Express-coupled `StreamableHTTPServerTransport` that Phase B1 ruled out. It drops straight into a Next.js Route Handler since `NextRequest` is a `Request` and `handleRequest()` returns a `Response` directly.
-- **Stateless per-request**: `src/app/api/mcp/route.ts` creates a fresh transport + `McpServer` (from `src/lib/mcp/server.ts`) on every request, with no `sessionIdGenerator`. No cross-request session state to keep in sync if Railway ever runs more than one instance — same reasoning as the existing in-memory external-API rate limiter.
-- **Tool surface** (`src/lib/mcp/server.ts`): `search_issues` (`search:read`, reuses the JedForge query language parser/validator/executor from `src/lib/query` and the Search page), `create_issue` (`issues:write`), `list_doc_pages` + `read_doc_page` (`docs:read`), `write_doc_page` create-or-update (`docs:write`, same revision-snapshot-and-prune-at-50 behavior as the Docs UI). Each tool checks its required scope against the access token's `scope` string itself — a missing scope returns an MCP `isError: true` tool result, not an HTTP error, per spec.
-- **Tenancy**: every tool resolves the target project by key scoped to `ctx.orgId` (never by key alone — keys are globally unique, so an unscoped lookup would let one org's token resolve another org's project). Docs tools require the token's `userId` to be an actual `ProjectMember` of that project — deliberately stricter than the session-based `resolveDocCtx` used by the Docs UI, which lets non-members read *public* docspaces; an OAuth grant acting on a specific user's behalf shouldn't inherit that bypass.
-- **`zod` is now a direct dependency** (was only transitive at 3.25.76 via another package, matching the SDK's `^3.25 || ^4.0` peer range) — tool `inputSchema`s import it directly.
-- **End-to-end local verification recipe**: DCR (`POST /api/oauth/register`) → Playwright login + click "Approve" on `/oauth/authorize` with `page.route()` intercepting the (unreachable) redirect URI to capture the `code` → PKCE code exchange at `/api/oauth/token` → raw `fetch` calls to `/api/mcp` with `Authorization: Bearer <token>`. The MCP response body is SSE-framed (`data: {...}` lines) unless `enableJsonResponse: true` is set on the transport — this repo left it at the SSE default to match real MCP clients; a test script must strip the `data:` prefix before `JSON.parse`.
+OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connector, at `/api/oauth/*` and `/api/mcp`. A third auth system, distinct from the internal v1 and external org-API-key APIs (each org's tokens/codes are sha256-hashed, never plaintext). See `.context-docs/mcp.md` for the full endpoint list, PKCE/token-rotation details, tool surface, and tenancy rules.
 
 ---
 
@@ -323,3 +237,11 @@ The actual MCP server Claude.ai's connector talks to, at `POST/GET/DELETE /api/m
 - .context-docs/avatars.md — S3 upload, proxy route, session refresh
 - .context-docs/shortcuts.md — global and project-context keyboard shortcuts
 - .context-docs/roadmap-workflow.md — JFR project workflow for roadmap items
+- .context-docs/closed-projects.md — all 8 closed-project rules
+- .context-docs/email.md — Resend/React Email lazy-instantiation and render() gotchas
+- .context-docs/migrations.md — non-interactive-TTY workaround, Board/Column dead code
+- .context-docs/local-dev-tooling.md — Railway CLI/GraphQL API, seeded-user org nuance, Playwright, icon assets, psql/execSync quoting
+- .context-docs/middleware-patterns.md — path-in-layout, breadcrumb titles, invite exemption, JWT orgId, router cache
+- .context-docs/testing-notes.md — tenancy.test.ts Prisma mock maintenance
+- .context-docs/external-api.md — external v1 API auth guard, org isolation, helpers
+- .context-docs/mcp.md — MCP OAuth authorization server + Streamable HTTP server (JFR-100 B1/B2)
