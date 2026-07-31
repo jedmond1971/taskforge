@@ -219,6 +219,7 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 
 ## Security constraints
 
+- **AI Chat is Jamie-exclusive, never for a buyer/other entity** — gated behind `AI_CHAT_ENABLED` (`src/lib/ai/feature-flag.ts`), checked server-side in both `/api/ai/*` routes (404 when off, not 403 — a disabled instance shouldn't reveal the routes exist) and in the issue detail page before rendering `AiChatPanel`. Defaults to unset/`false`; only Jamie's own deployment sets it `true`. If the product is ever sold or transferred, the buyer's environment must not have this var set.
 - **v1 API requires shared secret** — every request to `/api/v1/...` must include `X-Internal-Api-Key: <V1_API_KEY>`. The guard is in `src/lib/v1-auth.ts` (constant-time comparison). Set `V1_API_KEY` in Railway environment variables and in local `.env`. Never commit the actual value.
 - **Avatar GET requires authentication** — `GET /api/avatar` returns 401 without a valid session. The PUT handler was already protected; the GET was added in the same security pass.
 - **TipTap HTML is sanitized server-side** — all write paths that persist issue descriptions, comment bodies, and doc page content call `sanitizeTipTapHtml()` from `src/lib/sanitize-html.ts` (backed by `isomorphic-dompurify`) before the Prisma call. The viewer component (`rich-text-display.tsx`) does not sanitize — it relies on content already being clean in the database.

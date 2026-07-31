@@ -11,6 +11,7 @@ import {
 } from "@/app/(dashboard)/projects/[projectKey]/issues/[issueKey]/custom-field-value-actions";
 import { IssueDetail } from "@/components/issues/IssueDetail";
 import { canEditIssues } from "@/lib/permissions";
+import { isAiChatEnabled } from "@/lib/ai/feature-flag";
 
 interface PageProps {
   params: { projectKey: string; issueKey: string };
@@ -47,6 +48,7 @@ export default async function IssueDetailPage({ params }: PageProps) {
       canEdit={canEdit}
       customFields={customFields}
       customFieldValues={customFieldValues}
+      aiChatEnabled={isAiChatEnabled()}
     />
   );
 }

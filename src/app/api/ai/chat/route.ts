@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireProjectRole, canViewProject } from "@/lib/permissions";
 import { mintInternalMcpToken } from "@/lib/ai/internal-token";
+import { isAiChatEnabled } from "@/lib/ai/feature-flag";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -24,6 +25,10 @@ type ToolCallSummary = {
 
 
 export async function POST(request: NextRequest) {
+  if (!isAiChatEnabled()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

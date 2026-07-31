@@ -116,6 +116,7 @@ interface IssueDetailProps {
   canEdit: boolean;
   customFields: CustomField[];
   customFieldValues: Record<string, string | number | boolean | string[]>;
+  aiChatEnabled: boolean;
 }
 
 function EditableTitle({ value, issueId, projectKey, onSaved, canEdit }: {
@@ -233,7 +234,7 @@ function SubIssueRow({ subIssue, projectKey }: { subIssue: SubIssue; projectKey:
   );
 }
 
-export function IssueDetail({ issue, members, statuses, projectKey, currentUserId, currentUserName, canEdit, customFields, customFieldValues }: IssueDetailProps) {
+export function IssueDetail({ issue, members, statuses, projectKey, currentUserId, currentUserName, canEdit, customFields, customFieldValues, aiChatEnabled }: IssueDetailProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editingDesc, setEditingDesc] = useState(false);
@@ -612,7 +613,7 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
             </div>
           </div>
 
-          <AiChatPanel issueId={issue.id} />
+          {aiChatEnabled && <AiChatPanel issueId={issue.id} />}
 
           {canEdit && (
             <Button
