@@ -191,7 +191,7 @@ export async function updateIssue(
 
   const issue = await prisma.issue.update({
     where: { id: issueId },
-    data: { ...updates, ...(newPosition !== undefined ? { position: newPosition } : {}) },
+    data: { ...updates, ...(newPosition !== undefined ? { position: newPosition, statusChangedAt: new Date() } : {}) },
     include: { projectStatus: { select: { id: true, name: true, category: true } } },
   });
 
@@ -290,7 +290,10 @@ export async function bulkUpdateIssues(
   });
   await prisma.$transaction(
     issueIds.map((id, i) =>
-      prisma.issue.update({ where: { id }, data: { statusId, position: basePosition + i } })
+      prisma.issue.update({
+        where: { id },
+        data: { statusId, position: basePosition + i, statusChangedAt: new Date() },
+      })
     )
   );
 
@@ -671,7 +674,10 @@ export async function moveIssue(
       ];
 
       // Update moved issue status then reindex entire destination column
-      await tx.issue.update({ where: { id: issueId }, data: { statusId: newStatusId } });
+      await tx.issue.update({
+        where: { id: issueId },
+        data: { statusId: newStatusId, ...(statusChanged ? { statusChangedAt: new Date() } : {}) },
+      });
       for (let i = 0; i < destOrder.length; i++) {
         await tx.issue.update({ where: { id: destOrder[i].id }, data: { position: i } });
       }

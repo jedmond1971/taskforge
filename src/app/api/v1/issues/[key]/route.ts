@@ -98,6 +98,7 @@ export async function PATCH(
             where: { projectId: issue.projectId, statusId: updates.statusId as string },
           });
           updates.position = colCount;
+          updates.statusChangedAt = new Date();
         }
       } else {
         return NextResponse.json({ error: "status must be a string or null" }, { status: 400 });
