@@ -27,6 +27,8 @@ import {
   renameProjectStatus,
   deleteProjectStatus,
   reorderProjectStatuses,
+  getDoneAutoHideDays,
+  updateDoneAutoHideDays,
 } from "./board-actions";
 
 type ProjectStatus = {
@@ -280,17 +282,37 @@ export function BoardSettings({ projectKey }: { projectKey: string }) {
   const [statuses, setStatuses] = useState<ProjectStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [addingCategory, setAddingCategory] = useState<StatusCategory | null>(null);
+  const [autoHideDays, setAutoHideDays] = useState<number | null>(null);
+  const [isSavingAutoHide, startAutoHideTransition] = useTransition();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
   useEffect(() => {
-    getProjectStatuses(projectKey)
-      .then(setStatuses)
+    Promise.all([getProjectStatuses(projectKey), getDoneAutoHideDays(projectKey)])
+      .then(([loadedStatuses, days]) => {
+        setStatuses(loadedStatuses);
+        setAutoHideDays(days);
+      })
       .catch(() => toast.error("Failed to load statuses"))
       .finally(() => setLoading(false));
   }, [projectKey]);
+
+  function handleAutoHideChange(value: string) {
+    const days = value === "never" ? null : Number(value);
+    const previous = autoHideDays;
+    setAutoHideDays(days);
+    startAutoHideTransition(async () => {
+      try {
+        await updateDoneAutoHideDays(projectKey, days);
+        toast.success("Auto-hide setting updated");
+      } catch (err) {
+        setAutoHideDays(previous);
+        toast.error(err instanceof Error ? err.message : "Failed to update auto-hide setting");
+      }
+    });
+  }
 
   function byCategory(cat: StatusCategory) {
     return statuses
@@ -350,6 +372,27 @@ export function BoardSettings({ projectKey }: { projectKey: string }) {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Auto-hide completed issues</h3>
+        <p className="text-xs text-zinc-500 dark:text-zinc-500 mb-2">
+          Automatically remove issues from the Done column on the board after they&apos;ve
+          sat there this long. Issues remain fully visible on the Issues list — this only
+          affects the board view.
+        </p>
+        <select
+          value={autoHideDays === null ? "never" : String(autoHideDays)}
+          onChange={(e) => handleAutoHideChange(e.target.value)}
+          disabled={isSavingAutoHide}
+          className="w-full max-w-xs px-2 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+        >
+          <option value="never">Never</option>
+          <option value="14">2 weeks</option>
+          <option value="30">30 days</option>
+          <option value="60">60 days</option>
+          <option value="90">90 days</option>
+        </select>
+      </div>
+
       <div>
         <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Board Columns</h3>
         <p className="text-xs text-zinc-500 dark:text-zinc-500">

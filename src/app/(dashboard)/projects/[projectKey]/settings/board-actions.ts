@@ -140,6 +140,33 @@ export async function deleteProjectStatus(projectKey: string, statusId: string) 
   return { success: true };
 }
 
+export async function getDoneAutoHideDays(projectKey: string) {
+  const { projectId } = await requireProjectRole(projectKey, canManageProject);
+  const project = await prisma.project.findUniqueOrThrow({
+    where: { id: projectId },
+    select: { doneAutoHideDays: true },
+  });
+  return project.doneAutoHideDays;
+}
+
+export async function updateDoneAutoHideDays(
+  projectKey: string,
+  days: number | null
+) {
+  const { projectId } = await requireProjectRole(projectKey, canManageProject);
+  const ALLOWED = [14, 30, 60, 90];
+  if (days !== null && !ALLOWED.includes(days)) {
+    throw new Error("Invalid auto-hide duration");
+  }
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { doneAutoHideDays: days },
+  });
+  revalidatePath(`/projects/${projectKey}/settings`);
+  revalidatePath(`/projects/${projectKey}/board`);
+  return { success: true };
+}
+
 export async function reorderProjectStatuses(
   projectKey: string,
   updates: { id: string; position: number }[]

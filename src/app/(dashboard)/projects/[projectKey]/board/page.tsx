@@ -23,6 +23,7 @@ async function getBoardData(projectKey: string, userId: string) {
           type: true,
           position: true,
           dueDate: true,
+          statusChangedAt: true,
           assignee: { select: { id: true, name: true, avatarUrl: true } },
         },
       },
@@ -43,7 +44,17 @@ async function getBoardData(projectKey: string, userId: string) {
     status: i.projectStatus,
   }));
 
-  return { ...project, statuses: sortedStatuses, issues: mappedIssues };
+  const cutoff = project.doneAutoHideDays
+    ? new Date(Date.now() - project.doneAutoHideDays * 24 * 60 * 60 * 1000)
+    : null;
+
+  const visibleIssues = cutoff
+    ? mappedIssues.filter(
+        (i) => i.status.category !== "DONE" || i.statusChangedAt > cutoff
+      )
+    : mappedIssues;
+
+  return { ...project, statuses: sortedStatuses, issues: visibleIssues };
 }
 
 export default async function BoardPage({ params }: { params: { projectKey: string } }) {
