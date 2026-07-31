@@ -317,7 +317,8 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
       }}
       parentId={issue.id}
     />
-    <div className="max-w-5xl min-w-0">
+    <div className="flex flex-col xl:flex-row xl:items-start gap-6">
+    <div className="max-w-5xl min-w-0 flex-1">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-zinc-500 mb-4 flex-wrap">
         {issue.parent ? (
@@ -613,8 +614,6 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
             </div>
           </div>
 
-          {aiChatEnabled && <AiChatPanel issueId={issue.id} />}
-
           {canEdit && (
             <Button
               onClick={handleDelete}
@@ -629,6 +628,13 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
           )}
         </div>
       </div>
+    </div>
+
+    {aiChatEnabled && (
+      <div className="w-full xl:w-[420px] xl:shrink-0 xl:sticky xl:top-6 xl:h-[calc(100vh-7rem)]">
+        <AiChatPanel issueId={issue.id} />
+      </div>
+    )}
     </div>
     </>
   );

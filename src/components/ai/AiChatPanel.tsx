@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Bot, Send, Wrench, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -41,6 +41,14 @@ export function AiChatPanel({ issueId }: AiChatPanelProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isHydrating, setIsHydrating] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -98,14 +106,21 @@ export function AiChatPanel({ issueId }: AiChatPanelProps) {
       .finally(() => setIsLoading(false));
   }
 
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey && !e.repeat) {
+      e.preventDefault();
+      handleSend();
+    }
+  }
+
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col">
+    <div className="h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <Bot className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
         <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Ask AI about this issue</p>
       </div>
 
-      <div ref={scrollRef} className="flex-1 max-h-80 overflow-y-auto space-y-3 mb-3 pr-1">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-3 mb-3 pr-1">
         {isHydrating ? (
           <p className="text-xs text-zinc-400 dark:text-zinc-600">Loading…</p>
         ) : messages.length === 0 ? (
@@ -152,14 +167,16 @@ export function AiChatPanel({ issueId }: AiChatPanelProps) {
         )}
       </div>
 
-      <form onSubmit={handleSend} className="flex items-center gap-2">
-        <input
-          type="text"
+      <form onSubmit={handleSend} className="flex items-end gap-2">
+        <textarea
+          ref={textareaRef}
+          rows={1}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a question…"
+          onKeyDown={handleKeyDown}
+          placeholder="Ask a question… (Shift+Enter for a new line)"
           disabled={isLoading}
-          className="flex-1 min-w-0 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+          className="flex-1 min-w-0 max-h-40 resize-none overflow-y-auto text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
         />
         <Button type="submit" size="sm" disabled={isLoading || !input.trim()}>
           <Send className="w-3.5 h-3.5" />
