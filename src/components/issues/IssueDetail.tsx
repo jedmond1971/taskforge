@@ -22,6 +22,7 @@ import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
 import { RelatedDocsSection } from "@/components/issues/RelatedDocsSection";
 import { LinkedIssuesSection } from "@/components/issues/LinkedIssuesSection";
 import { CustomFieldsPanel } from "@/components/issues/CustomFieldsPanel";
+import { AiChatPanel } from "@/components/ai/AiChatPanel";
 
 type User = { id: string; name: string; avatarUrl: string | null };
 type ActivityLog = {
@@ -610,6 +611,8 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
               <p className="text-zinc-700 dark:text-zinc-300 mt-0.5">{new Date(issue.updatedAt).toLocaleString()}</p>
             </div>
           </div>
+
+          <AiChatPanel issueId={issue.id} />
 
           {canEdit && (
             <Button

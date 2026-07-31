@@ -117,6 +117,8 @@ model User {
   oauthAuthorizationCodes OAuthAuthorizationCode[]
   oauthAccessTokens       OAuthAccessToken[]
   oauthRefreshTokens      OAuthRefreshToken[]
+
+  aiConversations AiConversation[]
 }
 
 model Project {
@@ -187,6 +189,7 @@ model Issue {
   outgoingLinks     IssueLink[]        @relation("SourceLinks")
   incomingLinks     IssueLink[]        @relation("TargetLinks")
   customFieldValues CustomFieldValue[]
+  aiConversations   AiConversation[]
 
   @@index([projectId])
   @@index([assigneeId])
@@ -196,6 +199,34 @@ model Issue {
   // Position uniqueness enforced by DEFERRABLE constraint in migration
   // (not expressible as @@unique — reorder logic writes sequentially)
   @@index([projectId, statusId, position])
+}
+
+model AiConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  issueId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issue    Issue       @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  messages AiMessage[]
+
+  @@unique([userId, issueId])
+  @@index([issueId])
+}
+
+model AiMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String
+  content        String
+  toolCalls      Json?
+  createdAt      DateTime @default(now())
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
 }
 
 model Board {
