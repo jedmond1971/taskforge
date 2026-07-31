@@ -631,7 +631,7 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
     </div>
 
     {aiChatEnabled && (
-      <div className="w-full xl:w-[420px] xl:shrink-0 xl:sticky xl:top-6 xl:h-[calc(100vh-7rem)]">
+      <div className="w-full xl:w-[420px] xl:shrink-0 xl:sticky xl:top-6">
         <AiChatPanel issueId={issue.id} />
       </div>
     )}

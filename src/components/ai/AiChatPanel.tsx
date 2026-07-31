@@ -42,6 +42,7 @@ export function AiChatPanel({ issueId }: AiChatPanelProps) {
   const [isHydrating, setIsHydrating] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const el = textareaRef.current;
@@ -49,6 +50,22 @@ export function AiChatPanel({ issueId }: AiChatPanelProps) {
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   });
+
+  useEffect(() => {
+    function updateHeight() {
+      const el = panelRef.current;
+      if (!el) return;
+      if (!window.matchMedia("(min-width: 1280px)").matches) {
+        el.style.height = "";
+        return;
+      }
+      const top = el.getBoundingClientRect().top;
+      el.style.height = `${Math.max(400, window.innerHeight - top - 24)}px`;
+    }
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,7 +131,7 @@ export function AiChatPanel({ issueId }: AiChatPanelProps) {
   }
 
   return (
-    <div className="h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col">
+    <div ref={panelRef} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <Bot className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
         <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Ask AI about this issue</p>
