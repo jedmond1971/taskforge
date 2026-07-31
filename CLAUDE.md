@@ -123,6 +123,7 @@ Internal API for Claude Code to track work. Full docs in `CLAUDE_API.md`. **Crea
 - **Always use the production URL for issue tracking** — creating issues and posting comments must go to production. Local dev issues are ephemeral and invisible in the real tracker. Use local only when testing the API itself.
 - Auth: `X-Internal-Api-Key: <V1_API_KEY>` on every request. Never commit the key.
 - Post comments as Maximus: `authorId: "cmo365psl000vdrd0p63lirlz"` — **production only**. Maximus does not exist in the local dev DB. For local v1 API calls that require an authorId, use Alice Chen (`cmo37pswr00007vd13y3cgzqz`).
+- **The `mcp__claude_ai_JedForge__add_comment`/`create_issue`/`update_issue` connector tools cannot post as Maximus** — they authenticate via the JFR-100 OAuth flow bound to Jamie's own account, with no `authorId` override in their schema, so anything posted through them lands under Jamie Edmondson's name. For a Maximus-authored fix-summary comment, always call the production v1 REST API directly (Python `urllib`, see below) instead of the MCP tool.
 - **`GET /api/v1/projects` returns `{ projects: [...] }`, not a plain array** — access the list as `data['projects']`, not `data` directly.
 - `statusId` accepts a cuid, a human name (`"Done"`), or a category key (`"DONE"`) — all three forms work.
 - `IssueStatus` enum is gone — use `ProjectStatus` rows. `IssuePriority`: `CRITICAL | HIGH | MEDIUM | LOW`.
