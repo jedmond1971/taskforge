@@ -22,18 +22,6 @@ type ToolCallSummary = {
   resultSummary: string;
 };
 
-// The MCP connector beta (mcp-client-2025-11-20) adds content block types
-// (mcp_tool_use, mcp_tool_result) and request fields (mcp_servers, tools:
-// mcp_toolset) that may lag behind the installed SDK's TS definitions —
-// parse defensively rather than relying on the SDK's content-block union.
-type McpToolUseBlock = { type: "mcp_tool_use"; id: string; name: string; input: unknown };
-type McpToolResultBlock = {
-  type: "mcp_tool_result";
-  tool_use_id: string;
-  content: Array<{ type: string; text?: string }>;
-};
-type TextBlock = { type: "text"; text: string };
-type ResponseBlock = TextBlock | McpToolUseBlock | McpToolResultBlock | { type: string };
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -150,8 +138,7 @@ You do not have an update_issue or add_comment tool yet — if the user wants a 
       ],
       tools: [{ type: "mcp_toolset", mcp_server_name: "jedforge" }],
       betas: ["mcp-client-2025-11-20"],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
+    });
   } catch (error) {
     console.error("AI chat request failed:", error);
     return NextResponse.json(
@@ -162,24 +149,22 @@ You do not have an update_issue or add_comment tool yet — if the user wants a 
 
   const textParts: string[] = [];
   const toolCalls: ToolCallSummary[] = [];
-  const toolUseById = new Map<string, { name: string; input: unknown }>();
+  const toolUseById = new Map<string, { name: string; serverName: string; input: unknown }>();
 
-  for (const block of response.content as ResponseBlock[]) {
+  for (const block of response.content) {
     if (block.type === "text") {
-      textParts.push((block as TextBlock).text);
+      textParts.push(block.text);
     } else if (block.type === "mcp_tool_use") {
-      const b = block as McpToolUseBlock;
-      toolUseById.set(b.id, { name: b.name, input: b.input });
+      toolUseById.set(block.id, { name: block.name, serverName: block.server_name, input: block.input });
     } else if (block.type === "mcp_tool_result") {
-      const b = block as McpToolResultBlock;
-      const toolUse = toolUseById.get(b.tool_use_id);
-      const resultText = b.content
-        .map((c) => (c.type === "text" ? c.text ?? "" : ""))
-        .join(" ")
-        .trim();
+      const toolUse = toolUseById.get(block.tool_use_id);
+      const resultText =
+        typeof block.content === "string"
+          ? block.content
+          : block.content.map((c) => c.text).join(" ").trim();
       toolCalls.push({
         name: toolUse?.name ?? "unknown_tool",
-        serverName: "jedforge",
+        serverName: toolUse?.serverName ?? "jedforge",
         input: toolUse?.input ?? null,
         resultSummary: resultText.length > 300 ? `${resultText.slice(0, 300)}…` : resultText,
       });
