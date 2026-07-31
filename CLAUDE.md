@@ -171,12 +171,13 @@ Spec: `.context-docs/JedForge-FunctionalSpec-v2.0.docx` — regenerate with `nod
 
 ## Middleware and server component patterns
 
-See `.context-docs/middleware-patterns.md` for all 6 patterns. Key facts:
+See `.context-docs/middleware-patterns.md` for all 7 patterns. Key facts:
 
 - Server component layouts read the current path via `headers().get('x-pathname')` (set by `src/middleware.ts`), not from `params` — used to gate non-member access and to distinguish docs paths.
 - Use `PageTitleContext` (`<SetPageTitle title={...} />`) to fix breadcrumbs whose last URL segment is a cuid.
 - `token.orgId` resolution is non-deterministic for multi-org users (JFR-109) — check which org a session resolved to before assuming a permissions bug.
 - Call `router.refresh()` after client mutations that a parent Server Component reads from the DB, or navigating back within ~30s serves stale data.
+- `[projectKey]/layout.tsx` now propagates `h-full`/flex height down to project sub-pages (needed for the Kanban board's own-column scrolling) — don't strip this without checking what depends on it.
 
 ---
 

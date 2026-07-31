@@ -141,6 +141,8 @@ Create a new issue.
 
 **Response 404:** `{ "error": "Project not found" }`
 
+**Known bug — `Response 500: "Could not generate unique issue key"` can be misleading.** The route sets `position: issueCount` (a project-wide total) on insert, but there's a DB unique constraint on `(projectId, statusId, position)`. If the target status column's positions have drifted from the project-wide count (common in older/heavily-reordered projects — confirmed on JFR, 2026-07-31), the insert hits a real position collision, which the route's retry loop misattributes to a key collision and retries uselessly 5 times with the same broken position. Symptom: creation fails 100% of the time for that project specifically, while other (smaller/newer) projects work fine. Not yet fixed — the real fix is scoping `position` to `prisma.issue.count({ where: { projectId, statusId } })` instead of a project-wide count. If you hit this error, check whether it's actually this bug (query the DB for the project's per-status position ranges) before assuming a real key collision.
+
 ---
 
 ### GET /api/v1/issues/:key
