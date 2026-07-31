@@ -4,9 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { IssuePriority, IssueType, Prisma, DocPageType } from "@prisma/client";
 import { generateIssueKeyWithRetry } from "@/lib/issue-keys";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
-import { PRIORITY_MAP, formatIssue } from "@/app/api/v1/_helpers";
+import { PRIORITY_MAP, formatIssue, resolveStatusForProject } from "@/app/api/v1/_helpers";
 import { normalizeBody, TYPE_MAP, ISSUE_INCLUDE } from "@/app/api/external/v1/_helpers";
 import { canEditIssues } from "@/lib/permissions";
+import { notificationService } from "@/lib/notifications";
 import { parse, validate, executeQuery, ParseError } from "@/lib/query";
 import type { OAuthTokenContext } from "@/lib/oauth/require-oauth-token";
 import type { OAuthScope } from "@/lib/oauth/scopes";
@@ -67,6 +68,40 @@ async function requireDocContext(projectKey: string, ctx: OAuthTokenContext) {
   });
 
   return { docSpaceId: docSpace.id, role: member.role };
+}
+
+// Looks up an issue scoped to the token's org via its project (same org-isolation
+// rule as requireProjectMembership — a globally-unique issue key alone isn't
+// enough to authorize a cross-org bearer token).
+async function requireIssueMembership(issueKey: string, ctx: OAuthTokenContext) {
+  const issue = await prisma.issue.findFirst({
+    where: {
+      key: issueKey.toUpperCase(),
+      project: { orgId: ctx.orgId, isClosed: false },
+    },
+    select: {
+      id: true,
+      key: true,
+      title: true,
+      description: true,
+      statusId: true,
+      priority: true,
+      projectId: true,
+      assigneeId: true,
+      reporterId: true,
+      labels: true,
+      dueDate: true,
+      projectStatus: { select: { id: true, name: true } },
+    },
+  });
+  if (!issue) return null;
+
+  const member = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId: ctx.userId, projectId: issue.projectId } },
+  });
+  if (!member) return null;
+
+  return { issue, role: member.role };
 }
 
 export function createMcpServer(ctx: OAuthTokenContext): McpServer {
@@ -293,6 +328,207 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
       });
 
       return textResult({ id: page.id, title: page.title });
+    }
+  );
+
+  server.registerTool(
+    "update_issue",
+    {
+      title: "Update Issue",
+      description: "Update fields on an existing JedForge issue.",
+      inputSchema: {
+        issueKey: z.string().describe("Issue key, e.g. JFR-103"),
+        title: z.string().optional(),
+        description: z.string().optional().describe("Plain text or TipTap HTML"),
+        status: z.string().optional().describe('Status name (e.g. "In Progress") or status ID'),
+        priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL", "URGENT"]).optional(),
+        assigneeId: z.string().nullable().optional().describe("User ID, or null to unassign"),
+        labels: z.array(z.string()).optional(),
+        dueDate: z.string().nullable().optional().describe("ISO date string, or null to clear"),
+      },
+    },
+    async ({ issueKey, title, description, status, priority, assigneeId, labels, dueDate }) => {
+      if (!hasScope(ctx, "issues:write")) return errorResult("Missing scope: issues:write");
+
+      const membership = await requireIssueMembership(issueKey, ctx);
+      if (!membership) return errorResult(`Issue not found or you are not a member: ${issueKey}`);
+      const { issue, role } = membership;
+      if (!canEditIssues(role)) return errorResult("Forbidden: requires team member role or higher");
+
+      const updates: Record<string, unknown> = {};
+      let newStatusName: string | undefined;
+
+      if (title !== undefined) {
+        if (!title.trim()) return errorResult("title must be a non-empty string");
+        updates.title = title.trim();
+      }
+
+      if (description !== undefined) {
+        updates.description = sanitizeTipTapHtml(description);
+      }
+
+      if (status !== undefined) {
+        const byId = await prisma.projectStatus.findFirst({
+          where: { id: status, projectId: issue.projectId },
+          select: { id: true, name: true },
+        });
+        const resolved = byId ?? (await resolveStatusForProject(issue.projectId, status));
+        if (!resolved) return errorResult(`Status not found: ${status}`);
+        if (resolved.id !== issue.statusId) {
+          updates.statusId = resolved.id;
+          newStatusName = resolved.name;
+          updates.position = await prisma.issue.count({
+            where: { projectId: issue.projectId, statusId: resolved.id },
+          });
+        }
+      }
+
+      if (priority !== undefined) {
+        updates.priority = PRIORITY_MAP[priority];
+      }
+
+      if (assigneeId !== undefined) {
+        if (assigneeId !== null) {
+          const assigneeMember = await prisma.projectMember.findUnique({
+            where: { userId_projectId: { userId: assigneeId, projectId: issue.projectId } },
+          });
+          if (!assigneeMember) return errorResult("Assignee is not a member of this project");
+        }
+        updates.assigneeId = assigneeId;
+      }
+
+      if (labels !== undefined) {
+        updates.labels = labels;
+      }
+
+      if (dueDate !== undefined) {
+        if (dueDate === null) {
+          updates.dueDate = null;
+        } else {
+          const parsed = new Date(dueDate);
+          if (Number.isNaN(parsed.getTime())) return errorResult("dueDate must be a valid ISO date string");
+          updates.dueDate = parsed;
+        }
+      }
+
+      if (Object.keys(updates).length === 0) return errorResult("No valid fields to update");
+
+      // Log each changed field the same way the board/list UI's updateIssue action
+      // does, so AI-driven edits appear in the issue's Activity tab like human edits.
+      const fieldLabels: Record<string, string> = {
+        title: "title",
+        description: "description",
+        priority: "priority",
+        assigneeId: "assignee",
+        labels: "labels",
+        dueDate: "due date",
+      };
+      const logs: Array<{ field: string; oldValue: string; newValue: string }> = [];
+      for (const [field, label] of Object.entries(fieldLabels)) {
+        if (field in updates) {
+          const oldRaw = issue[field as keyof typeof issue];
+          const newRaw = updates[field];
+          const oldValue = Array.isArray(oldRaw) ? oldRaw.join(", ") : String(oldRaw ?? "");
+          const newValue = Array.isArray(newRaw) ? (newRaw as string[]).join(", ") : String(newRaw ?? "");
+          if (oldValue !== newValue) logs.push({ field: label, oldValue, newValue });
+        }
+      }
+
+      const updated = await prisma.issue.update({
+        where: { id: issue.id },
+        data: updates,
+        include: ISSUE_INCLUDE,
+      });
+
+      if (logs.length > 0) {
+        await prisma.activityLog.createMany({
+          data: logs.map((l) => ({ issueId: issue.id, userId: ctx.userId, action: "updated", ...l })),
+        });
+      }
+
+      if (newStatusName) {
+        await prisma.activityLog.create({
+          data: {
+            issueId: issue.id,
+            userId: ctx.userId,
+            action: "updated",
+            field: "status",
+            oldValue: issue.projectStatus.name,
+            newValue: newStatusName,
+          },
+        });
+
+        await notificationService.statusChanged({
+          issueKey: issue.key,
+          issueTitle: issue.title,
+          issueId: issue.id,
+          newStatus: newStatusName,
+          assigneeId: issue.assigneeId,
+          reporterId: issue.reporterId,
+          actorId: ctx.userId,
+        });
+      }
+
+      if ("assigneeId" in updates && updates.assigneeId != null && updates.assigneeId !== issue.assigneeId) {
+        await notificationService.issueAssigned({
+          assigneeId: updates.assigneeId as string,
+          issueKey: issue.key,
+          issueTitle: issue.title,
+          issueId: issue.id,
+          actorId: ctx.userId,
+        });
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return textResult(formatIssue(updated as any));
+    }
+  );
+
+  server.registerTool(
+    "add_comment",
+    {
+      title: "Add Comment",
+      description: "Post a comment on a JedForge issue.",
+      inputSchema: {
+        issueKey: z.string().describe("Issue key, e.g. JFR-103"),
+        body: z.string().describe("Plain text or TipTap HTML"),
+      },
+    },
+    async ({ issueKey, body }) => {
+      if (!hasScope(ctx, "comments:write")) return errorResult("Missing scope: comments:write");
+
+      const membership = await requireIssueMembership(issueKey, ctx);
+      if (!membership) return errorResult(`Issue not found or you are not a member: ${issueKey}`);
+      const { issue, role } = membership;
+      if (!canEditIssues(role)) return errorResult("Forbidden: requires team member role or higher");
+
+      if (!body.trim()) return errorResult("body must be a non-empty string");
+
+      const comment = await prisma.comment.create({
+        data: { issueId: issue.id, authorId: ctx.userId, body: sanitizeTipTapHtml(body.trim()) },
+        include: { author: { select: { id: true, name: true } } },
+      });
+
+      await prisma.activityLog.create({
+        data: { issueId: issue.id, userId: ctx.userId, action: "commented" },
+      });
+
+      await notificationService.commentAdded({
+        issueKey: issue.key,
+        issueTitle: issue.title,
+        issueId: issue.id,
+        assigneeId: issue.assigneeId,
+        reporterId: issue.reporterId,
+        actorId: ctx.userId,
+      });
+
+      return textResult({
+        id: comment.id,
+        body: comment.body,
+        authorId: comment.authorId,
+        author: comment.author,
+        createdAt: comment.createdAt,
+      });
     }
   );
 

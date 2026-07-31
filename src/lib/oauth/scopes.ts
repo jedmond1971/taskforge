@@ -5,6 +5,7 @@ export const OAUTH_SCOPES = {
   "search:read": "Search issues and projects",
   "docs:read": "Read documentation pages",
   "docs:write": "Create and edit documentation pages",
+  "comments:write": "Add comments to issues",
 } as const;
 
 export type OAuthScope = keyof typeof OAUTH_SCOPES;
