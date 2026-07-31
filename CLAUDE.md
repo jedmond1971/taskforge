@@ -93,10 +93,7 @@ See `.context-docs/rich-text.md` for TipTap packages, storage format, and empty-
 
 ## Adding npm packages
 
-Claude Code cannot run `npm install` directly. To add packages:
-1. Edit `package.json` manually.
-2. Ask Jamie to run `npm install` locally to update `package-lock.json`.
-3. Commit both files and push. Railway uses `npm ci` which requires the lockfile to be in sync.
+`npm install` runs fine in Claude Code's shell in this environment (verified 2026-07-31) — the earlier note that it couldn't be run directly was wrong. To add a package: edit `package.json`, then run `npm install` yourself to update `package-lock.json`, then commit both in the same change. **Do not skip the lockfile update** — CI and Railway both use `npm ci`, which fails with `EUSAGE` if `package.json` and `package-lock.json` are out of sync (this broke a push during the AI Chat work).
 
 ## Email sending (Resend + React Email)
 
@@ -246,3 +243,4 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 - .context-docs/testing-notes.md — tenancy.test.ts Prisma mock maintenance
 - .context-docs/external-api.md — external v1 API auth guard, org isolation, helpers
 - .context-docs/mcp.md — MCP OAuth authorization server + Streamable HTTP server (JFR-100 B1/B2)
+- .context-docs/ai-chat.md — AI Chat panel (JFR-111/112): production-only testing, MCP SDK content-block shapes, internal token minting
