@@ -41,7 +41,7 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
   const { setNodeRef } = useDroppable({ id: status.id });
 
   return (
-    <div className="flex flex-col flex-shrink-0 w-64 sm:w-72">
+    <div className="flex flex-col flex-shrink-0 w-64 sm:w-72 h-full">
       {/* Column header */}
       <div
         className={cn(
@@ -69,7 +69,7 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
       <div
         ref={setNodeRef}
         className={cn(
-          "flex-1 border border-t-0 border-zinc-200 dark:border-zinc-800 rounded-b-lg p-2 space-y-2 min-h-[120px] overflow-y-auto max-h-[calc(100vh-220px)] transition-colors",
+          "flex-1 min-h-0 border border-t-0 border-zinc-200 dark:border-zinc-800 rounded-b-lg p-2 space-y-2 overflow-y-auto transition-colors",
           isOver && "bg-zinc-100 dark:bg-zinc-800/40"
         )}
       >

@@ -79,9 +79,9 @@ export default async function ProjectLayout({
   }
 
   return (
-    <div className="space-y-0 -m-4 sm:-m-6">
+    <div className="space-y-0 -m-4 sm:-m-6 h-full flex flex-col">
       {/* Project header */}
-      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-0 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-0 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0">
         <div className="flex items-center gap-3 mb-4 min-w-0">
           <div className="w-9 h-9 rounded-lg bg-indigo-700 flex items-center justify-center flex-shrink-0">
             <span className="text-sm font-bold text-white">{project.key.slice(0, 2)}</span>
@@ -95,7 +95,7 @@ export default async function ProjectLayout({
         </div>
         <ProjectNav projectKey={params.projectKey} isClosed={project.isClosed} isAdmin={isAdmin} />
       </div>
-      <div className="p-4 sm:p-6">{children}</div>
+      <div className="p-4 sm:p-6 flex-1 min-h-0">{children}</div>
       <ProjectShortcuts projectKey={params.projectKey} />
     </div>
   );

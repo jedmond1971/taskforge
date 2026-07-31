@@ -183,7 +183,7 @@ export function KanbanBoard({ initialIssues, statuses, projectKey }: KanbanBoard
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 items-start">
+      <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 items-stretch flex-1 min-h-0">
         {statuses.map((s) => (
           <KanbanColumn
             key={s.id}

@@ -65,7 +65,7 @@ export default async function BoardPage({ params }: { params: { projectKey: stri
   if (!project) redirect("/projects");
 
   return (
-    <div className="h-full overflow-x-auto">
+    <div className="h-full overflow-x-auto flex flex-col">
       <AutoRefresh />
       <KanbanBoard
         initialIssues={project.issues}
