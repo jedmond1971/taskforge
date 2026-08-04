@@ -105,6 +105,8 @@ Email templates live in `src/emails/`, send helper `sendOrgInviteEmail()` in `sr
 
 Worktree agents (`isolation: "worktree"`) can read and run bash but cannot Edit/Write source files. Do all file editing in the main context after the subagent returns its findings.
 
+**A worktree created under `.claude/worktrees/` (nested inside the repo) breaks `next lint` and `npm test` while it exists** — see `.context-docs/local-dev-tooling.md` → "Nested worktree tooling conflicts" for the lint workaround and why `npm test` from the main checkout double-runs (and flakes) every test file until the worktree is removed. Always remove/exit the worktree before trusting a "final" `npm test` run on the main checkout.
+
 ---
 
 ## Database migrations
