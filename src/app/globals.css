@@ -126,7 +126,7 @@
   font-size: 0.85em;
 }
 .rich-prose pre code { background: none; padding: 0; }
-.rich-prose a { color: oklch(0.55 0.2 264); text-decoration: underline; }
+.rich-prose a { color: oklch(0.55 0.20 40.5); text-decoration: underline; }
 .dark .rich-prose a { color: oklch(0.7 0.18 264); }
 .rich-prose hr { border: none; border-top: 1px solid oklch(0.88 0 0); margin: 0.75rem 0; }
 .dark .rich-prose hr { border-color: oklch(0.3 0 0); }
