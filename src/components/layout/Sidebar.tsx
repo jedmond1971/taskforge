@@ -102,7 +102,7 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
-            className="hidden lg:flex p-1.5 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors flex-shrink-0"
+            className="hidden lg:flex p-1.5 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors flex-shrink-0"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
@@ -116,7 +116,7 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
         {onClose && (
           <button
             onClick={onClose}
-            className="lg:hidden p-2.5 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors"
+            className="lg:hidden p-2.5 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg transition-colors"
             aria-label="Close sidebar"
           >
             <X className="w-4 h-4" />
@@ -145,8 +145,8 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]",
                 collapsed && "lg:justify-center lg:px-2",
                 isActive
-                  ? "bg-indigo-600/20 text-indigo-400"
-                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                  ? "bg-sidebar-primary/20 text-sidebar-foreground"
+                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
               )}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
@@ -154,7 +154,7 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
               {isActive && (
                 <ChevronRight
                   className={cn(
-                    "w-3 h-3 ml-auto text-indigo-400",
+                    "w-3 h-3 ml-auto text-sidebar-primary",
                     collapsed && "lg:hidden"
                   )}
                 />
@@ -174,8 +174,8 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
                 className={cn(
                   "flex items-center rounded-lg text-sm font-medium transition-colors",
                   projectsActive
-                    ? "bg-indigo-600/20 text-indigo-400"
-                    : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                    ? "bg-sidebar-primary/20 text-sidebar-foreground"
+                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
                 )}
               >
                 <Link
@@ -212,13 +212,13 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
                     "flex items-center gap-3 pl-8 pr-3 py-2 rounded-lg text-sm font-medium transition-colors min-h-[40px] mt-0.5",
                     collapsed && "lg:hidden",
                     closedActive
-                      ? "bg-indigo-600/20 text-indigo-400"
-                      : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                      ? "bg-sidebar-primary/20 text-sidebar-foreground"
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
                   )}
                 >
                   <FolderX className="w-4 h-4 flex-shrink-0" />
                   Closed Projects
-                  {closedActive && <ChevronRight className="w-3 h-3 ml-auto text-indigo-400" />}
+                  {closedActive && <ChevronRight className="w-3 h-3 ml-auto text-sidebar-primary" />}
                 </Link>
               )}
             </div>
@@ -235,8 +235,8 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]",
               collapsed && "lg:justify-center lg:px-2",
               pathname.startsWith("/admin")
-                ? "bg-indigo-600/20 text-indigo-400"
-                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                ? "bg-sidebar-primary/20 text-sidebar-foreground"
+                : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
             )}
           >
             <ShieldCheck className="w-4 h-4 flex-shrink-0" />
@@ -244,7 +244,7 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
             {pathname.startsWith("/admin") && (
               <ChevronRight
                 className={cn(
-                  "w-3 h-3 ml-auto text-indigo-400",
+                  "w-3 h-3 ml-auto text-sidebar-primary",
                   collapsed && "lg:hidden"
                 )}
               />
@@ -274,7 +274,7 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
               <p className="text-sm font-medium text-sidebar-foreground truncate">
                 {user?.name ?? "Loading..."}
               </p>
-              <p className="text-xs text-muted-foreground truncate">{user?.email ?? ""}</p>
+              <p className="text-xs text-sidebar-foreground/70 truncate">{user?.email ?? ""}</p>
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
@@ -293,7 +293,8 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="text-red-400 focus:text-red-400 cursor-pointer"
+              variant="destructive"
+              className="cursor-pointer"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Sign out
