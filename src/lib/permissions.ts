@@ -1,28 +1,52 @@
-import { OrgRole, ProjectMemberRole } from "@prisma/client";
+import { OrgRole, ProjectMemberRole, Permission } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+export type { Permission };
 
 // Role hierarchy: PROJECT_LEAD > TEAM_MEMBER > VIEWER
 export type ProjectRole = ProjectMemberRole;
 
-/** PROJECT_LEAD only — delete project */
-export function canManageProject(role: ProjectRole): boolean {
-  return role === "PROJECT_LEAD";
+/**
+ * Additive RBAC layer (JFR-102): a Group only ever boosts what a user can do
+ * where they're already a ProjectMember/OrgMember — it never grants
+ * visibility or membership on its own. Returns the set of Permissions the
+ * user holds via any Group they belong to in this org, applicable to
+ * `projectId` (or org-wide grants only, if `projectId` is omitted).
+ */
+export async function getUserGrants(
+  userId: string,
+  orgId: string,
+  projectId?: string
+): Promise<Set<Permission>> {
+  const rows = await prisma.groupPermission.findMany({
+    where: {
+      group: { orgId, members: { some: { userId } } },
+      OR: projectId ? [{ projectId }, { projectId: null }] : [{ projectId: null }],
+    },
+    select: { permission: true },
+  });
+  return new Set(rows.map((r) => r.permission));
 }
 
-/** PROJECT_LEAD only — rename, description, manage members */
-export function canEditSettings(role: ProjectRole): boolean {
-  return role === "PROJECT_LEAD";
+/** PROJECT_LEAD, or PROJECT_DELETE grant — delete project */
+export function canManageProject(role: ProjectRole, grants: Set<Permission> = new Set()): boolean {
+  return role === "PROJECT_LEAD" || grants.has("PROJECT_DELETE");
 }
 
-/** PROJECT_LEAD only — invite, remove, change roles */
-export function canManageMembers(role: ProjectRole): boolean {
-  return role === "PROJECT_LEAD";
+/** PROJECT_LEAD, or PROJECT_EDIT_SETTINGS grant — rename, description, manage members */
+export function canEditSettings(role: ProjectRole, grants: Set<Permission> = new Set()): boolean {
+  return role === "PROJECT_LEAD" || grants.has("PROJECT_EDIT_SETTINGS");
 }
 
-/** PROJECT_LEAD + TEAM_MEMBER — create, edit, delete issues and comments */
-export function canEditIssues(role: ProjectRole): boolean {
-  return role === "PROJECT_LEAD" || role === "TEAM_MEMBER";
+/** PROJECT_LEAD, or PROJECT_MANAGE_MEMBERS grant — invite, remove, change roles */
+export function canManageMembers(role: ProjectRole, grants: Set<Permission> = new Set()): boolean {
+  return role === "PROJECT_LEAD" || grants.has("PROJECT_MANAGE_MEMBERS");
+}
+
+/** PROJECT_LEAD + TEAM_MEMBER, or ISSUE_EDIT grant — create, edit, delete issues and comments */
+export function canEditIssues(role: ProjectRole, grants: Set<Permission> = new Set()): boolean {
+  return role === "PROJECT_LEAD" || role === "TEAM_MEMBER" || grants.has("ISSUE_EDIT");
 }
 
 /** All roles can view */
@@ -44,7 +68,7 @@ export function canComment(role: ProjectRole): boolean {
  */
 export async function requireProjectRole(
   projectKey: string,
-  check: (role: ProjectRole) => boolean
+  check: (role: ProjectRole, grants: Set<Permission>) => boolean
 ): Promise<{
   userId: string;
   projectId: string;
@@ -78,7 +102,8 @@ export async function requireProjectRole(
   });
   if (!membership) throw new Error("Not a project member");
 
-  if (!check(membership.role)) throw new Error("Forbidden");
+  const grants = await getUserGrants(session.user.id, project.orgId, project.id);
+  if (!check(membership.role, grants)) throw new Error("Forbidden");
 
   return {
     userId: session.user.id,
@@ -98,13 +123,23 @@ export function canInviteOrgMembers(role: OrgRoleType): boolean {
   return role === "OWNER" || role === "ADMIN";
 }
 
-/** OWNER + ADMIN can manage org-level custom field definitions */
-export function canManageCustomFields(role: OrgRoleType): boolean {
-  return role === "OWNER" || role === "ADMIN";
+/** OWNER + ADMIN, or ORG_MANAGE_CUSTOM_FIELDS grant — manage org-level custom field definitions */
+export function canManageCustomFields(role: OrgRoleType, grants: Set<Permission> = new Set()): boolean {
+  return role === "OWNER" || role === "ADMIN" || grants.has("ORG_MANAGE_CUSTOM_FIELDS");
 }
 
-/** OWNER + ADMIN can create and revoke org API keys */
-export function canManageApiKeys(role: OrgRoleType): boolean {
+/** OWNER + ADMIN, or ORG_MANAGE_API_KEYS grant — create and revoke org API keys */
+export function canManageApiKeys(role: OrgRoleType, grants: Set<Permission> = new Set()): boolean {
+  return role === "OWNER" || role === "ADMIN" || grants.has("ORG_MANAGE_API_KEYS");
+}
+
+/**
+ * OWNER + ADMIN only — deliberately NOT boostable by a Group grant. Groups
+ * themselves are managed only by this check, so a Group can never grant the
+ * ability to create/edit more Groups — that would be a self-granting
+ * privilege-escalation loop.
+ */
+export function canManageGroups(role: OrgRoleType): boolean {
   return role === "OWNER" || role === "ADMIN";
 }
 
@@ -117,7 +152,7 @@ export function canManageApiKeys(role: OrgRoleType): boolean {
  */
 export async function requireOrgRole(
   orgId: string,
-  check: (role: OrgRoleType) => boolean
+  check: (role: OrgRoleType, grants: Set<Permission>) => boolean
 ): Promise<{ userId: string; orgId: string; role: OrgRoleType | "PLATFORM_ADMIN" }> {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
@@ -131,7 +166,9 @@ export async function requireOrgRole(
     select: { role: true },
   });
   if (!membership) throw new Error("Not an organization member");
-  if (!check(membership.role)) throw new Error("Forbidden");
+
+  const grants = await getUserGrants(session.user.id, orgId);
+  if (!check(membership.role, grants)) throw new Error("Forbidden");
 
   return { userId: session.user.id, orgId, role: membership.role };
 }

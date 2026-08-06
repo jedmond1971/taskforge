@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { canManageApiKeys } from "@/lib/permissions";
 import { ApiKeysSettings } from "./ApiKeysSettings";
+import { GroupsSettings } from "./GroupsSettings";
 
 export default async function OrgSettingsPage() {
   const session = await auth();
@@ -45,6 +46,10 @@ export default async function OrgSettingsPage() {
 
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
         <ApiKeysSettings orgId={orgId} />
+      </div>
+
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+        <GroupsSettings orgId={orgId} />
       </div>
     </div>
   );

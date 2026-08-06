@@ -29,6 +29,7 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
       delete: vi.fn(),
       count: vi.fn(),
     },
+    groupPermission: { findMany: vi.fn().mockResolvedValue([]) },
     project: {
       findUnique: vi.fn(),
       create: vi.fn(),

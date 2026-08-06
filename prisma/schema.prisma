@@ -85,6 +85,15 @@ enum CustomFieldType {
   MULTI_SELECT
 }
 
+enum Permission {
+  PROJECT_DELETE
+  PROJECT_EDIT_SETTINGS
+  PROJECT_MANAGE_MEMBERS
+  ISSUE_EDIT
+  ORG_MANAGE_CUSTOM_FIELDS
+  ORG_MANAGE_API_KEYS
+}
+
 model User {
   id             String   @id @default(cuid())
   name           String
@@ -118,7 +127,8 @@ model User {
   oauthAccessTokens       OAuthAccessToken[]
   oauthRefreshTokens      OAuthRefreshToken[]
 
-  aiConversations AiConversation[]
+  aiConversations  AiConversation[]
+  groupMemberships GroupMember[]
 }
 
 model Project {
@@ -141,6 +151,7 @@ model Project {
   docSpace                DocSpace?
   savedFilters            SavedFilter[]
   customFieldRestrictions CustomFieldProject[]
+  groupGrants             GroupPermission[]
 }
 
 model ProjectMember {
@@ -356,6 +367,8 @@ model Organization {
   oauthAuthorizationCodes OAuthAuthorizationCode[]
   oauthAccessTokens       OAuthAccessToken[]
   oauthRefreshTokens      OAuthRefreshToken[]
+
+  groups Group[]
 }
 
 model OrgMember {
@@ -665,6 +678,54 @@ model CustomFieldProject {
 
   @@unique([customFieldId, projectId])
   @@index([customFieldId])
+  @@index([projectId])
+}
+
+// Additive RBAC layer (JFR-102): a Group only ever boosts what a user can do
+// where they're already a ProjectMember/OrgMember — it never grants visibility
+// or membership on its own. See CLAUDE.md org-tenancy invariants.
+model Group {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org     Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  members GroupMember[]
+  grants  GroupPermission[]
+
+  @@unique([orgId, name])
+  @@index([orgId])
+}
+
+model GroupMember {
+  id      String @id @default(cuid())
+  groupId String
+  userId  String
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+// projectId null = org-wide grant (required-null for the two ORG_* permissions).
+// NOTE: Postgres treats each NULL as distinct, so this @@unique does NOT dedupe
+// multiple org-wide grants of the same permission — setGroupPermission() must
+// findFirst-then-create rather than relying on this constraint.
+model GroupPermission {
+  id         String     @id @default(cuid())
+  groupId    String
+  permission Permission
+  projectId  String?
+
+  group   Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, permission, projectId])
+  @@index([groupId])
   @@index([projectId])
 }
 

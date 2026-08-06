@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
 import { ProjectSettings } from "./ProjectSettings";
-import { canManageCustomFields } from "@/lib/permissions";
+import { canManageCustomFields, canManageMembers, getUserGrants } from "@/lib/permissions";
 
 export default async function SettingsPage({
   params,
@@ -56,9 +56,21 @@ export default async function SettingsPage({
     notFound();
   }
 
-  // Page-level access gate: must be PROJECT_LEAD or an org/platform admin.
+  // A Group-boosted PROJECT_MANAGE_MEMBERS grant only ever applies to someone
+  // who's already a ProjectMember (additive RBAC, JFR-102) — never fetched
+  // for a non-member, matching requireProjectRole's own membership-first order.
+  const grants = currentMember
+    ? await getUserGrants(session.user.id, project.orgId, project.id)
+    : undefined;
+  const canManageMembersGrant = currentMember
+    ? canManageMembers(currentMember.role, grants)
+    : false;
+
+  // Page-level access gate: must be PROJECT_LEAD, an org/platform admin, or
+  // hold a PROJECT_MANAGE_MEMBERS grant (so a boosted user can reach the tab
+  // that grant is actually for).
   const isProjectLead = currentMember?.role === "PROJECT_LEAD";
-  if (!isProjectLead && !userCanManageCustomFields) {
+  if (!isProjectLead && !userCanManageCustomFields && !canManageMembersGrant) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
@@ -98,6 +110,7 @@ export default async function SettingsPage({
       isAdmin={session.user.role === "ADMIN"}
       orgId={project.orgId}
       canManageCustomFields={userCanManageCustomFields}
+      canManageMembersGrant={canManageMembersGrant}
     />
   );
 }

@@ -34,14 +34,26 @@ async function main() {
     data: { email: "dave@jedforge.dev", name: "Dave Kim", passwordHash: hashedPassword, role: UserRole.TEAM_MEMBER },
   });
 
-  // Alice's organization — all seed projects live here
+  // Alice's organization — all seed projects live here. Every seeded user who
+  // gets a ProjectMember row below also needs an OrgMember row for this org —
+  // otherwise they'd violate the tenancy invariant addProjectMember enforces
+  // at the app layer (a ProjectMember must have a matching OrgMember), which
+  // silently breaks anything that depends on OrgMember for these users (Group
+  // membership, org invites, org-level settings) when testing locally.
   const aliceOrg = await prisma.organization.create({
     data: {
       name: "Alice's workspace",
       slug: "alice-workspace",
       plan: Plan.FREE,
       ownerId: alice.id,
-      members: { create: { userId: alice.id, role: "OWNER" } },
+      members: {
+        create: [
+          { userId: alice.id, role: "OWNER" },
+          { userId: bob.id, role: "MEMBER" },
+          { userId: carol.id, role: "MEMBER" },
+          { userId: dave.id, role: "MEMBER" },
+        ],
+      },
     },
   });
 

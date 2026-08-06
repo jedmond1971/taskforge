@@ -65,6 +65,7 @@ interface ProjectSettingsProps {
   isAdmin: boolean;
   orgId: string;
   canManageCustomFields: boolean;
+  canManageMembersGrant: boolean;
 }
 
 const roleColors: Record<string, string> = {
@@ -102,6 +103,7 @@ export function ProjectSettings({
   isAdmin,
   orgId,
   canManageCustomFields,
+  canManageMembersGrant,
 }: ProjectSettingsProps) {
   const tabs = [
     ...(currentUserRole !== null
@@ -148,6 +150,7 @@ export function ProjectSettings({
           members={members}
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
+          canManageOverride={canManageMembersGrant}
           projectKey={projectKey}
         />
       )}
@@ -266,11 +269,13 @@ function MembersTab({
   members,
   currentUserId,
   currentUserRole,
+  canManageOverride,
   projectKey,
 }: {
   members: Member[];
   currentUserId: string;
   currentUserRole: ProjectMemberRole;
+  canManageOverride: boolean;
   projectKey: string;
 }) {
   const router = useRouter();
@@ -313,7 +318,7 @@ function MembersTab({
     }
   }
 
-  const canManage = currentUserRole === "PROJECT_LEAD";
+  const canManage = currentUserRole === "PROJECT_LEAD" || canManageOverride;
 
   return (
     <div className="space-y-8">

@@ -45,6 +45,8 @@ Every project belongs to exactly one organization, and every user-to-project rel
 6. **Admin org deletion** (`adminDeleteOrg`) — Blocked if the org has any projects. No silent cascade.
 7. **Admin org-member removal** (`adminRemoveOrgMember`) — Blocked if the user still has `ProjectMember` rows in that org. Do not cascade-delete project memberships.
 8. **Admin add-user-to-project** (`adminAddUserToProject`) — Admin override that upserts an `OrgMember` (MEMBER role) for the project's org if the user isn't already in it, then creates `ProjectMember`. This is the only place the org-membership pre-check is bypassed; it is replaced by an upsert so the invariant is still satisfied after the call.
+9. **Adding a group member** (`addGroupMember`, JFR-102) — Validates that the target user has an `OrgMember` row for the group's org before creating the `GroupMember`, mirroring invariant #3. A `Group` only ever boosts what a user can do where they're already a `ProjectMember`/`OrgMember` — it never grants visibility or membership on its own (see "Additive RBAC layer" below).
+10. **`canManageGroups` is role-only, never boostable by a Group grant** — Groups themselves are managed only by `OrgRole` OWNER/ADMIN (`src/lib/permissions.ts`). A Group can never grant the ability to create/edit more Groups; that would be a self-granting privilege-escalation loop.
 
 **There is no feature to move a project between organizations** — neither in the UI, admin actions, nor the v1 API. When a move is needed, do it via direct SQL in a single transaction: upsert `OrgMember` rows (MEMBER) in the target org for every `ProjectMember` of the moving project first, then update `Project.orgId` — otherwise invariants 2–5 break. `OrgMember.id` has no DB default (Prisma generates cuids); `gen_random_uuid()::text` works for manual inserts.
 
@@ -66,6 +68,16 @@ See `.context-docs/closed-projects.md` for all 8 rules. Key facts:
 - `isClosed` (admin-only close/reopen) is the only project deactivation mechanism — there is no Archive concept.
 - Active Projects page, Dashboard, and closed-project URLs (except `/projects/[key]/docs`) filter or redirect on `isClosed`.
 - `/projects/closed` is visible to everyone; non-admins see only projects they're a member of.
+
+---
+
+## Additive RBAC layer (Groups, JFR-102)
+
+See `.context-docs/groups-rbac.md` for the full design (Permission enum mapping, mechanism, Phase 1/Phase 2 grant-coverage boundary). Key facts:
+
+- Groups (`Group`/`GroupMember`/`GroupPermission`) only ever **boost** what a user can do where they're already a `ProjectMember`/`OrgMember` — never grants new access on its own. Org tenancy invariants #9–10 above.
+- `requireProjectRole`/`requireOrgRole` compute grants automatically and pass them as a second arg to the `check` callback — most `canX(role)` call sites got group-awareness for free with zero changes.
+- The docs module, `/api/issues/[issueId]/route.ts`, and the MCP server tool guards call `canX(role)` directly (not through `require*Role`) and are **not yet** grant-aware — a documented Phase 2 gap, not a bug.
 
 ---
 
@@ -142,8 +154,8 @@ Internal API for Claude Code to track work. Full docs in `CLAUDE_API.md`. **Crea
 
 - **Local `.env` exists** — `/home/jamie/Projects/TaskForge/.env` is present and contains `V1_API_KEY`, `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`. If it ever goes missing, recreate from `.env.example` and re-add secrets from Railway.
 - Docker Postgres on port 5433 — start with `docker start taskforge-db` if not running (see startup checklist above).
-- Seeded test users (all password `password123`): `admin@taskforge.dev` (Alice Chen, `UserRole.ADMIN` — use this account to test any admin-gated feature), `member@taskforge.dev`, `carol@taskforge.dev`, `dave@taskforge.dev`.
-- Seeded local projects (keys): `PL` (Product Launch), `MA` (Mobile App), `WR` (Website Redesign), `JFR` (JedForge Roadmap). Production has additional projects (`TFEN`, `JFDOCS`, `WEQUIZ`, etc.) that do not exist in local dev.
+- Seeded test users (all password `password123`, actual domain per `prisma/seed.ts` is `@jedforge.dev`, not `@taskforge.dev` as earlier notes here said — corrected 2026-08-06): `admin@jedforge.dev` (Alice Chen, `UserRole.ADMIN` — use this account to test any admin-gated feature), `member@jedforge.dev`, `carol@jedforge.dev`, `dave@jedforge.dev`.
+- Seeded local projects (keys): `PL` (Product Launch), `MA` (Mobile App), `WR` (Website Redesign). `prisma/seed.ts` does **not** create a local `JFR` project (corrected 2026-08-06 — earlier notes here were wrong). Production has additional projects (`JFR`, `TFEN`, `JFDOCS`, `WEQUIZ`, etc.) that do not exist in local dev.
 - Production URL: `https://www.jedforge.com` (also accessible at `https://taskforge-production-099b.up.railway.app`).
 
 See `.context-docs/local-dev-tooling.md` for the Railway CLI/GraphQL API workarounds, seeded-user org-membership nuance, Playwright setup and gotchas, icon/logo asset crop details, and psql/execSync quoting.
@@ -242,6 +254,7 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 - .context-docs/shortcuts.md — global and project-context keyboard shortcuts
 - .context-docs/roadmap-workflow.md — JFR project workflow for roadmap items
 - .context-docs/closed-projects.md — all 8 closed-project rules
+- .context-docs/groups-rbac.md — additive Groups/RBAC design (JFR-102), Permission mapping, Phase 1/Phase 2 grant-coverage boundary
 - .context-docs/email.md — Resend/React Email lazy-instantiation and render() gotchas
 - .context-docs/migrations.md — non-interactive-TTY workaround, Board/Column dead code
 - .context-docs/local-dev-tooling.md — Railway CLI/GraphQL API, seeded-user org nuance, Playwright, icon assets, psql/execSync quoting

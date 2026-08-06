@@ -10,8 +10,9 @@ import {
   getCustomFieldValues,
 } from "@/app/(dashboard)/projects/[projectKey]/issues/[issueKey]/custom-field-value-actions";
 import { IssueDetail } from "@/components/issues/IssueDetail";
-import { canEditIssues } from "@/lib/permissions";
+import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { isAiChatEnabled } from "@/lib/ai/feature-flag";
+import { prisma } from "@/lib/prisma";
 
 interface PageProps {
   params: { projectKey: string; issueKey: string };
@@ -35,7 +36,16 @@ export default async function IssueDetailPage({ params }: PageProps) {
   ]);
 
   const currentMember = members.find((m) => m.userId === session.user.id);
-  const canEdit = currentMember ? canEditIssues(currentMember.role) : false;
+  const project = currentMember
+    ? await prisma.project.findUnique({
+        where: { key: params.projectKey.toUpperCase() },
+        select: { orgId: true },
+      })
+    : null;
+  const grants = project
+    ? await getUserGrants(session.user.id, project.orgId, issue.projectId)
+    : undefined;
+  const canEdit = currentMember ? canEditIssues(currentMember.role, grants) : false;
 
   return (
     <IssueDetail
