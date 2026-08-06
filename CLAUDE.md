@@ -4,7 +4,7 @@
 
 ### Startup checklist (run at the beginning of every session)
 1. `git status` — confirm the working tree is clean before starting. Commit or stash any pre-existing changes first.
-2. `docker start taskforge-db 2>/dev/null; docker ps --filter name=taskforge-db --format "{{.Status}}"` — confirm Postgres is running.
+2. `docker start taskforge-db 2>/dev/null; docker ps --filter name=taskforge-db --format "{{.Status}}"` — confirm Postgres is running. **Empty output means the container doesn't exist at all** (confirmed happens in a fresh environment, 2026-08-06) — `docker start` on a nonexistent container fails silently rather than erroring. See `.context-docs/local-dev-tooling.md` for the recreate-and-reseed recipe.
 3. Find or create a JedForge issue for the work ahead. The only open production projects are **JFR** (JedForge work) and **WEQUIZ** (both in "The OG" org) — TFEN and JFDOCS are closed; use JFR for new JedForge issues. See `CLAUDE_API.md` → Working Convention.
 
 ### Pre-commit checklist (run before every commit)
@@ -25,6 +25,8 @@ gh run list --repo jedmond1971/taskforge --limit 1
 If CI fails, fix and push before ending the session. Do not leave main in a broken state.
 
 **Railway deploy lag:** CI passing does not mean the production deployment is live. Railway takes an additional ~2–3 minutes after CI success to build and swap the deployment. New API routes will 404 until the deploy completes. If you need to verify a new endpoint is live, poll with `until curl -s -o /dev/null -w "%{http_code}" <url> | grep -q "200"; do sleep 15; done`.
+
+**Railway auto-deploy-on-push may be disabled** — check before assuming a push reaches production; it was turned off after an incident (status as of 2026-08-06: still off). If so, CI passing will never trigger a deploy on its own. To manually deploy a specific commit via the Railway GraphQL API (see `.context-docs/local-dev-tooling.md` for auth/IDs): call `serviceInstanceDeploy(serviceId, environmentId, commitSha)` **with an explicit `commitSha`** (full 40-char SHA, `git rev-parse <ref>`) — calling it with no `commitSha`/`latestCommit` arg silently redeploys whatever commit Railway last deployed, not the actual latest commit on the branch. Poll the `deployments(...)` query afterward and match on `meta.commitHash` to confirm the right commit is actually building.
 
 ### End-of-session CLAUDE.md update
 Before closing every session, review what was discovered and update this file. Add only durable facts that will matter in future sessions — environment quirks, schema discoveries, tooling workarounds, corrected URLs. Do not add summaries of completed work.
