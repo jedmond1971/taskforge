@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteObject } from "@/lib/s3";
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
-import { canEditIssues, canManageProject } from "@/lib/permissions";
+import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 
 async function resolveSection(projectKey: string, sectionId: string, userId: string) {
   const ctx = await resolveDocCtx(projectKey, userId);
@@ -14,7 +14,7 @@ async function resolveSection(projectKey: string, sectionId: string, userId: str
   });
   if (!section) return null;
 
-  return { section, role: ctx.role };
+  return { section, role: ctx.role, projectId: ctx.projectId, orgId: ctx.orgId };
 }
 
 // PATCH /api/docs/[projectKey]/sections/[sectionId] — requires TEAM_MEMBER or PROJECT_LEAD
@@ -29,7 +29,11 @@ export async function PATCH(
     const result = await resolveSection(params.projectKey, params.sectionId, session.user.id);
     if (!result) return NextResponse.json({ error: "Section not found" }, { status: 404 });
 
-    if (!result.role || !canEditIssues(result.role)) {
+    if (!result.role) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const grants = await getUserGrants(session.user.id, result.orgId, result.projectId);
+    if (!canEditIssues(result.role, grants)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -72,7 +76,11 @@ export async function DELETE(
     const result = await resolveSection(params.projectKey, params.sectionId, session.user.id);
     if (!result) return NextResponse.json({ error: "Section not found" }, { status: 404 });
 
-    if (!result.role || !canManageProject(result.role)) {
+    if (!result.role) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const grants = await getUserGrants(session.user.id, result.orgId, result.projectId);
+    if (!canManageProject(result.role, grants)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

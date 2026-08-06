@@ -3,6 +3,7 @@ import { ProjectMemberRole } from "@prisma/client";
 
 export type DocCtx = {
   projectId: string;
+  orgId: string;
   docSpaceId: string;
   /** null when the user is a non-member accessing a public docspace (read-only) */
   role: ProjectMemberRole | null;
@@ -22,7 +23,7 @@ export async function resolveDocCtx(
 ): Promise<DocCtx | null> {
   const project = await prisma.project.findFirst({
     where: { key: projectKey.toUpperCase() },
-    select: { id: true },
+    select: { id: true, orgId: true },
   });
   if (!project) return null;
 
@@ -37,7 +38,7 @@ export async function resolveDocCtx(
       select: { id: true, isPublic: true },
     });
     if (!docSpace?.isPublic) return null;
-    return { projectId: project.id, docSpaceId: docSpace.id, isPublic: true, role: null };
+    return { projectId: project.id, orgId: project.orgId, docSpaceId: docSpace.id, isPublic: true, role: null };
   }
 
   const docSpace = await prisma.docSpace.upsert({
@@ -49,6 +50,7 @@ export async function resolveDocCtx(
 
   return {
     projectId: project.id,
+    orgId: project.orgId,
     docSpaceId: docSpace.id,
     isPublic: docSpace.isPublic,
     role: member.role,

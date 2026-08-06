@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
-import { canEditIssues } from "@/lib/permissions";
+import { canEditIssues, getUserGrants } from "@/lib/permissions";
 
 // GET /api/docs/[projectKey]/sections
 export async function GET(
@@ -46,7 +46,11 @@ export async function POST(
     const ctx = await resolveDocCtx(params.projectKey, session.user.id);
     if (!ctx) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
-    if (!ctx.role || !canEditIssues(ctx.role)) {
+    if (!ctx.role) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const grants = await getUserGrants(session.user.id, ctx.orgId, ctx.projectId);
+    if (!canEditIssues(ctx.role, grants)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

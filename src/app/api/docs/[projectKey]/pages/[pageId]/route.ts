@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteObject } from "@/lib/s3";
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
-import { canEditIssues, canManageProject } from "@/lib/permissions";
+import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 
 async function resolvePage(projectKey: string, pageId: string, userId: string) {
@@ -19,7 +19,7 @@ async function resolvePage(projectKey: string, pageId: string, userId: string) {
   });
   if (!page) return null;
 
-  return { page, role: ctx.role, isPublic: ctx.isPublic };
+  return { page, role: ctx.role, isPublic: ctx.isPublic, projectId: ctx.projectId, orgId: ctx.orgId };
 }
 
 // GET /api/docs/[projectKey]/pages/[pageId]
@@ -53,7 +53,11 @@ export async function PATCH(
     const result = await resolvePage(params.projectKey, params.pageId, session.user.id);
     if (!result) return NextResponse.json({ error: "Page not found" }, { status: 404 });
 
-    if (!result.role || !canEditIssues(result.role)) {
+    if (!result.role) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const grants = await getUserGrants(session.user.id, result.orgId, result.projectId);
+    if (!canEditIssues(result.role, grants)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -147,7 +151,11 @@ export async function DELETE(
     const result = await resolvePage(params.projectKey, params.pageId, session.user.id);
     if (!result) return NextResponse.json({ error: "Page not found" }, { status: 404 });
 
-    if (!result.role || !canManageProject(result.role)) {
+    if (!result.role) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const grants = await getUserGrants(session.user.id, result.orgId, result.projectId);
+    if (!canManageProject(result.role, grants)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

@@ -6,13 +6,13 @@ import { BookOpen, FileText, FolderOpen, FileArchive } from "lucide-react";
 import { CreateDocItemButtons } from "@/components/docs/create-doc-item-buttons";
 import { DocsSearchBar } from "@/components/docs/docs-search-bar";
 import { DocVisibilityToggle } from "@/components/docs/doc-visibility-toggle";
-import { canEditIssues, canManageProject } from "@/lib/permissions";
+import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 import { ProjectMemberRole } from "@prisma/client";
 
 async function getDocSpaceData(projectKey: string, userId: string) {
   const project = await prisma.project.findFirst({
     where: { key: projectKey.toUpperCase() },
-    select: { id: true, key: true, name: true, isClosed: true },
+    select: { id: true, key: true, name: true, isClosed: true, orgId: true },
   });
   if (!project) return null;
 
@@ -44,7 +44,9 @@ async function getDocSpaceData(projectKey: string, userId: string) {
     },
   });
 
-  return { project, docSpace, role: member.role as ProjectMemberRole };
+  const grants = await getUserGrants(userId, project.orgId, project.id);
+
+  return { project, docSpace, role: member.role as ProjectMemberRole, grants };
 }
 
 export default async function ProjectDocsPage({ params }: { params: { projectKey: string } }) {
@@ -54,9 +56,9 @@ export default async function ProjectDocsPage({ params }: { params: { projectKey
   const data = await getDocSpaceData(params.projectKey, session.user.id);
   if (!data) redirect("/projects");
 
-  const { project, docSpace, role } = data;
-  const canEdit = !project.isClosed && canEditIssues(role);
-  const canManage = !project.isClosed && canManageProject(role);
+  const { project, docSpace, role, grants } = data;
+  const canEdit = !project.isClosed && canEditIssues(role, grants);
+  const canManage = !project.isClosed && canManageProject(role, grants);
 
   const totalPages = docSpace.sections.reduce((sum, s) => sum + s.pages.length, 0) + docSpace.pages.length;
   const isEmpty = totalPages === 0 && docSpace.sections.length === 0;

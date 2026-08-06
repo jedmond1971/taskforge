@@ -25,6 +25,7 @@ const { mockPrisma, mockAuthFn, mockDeleteObject } = vi.hoisted(() => {
     },
     pageRevision: { findMany: vi.fn(), create: vi.fn(), count: vi.fn().mockResolvedValue(0), deleteMany: vi.fn() },
     issueDocLink: { findMany: vi.fn() },
+    groupPermission: { findMany: vi.fn().mockResolvedValue([]) },
     $transaction: vi.fn((cb: (tx: unknown) => unknown) => cb(mockPrisma)),
   };
   const mockAuthFn = vi.fn();
@@ -87,14 +88,14 @@ function mockNoSession() {
 
 /** Set up the three prisma calls that resolveDocCtx makes for a project member */
 function setupMemberCtx(role: ProjectRole = "PROJECT_LEAD") {
-  mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1" });
+  mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1", orgId: "org-1" });
   mockPrisma.projectMember.findUnique.mockResolvedValue({ role });
   mockPrisma.docSpace.upsert.mockResolvedValue({ id: "ds-1", isPublic: false });
 }
 
 /** Set up resolveDocCtx for a non-member accessing a public docspace */
 function setupPublicNonMember() {
-  mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1" });
+  mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1", orgId: "org-1" });
   mockPrisma.projectMember.findUnique.mockResolvedValue(null);
   mockPrisma.docSpace.findUnique.mockResolvedValue({ id: "ds-1", isPublic: true });
 }
@@ -110,16 +111,16 @@ describe("resolveDocCtx", () => {
   });
 
   it("returns a DocCtx with role for a project member", async () => {
-    mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1" });
+    mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1", orgId: "org-1" });
     mockPrisma.projectMember.findUnique.mockResolvedValue({ role: "TEAM_MEMBER" });
     mockPrisma.docSpace.upsert.mockResolvedValue({ id: "ds-1", isPublic: false });
 
     const ctx = await resolveDocCtx("PRJ", "user-1");
-    expect(ctx).toEqual({ projectId: "proj-1", docSpaceId: "ds-1", isPublic: false, role: "TEAM_MEMBER" });
+    expect(ctx).toEqual({ projectId: "proj-1", orgId: "org-1", docSpaceId: "ds-1", isPublic: false, role: "TEAM_MEMBER" });
   });
 
   it("upserts the docspace (lazy-create) for a member", async () => {
-    mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1" });
+    mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1", orgId: "org-1" });
     mockPrisma.projectMember.findUnique.mockResolvedValue({ role: "VIEWER" });
     mockPrisma.docSpace.upsert.mockResolvedValue({ id: "ds-new", isPublic: false });
 
@@ -131,7 +132,7 @@ describe("resolveDocCtx", () => {
   });
 
   it("returns null for a non-member accessing a private docspace", async () => {
-    mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1" });
+    mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1", orgId: "org-1" });
     mockPrisma.projectMember.findUnique.mockResolvedValue(null);
     mockPrisma.docSpace.findUnique.mockResolvedValue({ id: "ds-1", isPublic: false });
 
@@ -139,12 +140,12 @@ describe("resolveDocCtx", () => {
   });
 
   it("returns role=null for a non-member on a public docspace", async () => {
-    mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1" });
+    mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1", orgId: "org-1" });
     mockPrisma.projectMember.findUnique.mockResolvedValue(null);
     mockPrisma.docSpace.findUnique.mockResolvedValue({ id: "ds-1", isPublic: true });
 
     const ctx = await resolveDocCtx("PRJ", "outsider");
-    expect(ctx).toEqual({ projectId: "proj-1", docSpaceId: "ds-1", isPublic: true, role: null });
+    expect(ctx).toEqual({ projectId: "proj-1", orgId: "org-1", docSpaceId: "ds-1", isPublic: true, role: null });
   });
 });
 

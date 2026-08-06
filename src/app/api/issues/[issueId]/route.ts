@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteObject } from "@/lib/s3";
-import { canEditIssues } from "@/lib/permissions";
+import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { notificationService } from "@/lib/notifications";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 
@@ -18,7 +18,7 @@ export async function PATCH(
 
     const issue = await prisma.issue.findUnique({
       where: { id: params.issueId },
-      include: { project: { select: { id: true } } },
+      include: { project: { select: { id: true, orgId: true } } },
     });
     if (!issue) {
       return NextResponse.json({ error: "Issue not found" }, { status: 404 });
@@ -33,7 +33,11 @@ export async function PATCH(
         },
       },
     });
-    if (!member || !canEditIssues(member.role)) {
+    if (!member) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const grants = await getUserGrants(session.user.id, issue.project.orgId, issue.project.id);
+    if (!canEditIssues(member.role, grants)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -140,7 +144,7 @@ export async function DELETE(
 
     const issue = await prisma.issue.findUnique({
       where: { id: params.issueId },
-      include: { project: { select: { id: true } } },
+      include: { project: { select: { id: true, orgId: true } } },
     });
     if (!issue) {
       return NextResponse.json({ error: "Issue not found" }, { status: 404 });
@@ -154,7 +158,11 @@ export async function DELETE(
         },
       },
     });
-    if (!member || !canEditIssues(member.role)) {
+    if (!member) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const grants = await getUserGrants(session.user.id, issue.project.orgId, issue.project.id);
+    if (!canEditIssues(member.role, grants)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

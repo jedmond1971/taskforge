@@ -79,7 +79,7 @@ See `.context-docs/groups-rbac.md` for the full design (Permission enum mapping,
 
 - Groups (`Group`/`GroupMember`/`GroupPermission`) only ever **boost** what a user can do where they're already a `ProjectMember`/`OrgMember` — never grants new access on its own. Org tenancy invariants #9–10 above.
 - `requireProjectRole`/`requireOrgRole` compute grants automatically and pass them as a second arg to the `check` callback — most `canX(role)` call sites got group-awareness for free with zero changes.
-- The docs module, `/api/issues/[issueId]/route.ts`, and the MCP server tool guards call `canX(role)` directly (not through `require*Role`) and are **not yet** grant-aware — a documented Phase 2 gap, not a bug.
+- The docs module, `/api/issues/[issueId]/route.ts`, and the MCP server tool guards call `canX(role)` directly (not through `require*Role`) — these were wired to fetch grants by hand in JFR-121 (Phase 2), so all `canX(role)` call sites in the app are now grant-aware.
 
 ---
 

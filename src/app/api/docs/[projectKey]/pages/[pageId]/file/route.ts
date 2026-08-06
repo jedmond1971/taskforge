@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { putObject, getPresignedDownloadUrl, deleteObject } from "@/lib/s3";
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
-import { canEditIssues } from "@/lib/permissions";
+import { canEditIssues, getUserGrants } from "@/lib/permissions";
 
 export const maxDuration = 60;
 
@@ -34,7 +34,7 @@ async function resolvePage(projectKey: string, pageId: string, userId: string) {
   });
   if (!page) return null;
 
-  return { page, role: ctx.role };
+  return { page, role: ctx.role, projectId: ctx.projectId, orgId: ctx.orgId };
 }
 
 // GET /api/docs/[projectKey]/pages/[pageId]/file — return a presigned download URL
@@ -70,7 +70,11 @@ export async function POST(
     const result = await resolvePage(params.projectKey, params.pageId, session.user.id);
     if (!result) return NextResponse.json({ error: "Page not found" }, { status: 404 });
 
-    if (!result.role || !canEditIssues(result.role)) {
+    if (!result.role) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const grants = await getUserGrants(session.user.id, result.orgId, result.projectId);
+    if (!canEditIssues(result.role, grants)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

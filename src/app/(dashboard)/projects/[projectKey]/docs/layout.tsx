@@ -1,14 +1,14 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { canEditIssues, canManageProject } from "@/lib/permissions";
+import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 import { ProjectMemberRole } from "@prisma/client";
 import { DocsSidebarLayout } from "@/components/docs/docs-sidebar-layout";
 
 async function getDocsSidebarData(projectKey: string, userId: string) {
   const project = await prisma.project.findFirst({
     where: { key: projectKey.toUpperCase() },
-    select: { id: true, key: true, name: true, isClosed: true },
+    select: { id: true, key: true, name: true, isClosed: true, orgId: true },
   });
   if (!project) return null;
 
@@ -40,7 +40,9 @@ async function getDocsSidebarData(projectKey: string, userId: string) {
     },
   });
 
-  return { project, docSpace, role: member.role as ProjectMemberRole };
+  const grants = await getUserGrants(userId, project.orgId, project.id);
+
+  return { project, docSpace, role: member.role as ProjectMemberRole, grants };
 }
 
 export default async function DocsLayout({
@@ -56,9 +58,9 @@ export default async function DocsLayout({
   const data = await getDocsSidebarData(params.projectKey, session.user.id);
   if (!data) redirect("/projects");
 
-  const { project, docSpace, role } = data;
-  const canEdit = !project.isClosed && canEditIssues(role);
-  const canManage = !project.isClosed && canManageProject(role);
+  const { project, docSpace, role, grants } = data;
+  const canEdit = !project.isClosed && canEditIssues(role, grants);
+  const canManage = !project.isClosed && canManageProject(role, grants);
 
   const sections = docSpace.sections.map((s) => ({
     id: s.id,

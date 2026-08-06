@@ -4,13 +4,13 @@ import { redirect, notFound } from "next/navigation";
 import { DocPageEditor } from "@/components/docs/doc-page-editor";
 import { DocDocumentView } from "@/components/docs/doc-document-view";
 import { SetPageTitle } from "@/components/layout/PageTitleContext";
-import { canEditIssues } from "@/lib/permissions";
+import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { ProjectMemberRole } from "@prisma/client";
 
 async function getPageData(projectKey: string, pageId: string, userId: string) {
   const project = await prisma.project.findFirst({
     where: { key: projectKey.toUpperCase() },
-    select: { id: true, key: true, name: true, isClosed: true },
+    select: { id: true, key: true, name: true, isClosed: true, orgId: true },
   });
   if (!project) return null;
 
@@ -42,7 +42,9 @@ async function getPageData(projectKey: string, pageId: string, userId: string) {
     },
   });
 
-  return { project, page, revisions, role: member.role as ProjectMemberRole, isClosed: project.isClosed };
+  const grants = await getUserGrants(userId, project.orgId, project.id);
+
+  return { project, page, revisions, role: member.role as ProjectMemberRole, isClosed: project.isClosed, grants };
 }
 
 export default async function DocPagePage({
@@ -56,8 +58,8 @@ export default async function DocPagePage({
   const data = await getPageData(params.projectKey, params.pageId, session.user.id);
   if (!data) notFound();
 
-  const { project, page, revisions, role, isClosed } = data;
-  const readOnly = isClosed || !canEditIssues(role);
+  const { project, page, revisions, role, isClosed, grants } = data;
+  const readOnly = isClosed || !canEditIssues(role, grants);
 
   const serializedPage = {
     ...page,
