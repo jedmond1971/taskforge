@@ -74,52 +74,81 @@ export default async function OAuthAuthorizePage({
     redirect(`/login?callbackUrl=${encodeURIComponent(`/oauth/authorize?${query}`)}`);
   }
 
-  const org = await prisma.organization.findUnique({
-    where: { id: session.user.orgId },
-    select: { name: true },
+  const memberships = await prisma.orgMember.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "asc" },
+    select: { orgId: true, org: { select: { name: true } } },
   });
+
+  const activeOrgId = memberships.some((m) => m.orgId === session.user.orgId)
+    ? session.user.orgId
+    : memberships[0]?.orgId;
+  const activeOrgName = memberships.find((m) => m.orgId === activeOrgId)?.org.name ?? "workspace";
 
   const scopes = parseRequestedScope(result.scope);
 
   return (
     <Card title="Connect to JedForge">
-      <p className="text-zinc-500 dark:text-zinc-400 text-sm text-center mb-6">
-        <strong className="text-zinc-700 dark:text-zinc-200">{result.clientName ?? "This application"}</strong>{" "}
-        wants to access your <strong className="text-zinc-700 dark:text-zinc-200">{org?.name ?? "workspace"}</strong> organization as{" "}
-        <strong className="text-zinc-700 dark:text-zinc-200">{session.user.email}</strong>.
-      </p>
+      <form action={approveAuthorization}>
+        <input type="hidden" name="clientId" value={result.clientId} />
+        <input type="hidden" name="redirectUri" value={result.redirectUri} />
+        <input type="hidden" name="codeChallenge" value={result.codeChallenge} />
+        <input type="hidden" name="scope" value={scopes.join(" ")} />
+        <input type="hidden" name="state" value={result.state ?? ""} />
 
-      <ul className="text-sm text-zinc-600 dark:text-zinc-300 space-y-2 mb-8 list-disc list-inside">
-        {scopes.map((scope) => (
-          <li key={scope}>{OAUTH_SCOPES[scope]}</li>
-        ))}
-      </ul>
+        {memberships.length > 1 ? (
+          <div className="mb-6">
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm text-center mb-3">
+              <strong className="text-zinc-700 dark:text-zinc-200">{result.clientName ?? "This application"}</strong>{" "}
+              wants to access an organization as{" "}
+              <strong className="text-zinc-700 dark:text-zinc-200">{session.user.email}</strong>.
+            </p>
+            <label htmlFor="orgId" className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+              Organization
+            </label>
+            <select
+              id="orgId"
+              name="orgId"
+              defaultValue={activeOrgId}
+              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+            >
+              {memberships.map((m) => (
+                <option key={m.orgId} value={m.orgId}>
+                  {m.org.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm text-center mb-6">
+            <strong className="text-zinc-700 dark:text-zinc-200">{result.clientName ?? "This application"}</strong>{" "}
+            wants to access your <strong className="text-zinc-700 dark:text-zinc-200">{activeOrgName}</strong> organization as{" "}
+            <strong className="text-zinc-700 dark:text-zinc-200">{session.user.email}</strong>.
+          </p>
+        )}
 
-      <div className="flex gap-3">
-        <form action={denyAuthorization} className="flex-1">
-          <input type="hidden" name="redirectUri" value={result.redirectUri} />
-          <input type="hidden" name="state" value={result.state ?? ""} />
+        <ul className="text-sm text-zinc-600 dark:text-zinc-300 space-y-2 mb-8 list-disc list-inside">
+          {scopes.map((scope) => (
+            <li key={scope}>{OAUTH_SCOPES[scope]}</li>
+          ))}
+        </ul>
+
+        <div className="flex gap-3">
           <button
             type="submit"
-            className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+            formAction={denyAuthorization}
+            className="flex-1 rounded-lg border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
           >
             Deny
           </button>
-        </form>
-        <form action={approveAuthorization} className="flex-1">
-          <input type="hidden" name="clientId" value={result.clientId} />
-          <input type="hidden" name="redirectUri" value={result.redirectUri} />
-          <input type="hidden" name="codeChallenge" value={result.codeChallenge} />
-          <input type="hidden" name="scope" value={scopes.join(" ")} />
-          <input type="hidden" name="state" value={result.state ?? ""} />
           <button
             type="submit"
-            className="w-full rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
+            className="flex-1 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
           >
             Approve
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </Card>
   );
 }

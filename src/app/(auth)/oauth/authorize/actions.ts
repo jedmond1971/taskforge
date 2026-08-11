@@ -57,6 +57,21 @@ export async function approveAuthorization(formData: FormData) {
     redirect(appendRedirectParams(result.redirectUri, { error: result.error, state: result.state }));
   }
 
+  const requestedOrgId = String(formData.get("orgId") ?? "") || session.user.orgId;
+  const membership = await prisma.orgMember.findFirst({
+    where: { userId: session.user.id, orgId: requestedOrgId },
+    select: { orgId: true },
+  });
+  if (!membership) {
+    redirect(
+      appendRedirectParams(result.redirectUri, {
+        error: "invalid_request",
+        error_description: "You are not a member of the selected organization.",
+        state: result.state,
+      })
+    );
+  }
+
   const scopes = parseRequestedScope(result.scope);
   const plaintextCode = generateAuthorizationCode();
 
@@ -65,7 +80,7 @@ export async function approveAuthorization(formData: FormData) {
       hashedCode: hashOAuthSecret(plaintextCode),
       clientId: result.clientId,
       userId: session.user.id,
-      orgId: session.user.orgId,
+      orgId: membership.orgId,
       redirectUri: result.redirectUri,
       codeChallenge: result.codeChallenge,
       codeChallengeMethod: "S256",

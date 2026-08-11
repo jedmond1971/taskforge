@@ -47,6 +47,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.sessionVersion = (user as { sessionVersion?: number }).sessionVersion;
         const membership = await prisma.orgMember.findFirst({
           where: { userId: user.id! },
+          orderBy: { createdAt: "asc" },
           select: { orgId: true },
         });
         token.orgId = membership?.orgId;
@@ -58,6 +59,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         const membership = await prisma.orgMember.findFirst({
           where: { userId: token.id as string },
+          orderBy: { createdAt: "asc" },
           select: { orgId: true },
         });
         if (membership) token.orgId = membership.orgId;
