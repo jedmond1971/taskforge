@@ -164,6 +164,15 @@ See `.context-docs/local-dev-tooling.md` for the Railway CLI/GraphQL API workaro
 
 ---
 
+## Sprint workflow (JFR-105)
+
+See `.context-docs/sprints.md` for all 10 rules. Key facts:
+
+- `Project.workflowMode` (`KANBAN` default, or `SPRINT`) is set once at creation and never changeable afterward — no UI/admin/API path to switch an existing project.
+- Sprint-mode projects get a `Backlog` tab and a Board scoped to only the active sprint's issues; Kanban-mode projects are completely unaffected.
+- "One active sprint per project" is enforced by a DB partial unique index, not just app logic — see `.context-docs/data-integrity.md`.
+- `moveIssue`/`reorderIssues` gained an optional `sprintScopeId` param so drag-and-drop on a sprint-scoped board only reindexes the visible subset of a shared status column — required for correctness, not optional polish.
+
 ## Docs module invariants
 
 See `.context-docs/docs-invariants.md` for all 8 rules. Key facts:
@@ -248,6 +257,7 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 
 ## Reference docs (load when relevant)
 
+- .context-docs/sprints.md — all 10 Sprint workflow rules (workflowMode lock, board scoping, one-active-sprint DB constraint, sprintScopeId)
 - .context-docs/docs-invariants.md — all 8 Docs module rules (DocSpace, roles, revisions, file lifecycle)
 - .context-docs/data-integrity.md — A2 audit invariants (key gen, kanban positions, S3 cleanup, caps)
 - .context-docs/rich-text.md — TipTap packages, HTML storage, empty-state normalization
