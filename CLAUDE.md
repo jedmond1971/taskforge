@@ -215,7 +215,7 @@ See `.context-docs/testing-notes.md` — hand-written Prisma mocks in `tenancy.t
 
 See `.context-docs/data-integrity.md` for full details. Key facts:
 
-- Issue key generation and kanban position writes are wrapped in `prisma.$transaction` with row-level locks.
+- Issue key generation and kanban position writes are wrapped in `prisma.$transaction` with row-level locks — **true for the UI's `moveIssue`/`reorderIssues` actions, but not for the v1 API's `POST /api/v1/issues` or `PATCH /api/v1/issues/[key]`**, which do a plain non-transactional `count()`-based position write; this gap is the root cause of a known position-collision bug (JFR-122).
 - S3 objects are cleaned up on delete (issues, doc sections, project delete).
 - Notification cap = 100; PageRevision cap = 50.
 - `SavedFilter` requires `projectId` — global `/search` page cannot save/load filters.
