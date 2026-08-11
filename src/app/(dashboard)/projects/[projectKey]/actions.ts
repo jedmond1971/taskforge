@@ -642,7 +642,13 @@ export async function moveIssue(
   projectKey: string,
   issueId: string,
   newStatusId: string,
-  newPosition: number
+  newPosition: number,
+  // Set only when the caller's issue list is a Sprint-mode board scoped to a
+  // single sprint — the destination column on disk also contains backlog/
+  // other-sprint issues invisible to that caller, so `newPosition` must be
+  // interpreted as an index among sprintScopeId-matching issues only, not
+  // the full column. undefined (Kanban-mode boards) keeps legacy behavior.
+  sprintScopeId?: string | null
 ) {
   const { userId, projectId } = await requireProjectRole(projectKey, canEditIssues);
 
@@ -671,9 +677,21 @@ export async function moveIssue(
       const destOthers = await tx.issue.findMany({
         where: { projectId, statusId: newStatusId, id: { not: issueId } },
         orderBy: { position: "asc" },
-        select: { id: true },
+        select: { id: true, sprintId: true },
       });
-      const clamped = Math.max(0, Math.min(newPosition, destOthers.length));
+
+      let clamped: number;
+      if (sprintScopeId == null) {
+        clamped = Math.max(0, Math.min(newPosition, destOthers.length));
+      } else {
+        // newPosition is an index among visible (sprintScopeId-matching)
+        // items only — map it to the correct absolute slot in the full
+        // column, leaving hidden items' relative order untouched.
+        const visibleIdxs = destOthers
+          .map((o, idx) => (o.sprintId === sprintScopeId ? idx : -1))
+          .filter((idx) => idx !== -1);
+        clamped = newPosition < visibleIdxs.length ? visibleIdxs[newPosition] : destOthers.length;
+      }
       const destOrder = [
         ...destOthers.slice(0, clamped),
         { id: issueId },
@@ -731,19 +749,52 @@ export async function moveIssue(
 // --- REORDER ISSUES (within-column drag) ---
 export async function reorderIssues(
   projectKey: string,
-  issueIds: string[]
+  issueIds: string[],
+  // See moveIssue's sprintScopeId doc — same reasoning applies here.
+  sprintScopeId?: string | null
 ) {
   const { projectId } = await requireProjectRole(projectKey, canEditIssues);
 
+  if (issueIds.length === 0) return { success: true };
+
   try {
-    await prisma.$transaction(
-      issueIds.map((id, index) =>
-        prisma.issue.updateMany({
-          where: { id, projectId },
-          data: { position: index },
-        })
-      )
-    );
+    if (sprintScopeId == null) {
+      await prisma.$transaction(
+        issueIds.map((id, index) =>
+          prisma.issue.updateMany({
+            where: { id, projectId },
+            data: { position: index },
+          })
+        )
+      );
+    } else {
+      // issueIds is only the visible (sprintScopeId-matching) subset of a
+      // shared status column. Find that column via the first issue, then
+      // permute only the visible items into the position "slots" they
+      // already occupy — hidden (backlog / other-sprint) issues in that
+      // column are never written.
+      await prisma.$transaction(async (tx) => {
+        const first = await tx.issue.findFirst({
+          where: { id: issueIds[0], projectId },
+          select: { statusId: true },
+        });
+        if (!first) throw new Error("Issue not found");
+
+        const columnIssues = await tx.issue.findMany({
+          where: { projectId, statusId: first.statusId },
+          orderBy: { position: "asc" },
+          select: { id: true, position: true, sprintId: true },
+        });
+        const slots = columnIssues.filter((i) => i.sprintId === sprintScopeId).map((i) => i.position);
+
+        for (let idx = 0; idx < issueIds.length && idx < slots.length; idx++) {
+          await tx.issue.updateMany({
+            where: { id: issueIds[idx], projectId },
+            data: { position: slots[idx] },
+          });
+        }
+      });
+    }
   } catch (error) {
     console.error("reorderIssues position write failed:", error);
     throw new Error("Failed to reorder issues — please retry");

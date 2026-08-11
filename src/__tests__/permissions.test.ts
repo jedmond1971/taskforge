@@ -11,6 +11,7 @@ import {
   canEditSettings,
   canManageMembers,
   canEditIssues,
+  canManageSprint,
   canViewProject,
   canComment,
   canManageCustomFields,
@@ -44,6 +45,12 @@ describe("canEditIssues — PROJECT_LEAD and TEAM_MEMBER", () => {
   it("allows PROJECT_LEAD", () => expect(canEditIssues("PROJECT_LEAD")).toBe(true));
   it("allows TEAM_MEMBER", () => expect(canEditIssues("TEAM_MEMBER")).toBe(true));
   it("denies VIEWER", () => expect(canEditIssues("VIEWER")).toBe(false));
+});
+
+describe("canManageSprint — PROJECT_LEAD only (JFR-105)", () => {
+  it("allows PROJECT_LEAD", () => expect(canManageSprint("PROJECT_LEAD")).toBe(true));
+  it("denies TEAM_MEMBER", () => expect(canManageSprint("TEAM_MEMBER")).toBe(false));
+  it("denies VIEWER", () => expect(canManageSprint("VIEWER")).toBe(false));
 });
 
 describe("canViewProject — all roles", () => {
@@ -88,6 +95,11 @@ describe("Group grants boost a VIEWER's project-level permissions", () => {
 
   it("canEditIssues: VIEWER + ISSUE_EDIT grant is allowed", () => {
     expect(canEditIssues("VIEWER", new Set<Permission>(["ISSUE_EDIT"]))).toBe(true);
+  });
+
+  it("canManageSprint: VIEWER + SPRINT_MANAGE grant is allowed, without is denied", () => {
+    expect(canManageSprint("VIEWER", new Set<Permission>(["SPRINT_MANAGE"]))).toBe(true);
+    expect(canManageSprint("VIEWER", new Set())).toBe(false);
   });
 
   it("an unrelated grant does not boost a different permission", () => {

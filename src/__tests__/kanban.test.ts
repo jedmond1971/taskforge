@@ -230,3 +230,120 @@ describe("reorderIssues — within-column position normalisation", () => {
     await expect(reorderIssues("PRJ", ["solo"])).resolves.toMatchObject({ success: true });
   });
 });
+
+// ─── moveIssue: sprint-scoped positioning (JFR-105) ────────────────────────────
+
+describe("moveIssue — sprint-scoped positioning (JFR-105)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSession();
+    mockProjectMembership();
+    mockPrisma.activityLog.create.mockResolvedValue({});
+    mockPrisma.issue.findUniqueOrThrow.mockResolvedValue({
+      id: "issue-new",
+      statusId: "status-todo",
+      position: 0,
+      projectStatus: { id: "status-todo", name: "To Do", category: "TODO" },
+    });
+    mockPrisma.projectStatus.findUnique.mockResolvedValue({ name: "To Do" });
+    mockPrisma.$transaction.mockImplementation(
+      (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma)
+    );
+  });
+
+  it("inserts the moved issue among only the sprint-scoped items, leaving hidden (backlog) issues' relative order untouched", async () => {
+    mockPrisma.issue.findFirst.mockResolvedValue({
+      id: "issue-new",
+      statusId: "status-todo", // same column as target: no source compaction
+      projectStatus: { name: "To Do" },
+      position: 0,
+    });
+    mockPrisma.issue.findMany.mockResolvedValue([
+      { id: "backlog-1", sprintId: null },
+      { id: "sprint-1", sprintId: "sprint-a" },
+      { id: "backlog-2", sprintId: null },
+      { id: "sprint-2", sprintId: "sprint-a" },
+    ]);
+
+    // newPosition=1 means "after the 1st visible (sprint-a) item" — visible
+    // items are at absolute indices [1, 3], so the moved issue should land
+    // at absolute slot 3, between backlog-2 and sprint-2.
+    await moveIssue("PRJ", "issue-new", "status-todo", 1, "sprint-a");
+
+    const positionCalls = mockPrisma.issue.update.mock.calls.filter(
+      (c) => "position" in (c[0] as { data: Record<string, unknown> }).data
+    ) as [{ where: { id: string }; data: { position: number } }][];
+
+    expect(positionCalls.map((c) => c[0].where.id)).toEqual([
+      "backlog-1",
+      "sprint-1",
+      "backlog-2",
+      "issue-new",
+      "sprint-2",
+    ]);
+    expect(positionCalls.map((c) => c[0].data.position)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("falls back to legacy full-column clamping when sprintScopeId is omitted", async () => {
+    mockPrisma.issue.findFirst.mockResolvedValue({
+      id: "issue-new",
+      statusId: "status-todo",
+      projectStatus: { name: "To Do" },
+      position: 0,
+    });
+    mockPrisma.issue.findMany.mockResolvedValue([
+      { id: "other-1", sprintId: null },
+      { id: "other-2", sprintId: null },
+    ]);
+
+    await moveIssue("PRJ", "issue-new", "status-todo", 1);
+
+    const positionCalls = mockPrisma.issue.update.mock.calls.filter(
+      (c) => "position" in (c[0] as { data: Record<string, unknown> }).data
+    ) as [{ where: { id: string }; data: { position: number } }][];
+    expect(positionCalls.map((c) => c[0].where.id)).toEqual(["other-1", "issue-new", "other-2"]);
+  });
+});
+
+// ─── reorderIssues: sprint-scoped positioning (JFR-105) ────────────────────────
+
+describe("reorderIssues — sprint-scoped positioning (JFR-105)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSession();
+    mockProjectMembership();
+    mockPrisma.$transaction.mockImplementation(
+      (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma)
+    );
+    mockPrisma.issue.updateMany.mockResolvedValue({ count: 1 });
+  });
+
+  it("only writes positions for the visible subset, using the slots already occupied by sprint-scoped issues", async () => {
+    mockPrisma.issue.findFirst.mockResolvedValue({ statusId: "status-todo" });
+    mockPrisma.issue.findMany.mockResolvedValue([
+      { id: "backlog-1", position: 0, sprintId: null },
+      { id: "sprint-1", position: 1, sprintId: "sprint-a" },
+      { id: "backlog-2", position: 2, sprintId: null },
+      { id: "sprint-2", position: 3, sprintId: "sprint-a" },
+    ]);
+
+    // Visible subset reordered: sprint-2 now before sprint-1.
+    await reorderIssues("PRJ", ["sprint-2", "sprint-1"], "sprint-a");
+
+    expect(mockPrisma.issue.updateMany).toHaveBeenCalledTimes(2);
+    expect(mockPrisma.issue.updateMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ where: expect.objectContaining({ id: "sprint-2" }), data: { position: 1 } })
+    );
+    expect(mockPrisma.issue.updateMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ where: expect.objectContaining({ id: "sprint-1" }), data: { position: 3 } })
+    );
+    // Hidden (backlog) issues are never written.
+    const writtenIds = mockPrisma.issue.updateMany.mock.calls.map(
+      (c) => (c[0] as { where: { id: string } }).where.id
+    );
+    expect(writtenIds).not.toContain("backlog-1");
+    expect(writtenIds).not.toContain("backlog-2");
+  });
+});

@@ -9,11 +9,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, key, description } = await request.json();
+    const { name, key, description, workflowMode } = await request.json();
 
     if (!name || !key) {
       return NextResponse.json({ error: "Name and key are required" }, { status: 400 });
     }
+
+    const mode = workflowMode === "SPRINT" ? "SPRINT" : "KANBAN";
 
     const { orgId } = session.user;
     if (!orgId) {
@@ -43,6 +45,7 @@ export async function POST(request: NextRequest) {
         key: key.toUpperCase(),
         description: description || null,
         orgId,
+        workflowMode: mode,
         members: {
           create: {
             userId: session.user.id,

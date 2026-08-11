@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface NewProjectDialogProps {
   trigger?: React.ReactElement<{ onClick?: React.MouseEventHandler }>;
@@ -21,6 +22,7 @@ export function NewProjectDialog({ trigger }: NewProjectDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [workflowMode, setWorkflowMode] = useState<"KANBAN" | "SPRINT">("KANBAN");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -36,7 +38,7 @@ export function NewProjectDialog({ trigger }: NewProjectDialogProps) {
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, key, description }),
+        body: JSON.stringify({ name, key, description, workflowMode }),
       });
 
       const data = await res.json();
@@ -119,6 +121,35 @@ export function NewProjectDialog({ trigger }: NewProjectDialogProps) {
                 e.currentTarget.dataset.touched = "true";
               }}
             />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Workflow
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  { value: "KANBAN" as const, label: "Kanban", desc: "Continuous board, issues move freely between statuses." },
+                  { value: "SPRINT" as const, label: "Sprint", desc: "Plan work in time-boxed sprints with a backlog." },
+                ]
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setWorkflowMode(opt.value)}
+                  className={cn(
+                    "text-left rounded-lg border p-3 transition-colors",
+                    workflowMode === opt.value
+                      ? "border-primary bg-primary/5"
+                      : "border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                  )}
+                >
+                  <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{opt.label}</div>
+                  <div className="text-xs text-zinc-500 mt-0.5">{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-zinc-500">This can&apos;t be changed later.</p>
           </div>
           <div className="space-y-1.5">
             <label htmlFor="description" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">

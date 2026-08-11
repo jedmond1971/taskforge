@@ -93,7 +93,12 @@ export default async function ProjectLayout({
             )}
           </div>
         </div>
-        <ProjectNav projectKey={params.projectKey} isClosed={project.isClosed} isAdmin={isAdmin} />
+        <ProjectNav
+          projectKey={params.projectKey}
+          isClosed={project.isClosed}
+          isAdmin={isAdmin}
+          workflowMode={project.workflowMode}
+        />
       </div>
       <div className="p-4 sm:p-6 flex-1 min-h-0">{children}</div>
       <ProjectShortcuts projectKey={params.projectKey} />

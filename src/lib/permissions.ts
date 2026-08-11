@@ -49,6 +49,11 @@ export function canEditIssues(role: ProjectRole, grants: Set<Permission> = new S
   return role === "PROJECT_LEAD" || role === "TEAM_MEMBER" || grants.has("ISSUE_EDIT");
 }
 
+/** PROJECT_LEAD, or SPRINT_MANAGE grant — create, start, and complete sprints */
+export function canManageSprint(role: ProjectRole, grants: Set<Permission> = new Set()): boolean {
+  return role === "PROJECT_LEAD" || grants.has("SPRINT_MANAGE");
+}
+
 /** All roles can view */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function canViewProject(role: ProjectRole): boolean {

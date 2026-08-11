@@ -3,19 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { ProjectWorkflowMode } from "@prisma/client";
 
 interface ProjectNavProps {
   projectKey: string;
   isClosed?: boolean;
   isAdmin?: boolean;
+  workflowMode?: ProjectWorkflowMode;
 }
 
-export function ProjectNav({ projectKey, isClosed, isAdmin }: ProjectNavProps) {
+export function ProjectNav({ projectKey, isClosed, isAdmin, workflowMode }: ProjectNavProps) {
   const pathname = usePathname();
   const base = `/projects/${projectKey}`;
 
   const allTabs = [
     { href: `${base}/board`, label: "Board" },
+    ...(workflowMode === "SPRINT" ? [{ href: `${base}/backlog`, label: "Backlog" }] : []),
     { href: `${base}/issues`, label: "Issues" },
     { href: `${base}/hierarchy`, label: "Hierarchy" },
     { href: `${base}/docs`, label: "Docs" },

@@ -38,6 +38,7 @@ const PROJECT_SCOPED_PERMISSIONS: Permission[] = [
   "PROJECT_EDIT_SETTINGS",
   "PROJECT_MANAGE_MEMBERS",
   "ISSUE_EDIT",
+  "SPRINT_MANAGE",
 ];
 const ORG_SCOPED_PERMISSIONS: Permission[] = ["ORG_MANAGE_CUSTOM_FIELDS", "ORG_MANAGE_API_KEYS"];
 
@@ -46,6 +47,7 @@ const PERMISSION_LABELS: Record<Permission, string> = {
   PROJECT_EDIT_SETTINGS: "Edit project settings",
   PROJECT_MANAGE_MEMBERS: "Manage project members",
   ISSUE_EDIT: "Edit issues",
+  SPRINT_MANAGE: "Manage sprints",
   ORG_MANAGE_CUSTOM_FIELDS: "Manage custom fields",
   ORG_MANAGE_API_KEYS: "Manage API keys",
 };

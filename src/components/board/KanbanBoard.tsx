@@ -45,6 +45,9 @@ interface KanbanBoardProps {
   initialIssues: CardIssue[];
   statuses: BoardStatus[];
   projectKey: string;
+  // Set only for Sprint-mode boards, scoped to the active sprint's id — see
+  // moveIssue/reorderIssues's sprintScopeId doc in actions.ts.
+  sprintScopeId?: string;
 }
 
 // Custom collision detection: prefer column droppables for cross-column detection
@@ -54,7 +57,7 @@ const customCollision: CollisionDetection = (args) => {
   return rectIntersection(args);
 };
 
-export function KanbanBoard({ initialIssues, statuses, projectKey }: KanbanBoardProps) {
+export function KanbanBoard({ initialIssues, statuses, projectKey, sprintScopeId }: KanbanBoardProps) {
   const [issues, setIssues] = useState<CardIssue[]>(initialIssues);
   const [activeIssue, setActiveIssue] = useState<CardIssue | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
@@ -144,7 +147,7 @@ export function KanbanBoard({ initialIssues, statuses, projectKey }: KanbanBoard
       );
 
       setIsSaving(true);
-      moveIssue(projectKey, draggedIssue.id, destStatusId, newPosition)
+      moveIssue(projectKey, draggedIssue.id, destStatusId, newPosition, sprintScopeId)
         .catch(() => {
           toast.error("Failed to move issue");
           setIssues(initialIssues);
@@ -166,7 +169,7 @@ export function KanbanBoard({ initialIssues, statuses, projectKey }: KanbanBoard
       });
 
       setIsSaving(true);
-      reorderIssues(projectKey, reordered.map((i) => i.id))
+      reorderIssues(projectKey, reordered.map((i) => i.id), sprintScopeId)
         .catch(() => {
           toast.error("Failed to reorder issues");
           setIssues(initialIssues);

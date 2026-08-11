@@ -90,8 +90,20 @@ enum Permission {
   PROJECT_EDIT_SETTINGS
   PROJECT_MANAGE_MEMBERS
   ISSUE_EDIT
+  SPRINT_MANAGE
   ORG_MANAGE_CUSTOM_FIELDS
   ORG_MANAGE_API_KEYS
+}
+
+enum ProjectWorkflowMode {
+  KANBAN
+  SPRINT
+}
+
+enum SprintStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
 }
 
 model User {
@@ -132,21 +144,23 @@ model User {
 }
 
 model Project {
-  id               String   @id @default(cuid())
+  id               String              @id @default(cuid())
   name             String
-  key              String   @unique
+  key              String              @unique
   description      String?
   orgId            String
-  isPrivate        Boolean  @default(false)
-  isClosed         Boolean  @default(false)
+  isPrivate        Boolean             @default(false)
+  isClosed         Boolean             @default(false)
   doneAutoHideDays Int?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  workflowMode     ProjectWorkflowMode @default(KANBAN)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   org                     Organization         @relation(fields: [orgId], references: [id])
   members                 ProjectMember[]
   issues                  Issue[]
   statuses                ProjectStatus[]
+  sprints                 Sprint[]
   docSpace                DocSpace?
   savedFilters            SavedFilter[]
   customFieldRestrictions CustomFieldProject[]
@@ -180,6 +194,7 @@ model Issue {
   assigneeId      String?
   reporterId      String
   parentId        String?
+  sprintId        String?
   position        Int           @default(0)
   labels          String[]      @default([])
   dueDate         DateTime?
@@ -193,6 +208,7 @@ model Issue {
   reporter      User          @relation("ReportedIssues", fields: [reporterId], references: [id])
   parent        Issue?        @relation("SubIssues", fields: [parentId], references: [id])
   children      Issue[]       @relation("SubIssues")
+  sprint        Sprint?       @relation(fields: [sprintId], references: [id])
 
   comments          Comment[]
   activityLogs      ActivityLog[]
@@ -209,6 +225,7 @@ model Issue {
   @@index([reporterId])
   @@index([statusId])
   @@index([priority])
+  @@index([sprintId])
   // Position uniqueness enforced by DEFERRABLE constraint in migration
   // (not expressible as @@unique — reorder logic writes sequentially)
   @@index([projectId, statusId, position])
@@ -257,6 +274,26 @@ model ProjectStatus {
 
   @@unique([projectId, name])
   @@index([projectId, category, position])
+}
+
+// JFR-105: project-level sprints for Sprint-mode projects. "At most one
+// ACTIVE sprint per project" is enforced at the DB level by a hand-added
+// partial unique index in the migration (not expressible as @@unique).
+model Sprint {
+  id        String       @id @default(cuid())
+  projectId String
+  name      String
+  goal      String?
+  startDate DateTime?
+  endDate   DateTime?
+  status    SprintStatus @default(PLANNED)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issues  Issue[]
+
+  @@index([projectId, status])
 }
 
 model Comment {
