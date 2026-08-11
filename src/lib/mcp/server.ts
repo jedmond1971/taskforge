@@ -535,5 +535,39 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
     }
   );
 
+  server.registerTool(
+    "list_comments",
+    {
+      title: "List Comments",
+      description: "List comments on a JedForge issue, oldest first.",
+      inputSchema: {
+        issueKey: z.string().describe("Issue key, e.g. JFR-103"),
+      },
+    },
+    async ({ issueKey }) => {
+      if (!hasScope(ctx, "comments:read")) return errorResult("Missing scope: comments:read");
+
+      const membership = await requireIssueMembership(issueKey, ctx);
+      if (!membership) return errorResult(`Issue not found or you are not a member: ${issueKey}`);
+      const { issue } = membership;
+
+      const comments = await prisma.comment.findMany({
+        where: { issueId: issue.id },
+        include: { author: { select: { id: true, name: true } } },
+        orderBy: { createdAt: "asc" },
+      });
+
+      return textResult({
+        comments: comments.map((comment) => ({
+          id: comment.id,
+          body: comment.body,
+          authorId: comment.authorId,
+          author: comment.author,
+          createdAt: comment.createdAt,
+        })),
+      });
+    }
+  );
+
   return server;
 }
