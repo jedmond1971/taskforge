@@ -18,6 +18,7 @@ import bcrypt from "bcryptjs";
 import { notificationService } from "@/lib/notifications";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 import { deleteObject } from "@/lib/s3";
+import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
 
 // Helper: verify user is a project member, returns { userId, projectId }
 async function requireProjectMember(projectKey: string) {
@@ -78,7 +79,7 @@ export async function createIssue(projectKey: string, formData: {
   // Advisory lock: SELECT ... FOR UPDATE on the Project row serialises concurrent
   // issue creates for this project, eliminating the TOCTOU race in key generation.
   const issue = await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT id FROM "Project" WHERE id = ${projectId} FOR UPDATE`;
+    await lockProjectForPositionWrite(tx, projectId);
 
     let statusId = formData.statusId;
     if (!statusId) {
@@ -90,7 +91,7 @@ export async function createIssue(projectKey: string, formData: {
       statusId = defaultStatus.id;
     }
 
-    const issueCount = await tx.issue.count({ where: { projectId } });
+    const position = await nextPositionInStatus(tx, projectId, statusId);
 
     const lastIssue = await tx.issue.findFirst({
       where: { projectId },
@@ -112,7 +113,7 @@ export async function createIssue(projectKey: string, formData: {
         assigneeId: formData.assigneeId ?? null,
         reporterId: userId,
         labels: formData.labels ?? [],
-        position: issueCount,
+        position,
         dueDate: formData.dueDate ?? null,
         parentId: formData.parentId ?? null,
       },
@@ -181,18 +182,24 @@ export async function updateIssue(
   }
 
   // Changing statusId without updating position would violate the unique constraint
-  // (projectId, statusId, position). Append to the end of the destination column.
-  let newPosition: number | undefined;
-  if ("statusId" in updates && updates.statusId !== undefined && updates.statusId !== existing.statusId) {
-    newPosition = await prisma.issue.count({
-      where: { projectId, statusId: updates.statusId, id: { not: issueId } },
-    });
-  }
+  // (projectId, statusId, position). Append to the end of the destination column,
+  // using MAX(position)+1 under a per-project lock rather than COUNT(*) — a column
+  // with position gaps (e.g. 0,1,3 after a deletion) can make COUNT(*) collide with
+  // an existing row (see JFR-122).
+  const statusChanging =
+    "statusId" in updates && updates.statusId !== undefined && updates.statusId !== existing.statusId;
 
-  const issue = await prisma.issue.update({
-    where: { id: issueId },
-    data: { ...updates, ...(newPosition !== undefined ? { position: newPosition, statusChangedAt: new Date() } : {}) },
-    include: { projectStatus: { select: { id: true, name: true, category: true } } },
+  const issue = await prisma.$transaction(async (tx) => {
+    let newPosition: number | undefined;
+    if (statusChanging) {
+      await lockProjectForPositionWrite(tx, projectId);
+      newPosition = await nextPositionInStatus(tx, projectId, updates.statusId as string);
+    }
+    return tx.issue.update({
+      where: { id: issueId },
+      data: { ...updates, ...(newPosition !== undefined ? { position: newPosition, statusChangedAt: new Date() } : {}) },
+      include: { projectStatus: { select: { id: true, name: true, category: true } } },
+    });
   });
 
   // Log each changed field (statusId handled separately below)

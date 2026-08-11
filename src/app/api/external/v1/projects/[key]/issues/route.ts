@@ -13,6 +13,7 @@ import {
   formatIssue,
   err,
 } from "../../../_helpers";
+import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
 
 export async function GET(
   request: NextRequest,
@@ -157,35 +158,41 @@ export async function POST(
       resolvedLabels.push(...(labels as string[]));
     }
 
-    const issueCount = await prisma.issue.count({ where: { projectId: project.id } });
-
     let issue: Awaited<ReturnType<typeof prisma.issue.create>> | undefined;
     for (let attempt = 0; attempt < 5; attempt++) {
       const issueKey = await generateIssueKeyWithRetry(project.key);
       try {
-        issue = await prisma.issue.create({
-          data: {
-            key: issueKey,
-            projectId: project.id,
-            title: (title as string).trim(),
-            description:
-              typeof description === "string"
-                ? sanitizeTipTapHtml(description)
-                : null,
-            statusId,
-            priority: resolvedPriority,
-            type: resolvedType,
-            assigneeId: typeof assigneeId === "string" ? assigneeId : null,
-            reporterId: ctx.createdById,
-            labels: resolvedLabels,
-            position: issueCount,
-            dueDate: resolvedDueDate ?? null,
-          },
-          include: ISSUE_INCLUDE,
+        issue = await prisma.$transaction(async (tx) => {
+          await lockProjectForPositionWrite(tx, project.id);
+          const position = await nextPositionInStatus(tx, project.id, statusId);
+          return tx.issue.create({
+            data: {
+              key: issueKey,
+              projectId: project.id,
+              title: (title as string).trim(),
+              description:
+                typeof description === "string"
+                  ? sanitizeTipTapHtml(description)
+                  : null,
+              statusId,
+              priority: resolvedPriority,
+              type: resolvedType,
+              assigneeId: typeof assigneeId === "string" ? assigneeId : null,
+              reporterId: ctx.createdById,
+              labels: resolvedLabels,
+              position,
+              dueDate: resolvedDueDate ?? null,
+            },
+            include: ISSUE_INCLUDE,
+          });
         });
         break;
       } catch (e) {
-        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          const target = Array.isArray(e.meta?.target) ? e.meta.target.join(",") : String(e.meta?.target ?? "");
+          if (target.includes("position")) throw e;
+          continue;
+        }
         throw e;
       }
     }

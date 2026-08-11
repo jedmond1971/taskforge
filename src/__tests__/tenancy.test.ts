@@ -45,6 +45,7 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
       create: vi.fn(),
       update: vi.fn(),
       count: vi.fn(),
+      aggregate: vi.fn(),
     },
     activityLog: {
       create: vi.fn(),
@@ -274,6 +275,7 @@ describe("createIssue", () => {
     mockSession();
     mockProjectWithOrg();
     mockPrisma.issue.count.mockResolvedValue(0);
+    mockPrisma.issue.aggregate.mockResolvedValue({ _max: { position: null } });
     mockPrisma.issue.findFirst.mockResolvedValue(null);
     mockPrisma.projectStatus.findFirst.mockResolvedValue({ id: "status-todo" });
     mockPrisma.$transaction.mockImplementation(
@@ -305,6 +307,9 @@ describe("updateIssue", () => {
     vi.clearAllMocks();
     mockSession();
     mockProjectWithOrg();
+    mockPrisma.$transaction.mockImplementation(
+      (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma)
+    );
   });
 
   it("rejects an assignee who is not a project member", async () => {

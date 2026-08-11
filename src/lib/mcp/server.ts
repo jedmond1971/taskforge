@@ -7,6 +7,7 @@ import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 import { PRIORITY_MAP, formatIssue, resolveStatusForProject } from "@/app/api/v1/_helpers";
 import { normalizeBody, TYPE_MAP, ISSUE_INCLUDE } from "@/app/api/external/v1/_helpers";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
+import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
 import { notificationService } from "@/lib/notifications";
 import { parse, validate, executeQuery, ParseError } from "@/lib/query";
 import type { OAuthTokenContext } from "@/lib/oauth/require-oauth-token";
@@ -171,30 +172,36 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
       const resolvedPriority: IssuePriority = priority ? PRIORITY_MAP[priority] : IssuePriority.MEDIUM;
       const resolvedType: IssueType = type ? TYPE_MAP[type] : IssueType.TASK;
 
-      const issueCount = await prisma.issue.count({ where: { projectId: project.id } });
-
       let issue: Awaited<ReturnType<typeof prisma.issue.create>> | undefined;
       for (let attempt = 0; attempt < 5; attempt++) {
         const issueKey = await generateIssueKeyWithRetry(project.key);
         try {
-          issue = await prisma.issue.create({
-            data: {
-              key: issueKey,
-              projectId: project.id,
-              title: title.trim(),
-              description: description ? normalizeBody(description) : null,
-              statusId: defaultStatus.id,
-              priority: resolvedPriority,
-              type: resolvedType,
-              reporterId: ctx.userId,
-              labels: [],
-              position: issueCount,
-            },
-            include: ISSUE_INCLUDE,
+          issue = await prisma.$transaction(async (tx) => {
+            await lockProjectForPositionWrite(tx, project.id);
+            const position = await nextPositionInStatus(tx, project.id, defaultStatus.id);
+            return tx.issue.create({
+              data: {
+                key: issueKey,
+                projectId: project.id,
+                title: title.trim(),
+                description: description ? normalizeBody(description) : null,
+                statusId: defaultStatus.id,
+                priority: resolvedPriority,
+                type: resolvedType,
+                reporterId: ctx.userId,
+                labels: [],
+                position,
+              },
+              include: ISSUE_INCLUDE,
+            });
           });
           break;
         } catch (e) {
-          if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+          if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+            const target = Array.isArray(e.meta?.target) ? e.meta.target.join(",") : String(e.meta?.target ?? "");
+            if (target.includes("position")) throw e;
+            continue;
+          }
           throw e;
         }
       }
@@ -379,9 +386,8 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
         if (resolved.id !== issue.statusId) {
           updates.statusId = resolved.id;
           newStatusName = resolved.name;
-          updates.position = await prisma.issue.count({
-            where: { projectId: issue.projectId, statusId: resolved.id },
-          });
+          // Position for the new column is computed below, inside a transaction,
+          // right before the write (see JFR-122).
         }
       }
 
@@ -436,10 +442,18 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
         }
       }
 
-      const updated = await prisma.issue.update({
-        where: { id: issue.id },
-        data: updates,
-        include: ISSUE_INCLUDE,
+      const statusChanging = typeof updates.statusId === "string" && updates.statusId !== issue.statusId;
+
+      const updated = await prisma.$transaction(async (tx) => {
+        if (statusChanging) {
+          await lockProjectForPositionWrite(tx, issue.projectId);
+          updates.position = await nextPositionInStatus(tx, issue.projectId, updates.statusId as string);
+        }
+        return tx.issue.update({
+          where: { id: issue.id },
+          data: updates,
+          include: ISSUE_INCLUDE,
+        });
       });
 
       if (logs.length > 0) {

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveStatusForProject, PRIORITY_MAP, formatIssue } from "../../_helpers";
 import { requireV1ApiKey } from "@/lib/v1-auth";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
+import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
 
 const ISSUE_INCLUDE = {
   projectStatus: { select: { id: true, name: true, category: true } },
@@ -92,12 +93,9 @@ export async function PATCH(
           }
           updates.statusId = resolved.id;
         }
-        // Changing columns requires a new position to avoid the unique constraint
+        // Changing columns requires a new position to avoid the unique constraint;
+        // computed below, inside a transaction, right before the write.
         if (updates.statusId !== issue.statusId) {
-          const colCount = await prisma.issue.count({
-            where: { projectId: issue.projectId, statusId: updates.statusId as string },
-          });
-          updates.position = colCount;
           updates.statusChangedAt = new Date();
         }
       } else {
@@ -144,10 +142,18 @@ export async function PATCH(
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
 
-    const updated = await prisma.issue.update({
-      where: { id: issue.id },
-      data: updates,
-      include: ISSUE_INCLUDE,
+    const statusChanging = typeof updates.statusId === "string" && updates.statusId !== issue.statusId;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (statusChanging) {
+        await lockProjectForPositionWrite(tx, issue.projectId);
+        updates.position = await nextPositionInStatus(tx, issue.projectId, updates.statusId as string);
+      }
+      return tx.issue.update({
+        where: { id: issue.id },
+        data: updates,
+        include: ISSUE_INCLUDE,
+      });
     });
 
     return NextResponse.json(formatIssue(updated));

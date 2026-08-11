@@ -5,6 +5,7 @@ import { IssuePriority, IssueType, Prisma } from "@prisma/client";
 import { resolveStatusForProject, PRIORITY_MAP, formatIssue } from "../_helpers";
 import { requireV1ApiKey } from "@/lib/v1-auth";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
+import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
 
 const ISSUE_INCLUDE = {
   projectStatus: { select: { id: true, name: true, category: true } },
@@ -138,31 +139,40 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const issueCount = await prisma.issue.count({ where: { projectId } });
-
     let issue: Awaited<ReturnType<typeof prisma.issue.create>> | undefined;
     for (let attempt = 0; attempt < 5; attempt++) {
       const issueKey = await generateIssueKeyWithRetry(project.key);
       try {
-        issue = await prisma.issue.create({
-          data: {
-            key: issueKey,
-            projectId,
-            title: (title as string).trim(),
-            description: typeof description === "string" ? sanitizeTipTapHtml(description) : null,
-            statusId: resolvedStatusId,
-            priority: resolvedPriority,
-            type: IssueType.TASK,
-            assigneeId: typeof assigneeId === "string" ? assigneeId : null,
-            reporterId: resolvedReporterId,
-            labels: [],
-            position: issueCount,
-          },
-          include: ISSUE_INCLUDE,
+        issue = await prisma.$transaction(async (tx) => {
+          await lockProjectForPositionWrite(tx, projectId);
+          const position = await nextPositionInStatus(tx, projectId, resolvedStatusId);
+          return tx.issue.create({
+            data: {
+              key: issueKey,
+              projectId,
+              title: (title as string).trim(),
+              description: typeof description === "string" ? sanitizeTipTapHtml(description) : null,
+              statusId: resolvedStatusId,
+              priority: resolvedPriority,
+              type: IssueType.TASK,
+              assigneeId: typeof assigneeId === "string" ? assigneeId : null,
+              reporterId: resolvedReporterId,
+              labels: [],
+              position,
+            },
+            include: ISSUE_INCLUDE,
+          });
         });
         break;
       } catch (e) {
-        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          // Only a key collision is expected here — the transaction above holds a
+          // per-project lock around the MAX(position)+1 read/write, so a position
+          // collision would indicate a real bug rather than a retryable race.
+          const target = Array.isArray(e.meta?.target) ? e.meta.target.join(",") : String(e.meta?.target ?? "");
+          if (target.includes("position")) throw e;
+          continue;
+        }
         throw e;
       }
     }

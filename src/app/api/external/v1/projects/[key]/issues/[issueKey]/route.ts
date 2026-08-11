@@ -12,6 +12,7 @@ import {
   formatIssue,
   err,
 } from "../../../../_helpers";
+import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
 
 export async function GET(
   request: NextRequest,
@@ -83,12 +84,8 @@ export async function PATCH(
         const resolved = await resolveStatusForProject(project.id, statusValue);
         if (!resolved) return err(`Status not found: ${statusValue}`, 400);
         updates.statusId = resolved.id;
-        if (resolved.id !== issue.statusId) {
-          const colCount = await prisma.issue.count({
-            where: { projectId: project.id, statusId: resolved.id },
-          });
-          updates.position = colCount;
-        }
+        // Position for the new column is computed below, inside a transaction,
+        // right before the write (see JFR-122).
       } else {
         return err("status must be a string or null", 400);
       }
@@ -150,10 +147,18 @@ export async function PATCH(
 
     if (Object.keys(updates).length === 0) return err("No valid fields to update", 400);
 
-    const updated = await prisma.issue.update({
-      where: { id: issue.id },
-      data: updates,
-      include: ISSUE_INCLUDE,
+    const statusChanging = typeof updates.statusId === "string" && updates.statusId !== issue.statusId;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (statusChanging) {
+        await lockProjectForPositionWrite(tx, project.id);
+        updates.position = await nextPositionInStatus(tx, project.id, updates.statusId as string);
+      }
+      return tx.issue.update({
+        where: { id: issue.id },
+        data: updates,
+        include: ISSUE_INCLUDE,
+      });
     });
 
     return NextResponse.json(formatIssue(updated));

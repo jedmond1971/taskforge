@@ -13,6 +13,7 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
     },
     issue: {
       count: vi.fn(),
+      aggregate: vi.fn(),
       create: vi.fn(),
       findFirst: vi.fn(),
       findMany: vi.fn(),
@@ -55,13 +56,13 @@ describe("createIssue — atomic key generation", () => {
     mockProjectMembership();
     mockPrisma.activityLog.create.mockResolvedValue({});
     mockPrisma.projectStatus.findFirst.mockResolvedValue({ id: "status-todo" });
+    mockPrisma.issue.aggregate.mockResolvedValue({ _max: { position: null } });
     mockPrisma.$transaction.mockImplementation(
       (fn: (tx: typeof mockPrisma) => Promise<unknown>) => fn(mockPrisma)
     );
   });
 
   it("generates key as projectKey-N+1 based on highest existing key", async () => {
-    mockPrisma.issue.count.mockResolvedValue(3);
     mockPrisma.issue.findFirst.mockResolvedValue({ key: "PRJ-3" });
     const created = { id: "issue-4", key: "PRJ-4" };
     mockPrisma.issue.create.mockResolvedValue(created);
@@ -76,7 +77,6 @@ describe("createIssue — atomic key generation", () => {
   });
 
   it("generates key as projectKey-1 when project has no issues yet", async () => {
-    mockPrisma.issue.count.mockResolvedValue(0);
     mockPrisma.issue.findFirst.mockResolvedValue(null);
     const created = { id: "issue-1", key: "PRJ-1" };
     mockPrisma.issue.create.mockResolvedValue(created);
@@ -90,13 +90,32 @@ describe("createIssue — atomic key generation", () => {
   });
 
   it("uses $transaction for atomic key gen and create", async () => {
-    mockPrisma.issue.count.mockResolvedValue(0);
     mockPrisma.issue.findFirst.mockResolvedValue(null);
     mockPrisma.issue.create.mockResolvedValue({ id: "i1", key: "PRJ-1" });
 
     await createIssue("PRJ", { title: "Task" });
 
     expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("computes position as MAX(position)+1 scoped to the target status, not COUNT(*) (JFR-122)", async () => {
+    // A column with a gap (positions 0,1,3) has COUNT()===3, which would collide
+    // with the existing row at position 3. MAX(position)+1 === 4 is always safe.
+    mockPrisma.issue.aggregate.mockResolvedValue({ _max: { position: 3 } });
+    mockPrisma.issue.findFirst.mockResolvedValue(null);
+    mockPrisma.issue.create.mockResolvedValue({ id: "i1", key: "PRJ-1" });
+
+    await createIssue("PRJ", { title: "Task" });
+
+    expect(mockPrisma.issue.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ projectId: "proj-1", statusId: "status-todo" }),
+        _max: { position: true },
+      })
+    );
+    expect(mockPrisma.issue.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ position: 4 }) })
+    );
   });
 });
 
