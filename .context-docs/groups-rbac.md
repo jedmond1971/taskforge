@@ -9,8 +9,11 @@ Groups let an org OWNER/ADMIN grant specific extra permissions to specific peopl
 - `PROJECT_EDIT_SETTINGS` → `canEditSettings`
 - `PROJECT_MANAGE_MEMBERS` → `canManageMembers`
 - `ISSUE_EDIT` → `canEditIssues`
+- `SPRINT_MANAGE` → `canManageSprint` (added JFR-105 — sprint create/start/complete; adding/removing issues to a sprint uses `ISSUE_EDIT`/`canEditIssues` instead, since that's routine issue editing not sprint lifecycle)
 - `ORG_MANAGE_CUSTOM_FIELDS` → `canManageCustomFields` (org-wide only — `projectId` must be null)
 - `ORG_MANAGE_API_KEYS` → `canManageApiKeys` (org-wide only)
+
+**Adding a new `Permission` value is only partially type-checked** — `PERMISSION_LABELS: Record<Permission, string>` in `GroupsSettings.tsx` is exhaustive and `tsc` catches a missing entry there. But `PROJECT_SCOPED_PERMISSIONS`/`ORG_SCOPED_PERMISSIONS`, the plain `Permission[]` arrays that actually surface the permission as a grantable checkbox in the UI, are **not** exhaustiveness-checked — a value present in the enum and the label map but missing from these arrays compiles fine and just silently never appears as grantable. Update all three (enum, label map, the correct one of the two arrays) together when adding a permission — don't rely on `tsc` to catch the array.
 
 `canViewProject`/`canComment` are unchanged (trivially always-true, nothing to grant). `canInviteOrgMembers` is pre-existing dead code (nothing calls it) and was left alone. `canManageGroups` (OWNER/ADMIN only) is deliberately **not** boostable by any grant — see invariant #10.
 
