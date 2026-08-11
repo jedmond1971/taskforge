@@ -16,4 +16,4 @@ Production picks up the migration automatically via `prisma migrate deploy` in `
 
 **Production migrations are auto-applied on every Railway deploy.** `railway.toml` sets `preDeployCommand = "npx prisma migrate deploy"`, which runs before the app starts. No manual psql step is needed — just push and Railway handles it.
 
-**`Board` and `Column` models are dead code** — both exist in `schema.prisma` but `prisma.board` and `prisma.column` are never called anywhere in `src/`. The Kanban view is driven entirely by `ProjectStatus` rows. Do not use these models; they can be dropped from the schema when convenient.
+**`Board` and `Column` models were dropped (JFR-107, 2026-08-11)** — they were dead code (`prisma.board`/`prisma.column` were never called anywhere in `src/`). The Kanban view is driven entirely by `ProjectStatus` rows.

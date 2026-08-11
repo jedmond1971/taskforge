@@ -147,7 +147,6 @@ model Project {
   members                 ProjectMember[]
   issues                  Issue[]
   statuses                ProjectStatus[]
-  boards                  Board[]
   docSpace                DocSpace?
   savedFilters            SavedFilter[]
   customFieldRestrictions CustomFieldProject[]
@@ -240,29 +239,6 @@ model AiMessage {
   conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
-}
-
-model Board {
-  id        String @id @default(cuid())
-  projectId String
-  name      String
-
-  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  columns Column[]
-
-  @@index([projectId])
-}
-
-model Column {
-  id       String @id @default(cuid())
-  boardId  String
-  name     String
-  position Int
-  color    String @default("#94a3b8")
-
-  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-
-  @@index([boardId])
 }
 
 model ProjectStatus {
