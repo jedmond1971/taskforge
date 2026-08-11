@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireProjectRole, canEditIssues } from "@/lib/permissions";
+import { getOrderedApplicableCustomFields } from "@/lib/custom-field-layout";
 
 async function logActivity(params: {
   issueId: string;
@@ -18,19 +19,9 @@ async function logActivity(params: {
 export async function getApplicableCustomFields(projectKey: string) {
   const { projectId, orgId } = await requireProjectRole(projectKey, () => true);
 
-  const fields = await prisma.customField.findMany({
-    where: { orgId },
-    include: { projectRestrictions: { select: { projectId: true } } },
-    orderBy: { position: "asc" },
-  });
+  const fields = await getOrderedApplicableCustomFields(orgId, projectId);
 
-  return fields
-    .filter(
-      (f) =>
-        f.projectRestrictions.length === 0 ||
-        f.projectRestrictions.some((r) => r.projectId === projectId)
-    )
-    .map(({ id, name, type, options, position }) => ({ id, name, type, options, position }));
+  return fields.map(({ id, name, type, options, position }) => ({ id, name, type, options, position }));
 }
 
 export async function getCustomFieldValues(

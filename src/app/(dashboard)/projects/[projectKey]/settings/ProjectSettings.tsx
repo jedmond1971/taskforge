@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Trash2, UserPlus, Search, UserRoundPlus } from "lucide-react";
 import { BoardSettings } from "./BoardSettings";
 import { CustomFieldsSettings } from "./CustomFieldsSettings";
+import { ScreenLayoutSettings } from "./ScreenLayoutSettings";
 import {
   updateProject,
   addProjectMember,
@@ -110,7 +111,11 @@ export function ProjectSettings({
       ? [{ id: "general", label: "General" }, { id: "members", label: "Members" }]
       : []),
     ...(currentUserRole === "PROJECT_LEAD"
-      ? [{ id: "board", label: "Board" }, { id: "danger", label: "Danger Zone" }]
+      ? [
+          { id: "board", label: "Board" },
+          { id: "screenLayout", label: "Screen Layout" },
+          { id: "danger", label: "Danger Zone" },
+        ]
       : []),
     ...(canManageCustomFields ? [{ id: "customFields", label: "Custom Fields" }] : []),
   ];
@@ -156,6 +161,9 @@ export function ProjectSettings({
       )}
       {activeTab === "board" && currentUserRole === "PROJECT_LEAD" && (
         <BoardSettings projectKey={projectKey} />
+      )}
+      {activeTab === "screenLayout" && currentUserRole === "PROJECT_LEAD" && (
+        <ScreenLayoutSettings projectKey={projectKey} />
       )}
       {activeTab === "danger" && currentUserRole === "PROJECT_LEAD" && (
         <DangerZoneTab project={project} projectKey={projectKey} isAdmin={isAdmin} />
