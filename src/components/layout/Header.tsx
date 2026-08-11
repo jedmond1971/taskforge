@@ -104,7 +104,7 @@ export function Header() {
           <>
             <button
               onClick={() => setDialogOpen(true)}
-              className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[0.8rem] font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+              className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[0.8rem] font-medium rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-colors"
             >
               <Plus className="w-4 h-4" />
               Create Issue

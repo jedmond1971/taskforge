@@ -26,7 +26,7 @@ export default function DashboardError({
         </p>
       </div>
       <div className="flex gap-3">
-        <Button onClick={reset} className="bg-indigo-600 hover:bg-indigo-500 text-white">
+        <Button onClick={reset}>
           Try again
         </Button>
         <Button variant="outline" onClick={() => window.history.back()} className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">

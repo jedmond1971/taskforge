@@ -266,7 +266,7 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
           >
             <Avatar className="w-7 h-7 flex-shrink-0">
               <AvatarImage src={user?.image ?? undefined} />
-              <AvatarFallback className="bg-indigo-700 text-white text-xs font-semibold">
+              <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                 {initials}
               </AvatarFallback>
             </Avatar>

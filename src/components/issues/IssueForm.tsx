@@ -74,7 +74,7 @@ export function IssueForm({
     issue?.dueDate ? new Date(issue.dueDate).toISOString().split("T")[0] : ""
   );
 
-  const selectClass = "w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500";
+  const selectClass = "w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary";
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -227,7 +227,7 @@ export function IssueForm({
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={isPending} className="bg-indigo-600 hover:bg-indigo-500 text-white">
+        <Button type="submit" disabled={isPending}>
           {isPending ? (issue ? "Saving..." : "Creating...") : (issue ? "Save Changes" : "Create Issue")}
         </Button>
       </div>

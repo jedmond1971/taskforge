@@ -92,7 +92,6 @@ export function ChangePasswordForm() {
       <Button
         type="submit"
         disabled={isPending}
-        className="bg-indigo-600 hover:bg-indigo-500 text-white"
       >
         {isPending ? "Updating..." : "Update password"}
       </Button>

@@ -72,7 +72,7 @@ async function getRecentActivity(userId: string) {
 
 const categoryStatusConfig = {
   TODO: { color: "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300", icon: Clock },
-  IN_PROGRESS: { color: "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300", icon: Clock },
+  IN_PROGRESS: { color: "bg-primary/15 text-primary", icon: Clock },
   DONE: { color: "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300", icon: CheckCircle2 },
 } as const;
 
@@ -113,8 +113,8 @@ export default async function DashboardPage() {
         <Card className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-600/20 flex items-center justify-center">
-                <FolderKanban className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center">
+                <FolderKanban className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{projects.length}</p>
@@ -168,7 +168,7 @@ export default async function DashboardPage() {
                 <p className="text-sm font-medium text-zinc-500">No projects yet</p>
                 <Link
                   href="/projects"
-                  className="mt-1 inline-flex items-center gap-1.5 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors"
+                  className="mt-1 inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Create your first project
@@ -182,8 +182,8 @@ export default async function DashboardPage() {
                   className="flex items-center justify-between p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-indigo-700 flex items-center justify-center flex-shrink-0">
-                      <span className="text-xs font-bold text-white">{project.key.slice(0, 2)}</span>
+                    <div className="w-8 h-8 rounded bg-primary flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-bold text-primary-foreground">{project.key.slice(0, 2)}</span>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-900 dark:group-hover:text-white">{project.name}</p>
@@ -218,7 +218,7 @@ export default async function DashboardPage() {
                     className="flex items-start gap-3 p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-zinc-900 dark:text-zinc-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{issue.title}</p>
+                      <p className="text-sm text-zinc-900 dark:text-zinc-100 truncate group-hover:text-primary/80">{issue.title}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs text-zinc-500">{issue.project.key}-{issue.key.split("-")[1]}</span>
                         <span className={`text-xs px-1.5 py-0.5 rounded ${statusCfg.color}`}>{issue.projectStatus.name}</span>
@@ -253,7 +253,7 @@ export default async function DashboardPage() {
                   className="flex items-center justify-between p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-zinc-900 dark:text-zinc-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{issue.title}</p>
+                    <p className="text-sm text-zinc-900 dark:text-zinc-100 truncate group-hover:text-primary/80">{issue.title}</p>
                     <span className="text-xs text-zinc-500">{issue.project.key}-{issue.key.split("-")[1]}</span>
                   </div>
                   <span className={`text-xs font-medium ml-3 whitespace-nowrap flex items-center gap-1 ${isOverdue ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>

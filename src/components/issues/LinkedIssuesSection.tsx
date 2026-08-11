@@ -127,7 +127,7 @@ function IssueLinkPickerDialog({
                 onClick={() => setLinkType(type)}
                 className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
                   linkType === type
-                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300"
+                    ? "border-primary bg-primary text-primary"
                     : "border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600"
                 }`}
               >
@@ -250,7 +250,7 @@ export function LinkedIssuesSection({
             <button
               onClick={() => setPickerOpen(true)}
               disabled={isPending}
-              className="flex items-center gap-1 text-xs text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 text-xs text-zinc-500 hover:text-primary/80 transition-colors disabled:opacity-50"
             >
               <Plus className="w-3.5 h-3.5" />
               Link an issue
@@ -275,13 +275,13 @@ export function LinkedIssuesSection({
                   </span>
                   <Link
                     href={`/projects/${projectKey}/issues/${link.issue.key}`}
-                    className="text-xs font-mono text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 shrink-0"
+                    className="text-xs font-mono text-zinc-400 hover:text-primary/80 shrink-0"
                   >
                     {link.issue.key}
                   </Link>
                   <Link
                     href={`/projects/${projectKey}/issues/${link.issue.key}`}
-                    className="flex-1 text-sm text-zinc-700 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline truncate"
+                    className="flex-1 text-sm text-zinc-700 dark:text-zinc-300 hover:text-primary/80 hover:underline truncate"
                   >
                     {link.issue.title}
                   </Link>

@@ -135,7 +135,7 @@ function CommentItem({
               <button
                 onClick={handleSave}
                 disabled={isPending || !editBody.trim()}
-                className="flex items-center gap-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg disabled:opacity-50"
+                className="flex items-center gap-1 px-3 py-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs rounded-lg disabled:opacity-50"
               >
                 <Check className="w-3 h-3" /> Save
               </button>

@@ -62,7 +62,7 @@ export function NotificationDropdown({ onUnreadCountChange }: NotificationDropdo
       <div className="border-t border-border px-3 py-2">
         <Link
           href="/notifications"
-          className="text-xs text-indigo-500 hover:text-indigo-400 transition-colors"
+          className="text-xs text-primary hover:text-primary/80 transition-colors"
         >
           See all notifications →
         </Link>

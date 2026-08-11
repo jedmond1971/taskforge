@@ -199,7 +199,7 @@ export function AttachmentsPanel({
         {canEdit && (
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
+            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
           >
             <Upload className="w-3 h-3" />
             Attach files
@@ -235,7 +235,7 @@ export function AttachmentsPanel({
               onClick={() => fileInputRef.current?.click()}
               className={`mb-3 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-3 text-xs cursor-pointer transition-colors ${
                 dragOver
-                  ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400"
+                  ? "border-primary bg-primary/10 text-primary"
                   : "border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-600 hover:border-zinc-300 dark:hover:border-zinc-600"
               }`}
             >
@@ -257,7 +257,7 @@ export function AttachmentsPanel({
               </div>
               <div className="h-1 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-indigo-500 transition-all duration-150"
+                  className="h-full bg-primary transition-all duration-150"
                   style={{ width: `${u.progress}%` }}
                 />
               </div>
@@ -292,7 +292,7 @@ export function AttachmentsPanel({
                     href={a.downloadUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-zinc-800 dark:text-zinc-200 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium truncate block"
+                    className="text-sm text-zinc-800 dark:text-zinc-200 hover:text-primary/80 font-medium truncate block"
                   >
                     {a.fileName}
                   </a>

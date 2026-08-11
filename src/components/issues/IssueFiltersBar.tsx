@@ -41,7 +41,7 @@ export function IssueFiltersBar({ members, statuses, currentFilters }: IssueFilt
 
   const hasFilters = !!(currentFilters.status || currentFilters.priority || currentFilters.type || currentFilters.assigneeId);
 
-  const selectClass = "px-3 py-2 sm:py-1.5 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer min-h-[44px] sm:min-h-0 w-full sm:w-auto";
+  const selectClass = "px-3 py-2 sm:py-1.5 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer min-h-[44px] sm:min-h-0 w-full sm:w-auto";
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:flex-wrap">

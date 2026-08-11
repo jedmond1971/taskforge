@@ -101,8 +101,8 @@ export function IssueList({ issues, projectKey, statuses }: IssueListProps) {
   function SortIcon({ field }: { field: SortField }) {
     if (sortField !== field) return <ChevronUp className="w-3 h-3 text-zinc-400 dark:text-zinc-600" />;
     return sortOrder === "asc"
-      ? <ChevronUp className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-      : <ChevronDown className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />;
+      ? <ChevronUp className="w-3 h-3 text-primary" />
+      : <ChevronDown className="w-3 h-3 text-primary" />;
   }
 
   if (sorted.length === 0) {
@@ -122,13 +122,13 @@ export function IssueList({ issues, projectKey, statuses }: IssueListProps) {
   }
 
   const selectClass =
-    "px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer disabled:opacity-50";
+    "px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer disabled:opacity-50";
 
   return (
     <div className="space-y-2">
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg">
-          <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/10 border border-primary/30 rounded-lg">
+          <span className="text-sm font-medium text-primary">
             {selectedIds.size} selected
           </span>
           <select
@@ -160,7 +160,7 @@ export function IssueList({ issues, projectKey, statuses }: IssueListProps) {
                 type="checkbox"
                 checked={sorted.length > 0 && selectedIds.size === sorted.length}
                 onChange={toggleSelectAll}
-                className="rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                className="rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-primary focus:ring-primary cursor-pointer"
               />
             </th>
             <th
@@ -197,20 +197,20 @@ export function IssueList({ issues, projectKey, statuses }: IssueListProps) {
           {sorted.map((issue, i) => (
             <tr
               key={issue.id}
-              className={`border-b border-zinc-100 dark:border-zinc-800/50 transition-colors ${i === sorted.length - 1 ? "border-b-0" : ""} ${selectedIds.has(issue.id) ? "bg-indigo-50/50 dark:bg-indigo-900/10" : "hover:bg-zinc-50 dark:hover:bg-zinc-800/30"}`}
+              className={`border-b border-zinc-100 dark:border-zinc-800/50 transition-colors ${i === sorted.length - 1 ? "border-b-0" : ""} ${selectedIds.has(issue.id) ? "bg-primary/5 dark:bg-primary/10" : "hover:bg-zinc-50 dark:hover:bg-zinc-800/30"}`}
             >
               <td className="px-4 py-3 w-10">
                 <input
                   type="checkbox"
                   checked={selectedIds.has(issue.id)}
                   onChange={() => toggleSelect(issue.id)}
-                  className="rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  className="rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-primary focus:ring-primary cursor-pointer"
                 />
               </td>
               <td className="px-4 py-3">
                 <Link
                   href={`/projects/${projectKey}/issues/${issue.key}`}
-                  className="text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-mono text-xs"
+                  className="text-zinc-500 hover:text-primary/80 font-mono text-xs"
                 >
                   {issue.key}
                 </Link>
@@ -218,7 +218,7 @@ export function IssueList({ issues, projectKey, statuses }: IssueListProps) {
               <td className="px-4 py-3">
                 <Link
                   href={`/projects/${projectKey}/issues/${issue.key}`}
-                  className="text-zinc-900 dark:text-zinc-100 hover:text-indigo-600 dark:hover:text-indigo-300 font-medium line-clamp-1"
+                  className="text-zinc-900 dark:text-zinc-100 hover:text-primary/80 font-medium line-clamp-1"
                 >
                   {issue.title}
                 </Link>
@@ -243,8 +243,8 @@ export function IssueList({ issues, projectKey, statuses }: IssueListProps) {
               <td className="px-4 py-3 hidden sm:table-cell">
                 {issue.assignee ? (
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-indigo-700 flex items-center justify-center flex-shrink-0">
-                      <span className="text-xs text-white font-medium">{issue.assignee.name.charAt(0)}</span>
+                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs text-primary-foreground font-medium">{issue.assignee.name.charAt(0)}</span>
                     </div>
                     <span className="text-zinc-500 dark:text-zinc-400 text-xs truncate max-w-20">{issue.assignee.name}</span>
                   </div>

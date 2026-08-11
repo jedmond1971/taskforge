@@ -83,8 +83,8 @@ export default async function ProjectLayout({
       {/* Project header */}
       <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-0 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0">
         <div className="flex items-center gap-3 mb-4 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-indigo-700 flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-bold text-white">{project.key.slice(0, 2)}</span>
+          <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+            <span className="text-sm font-bold text-primary-foreground">{project.key.slice(0, 2)}</span>
           </div>
           <div>
             <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 truncate">{project.name}</h1>

@@ -62,7 +62,7 @@ export function VersionHistoryPanel({
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
           <button
             onClick={() => setPreviewing(null)}
-            className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+            className="text-xs text-primary hover:underline"
           >
             ← Back
           </button>
@@ -79,7 +79,7 @@ export function VersionHistoryPanel({
           <button
             onClick={() => handleRestore(previewing)}
             disabled={!!restoring}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Restore this version
@@ -106,7 +106,7 @@ export function VersionHistoryPanel({
               <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Current version</p>
               <p className="text-xs text-zinc-400 mt-0.5 truncate">Unsaved changes may differ</p>
             </div>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 flex-shrink-0">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary flex-shrink-0">
               Current
             </span>
           </div>
@@ -139,7 +139,7 @@ export function VersionHistoryPanel({
                     onClick={() => handleRestore(rev)}
                     disabled={!!restoring}
                     title="Restore this version"
-                    className="p-1 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded disabled:opacity-40"
+                    className="p-1 text-zinc-400 hover:text-primary/80 rounded disabled:opacity-40"
                   >
                     <RotateCcw className={`w-3.5 h-3.5 ${restoring === rev.id ? "animate-spin" : ""}`} />
                   </button>

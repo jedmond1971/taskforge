@@ -56,7 +56,7 @@ function ToolbarButton({
       title={title}
       className={`p-1 rounded text-xs transition-colors ${
         active
-          ? "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300"
+          ? "bg-primary/15 text-primary"
           : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200"
       } disabled:opacity-40 disabled:cursor-not-allowed`}
     >
@@ -151,7 +151,7 @@ export function RichTextEditor({
 
   return (
     <div
-      className={`border border-zinc-300 dark:border-zinc-700 rounded-lg overflow-hidden bg-zinc-50 dark:bg-zinc-800 focus-within:ring-2 focus-within:ring-indigo-500 ${className}`}
+      className={`border border-zinc-300 dark:border-zinc-700 rounded-lg overflow-hidden bg-zinc-50 dark:bg-zinc-800 focus-within:ring-2 focus-within:ring-primary ${className}`}
     >
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">

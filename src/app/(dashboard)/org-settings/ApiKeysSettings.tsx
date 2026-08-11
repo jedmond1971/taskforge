@@ -74,7 +74,6 @@ function KeyCreatedDialog({
         <DialogFooter>
           <Button
             onClick={() => onOpenChange(false)}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white"
           >
             I&apos;ve saved the key
           </Button>
@@ -158,7 +157,6 @@ function CreateKeyDialog({
           <Button
             onClick={handleSubmit}
             disabled={saving || !name.trim()}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white"
           >
             {saving ? "Creating..." : "Create key"}
           </Button>
@@ -250,7 +248,7 @@ export function ApiKeysSettings({ orgId }: { orgId: string }) {
         <Button
           onClick={() => setCreateOpen(true)}
           size="sm"
-          className="bg-indigo-600 hover:bg-indigo-500 text-white flex-shrink-0"
+          className="flex-shrink-0"
         >
           <Plus className="size-3.5 mr-1" />
           New key

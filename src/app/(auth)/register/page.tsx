@@ -23,7 +23,7 @@ export default function RegisterPage() {
           </p>
           <Link
             href="/login"
-            className="inline-block text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 font-medium underline underline-offset-4"
+            className="inline-block text-sm text-primary hover:text-primary/80 font-medium underline underline-offset-4"
           >
             Return to login
           </Link>

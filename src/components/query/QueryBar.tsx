@@ -468,7 +468,7 @@ export function QueryBar({
               onKeyDown={handleKeyDown}
               onFocus={handleFocus}
               placeholder='e.g. status = "TODO" AND priority = "HIGH"'
-              className="w-full pl-3 pr-10 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm font-mono text-transparent caret-zinc-900 dark:caret-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 h-10 leading-6 placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
+              className="w-full pl-3 pr-10 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm font-mono text-transparent caret-zinc-900 dark:caret-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary h-10 leading-6 placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
               spellCheck={false}
               autoComplete="off"
             />
@@ -498,7 +498,7 @@ export function QueryBar({
                     className={cn(
                       "w-full text-left px-3 py-1.5 text-sm font-mono hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors",
                       i === selectedIndex
-                        ? "bg-zinc-100 dark:bg-zinc-800 text-indigo-400"
+                        ? "bg-zinc-100 dark:bg-zinc-800 text-primary"
                         : "text-zinc-700 dark:text-zinc-300"
                     )}
                     onMouseDown={(e) => {
@@ -516,7 +516,7 @@ export function QueryBar({
           <Button
             onClick={handleExecute}
             disabled={isLoading || !query.trim()}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white flex-shrink-0"
+            className="flex-shrink-0"
           >
             <Search className="w-4 h-4 mr-1" />
             {isLoading ? "Searching..." : "Search"}

@@ -133,7 +133,7 @@ export function AiChatPanel({ issueId }: AiChatPanelProps) {
   return (
     <div ref={panelRef} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
-        <Bot className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+        <Bot className="w-4 h-4 text-primary" />
         <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Ask AI about this issue</p>
       </div>
 
@@ -165,7 +165,7 @@ export function AiChatPanel({ issueId }: AiChatPanelProps) {
                 <div
                   className={`rounded-lg px-3 py-2 text-xs whitespace-pre-wrap ${
                     m.role === "user"
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
                   }`}
                 >
@@ -193,7 +193,7 @@ export function AiChatPanel({ issueId }: AiChatPanelProps) {
           onKeyDown={handleKeyDown}
           placeholder="Ask a question… (Shift+Enter for a new line)"
           disabled={isLoading}
-          className="flex-1 min-w-0 max-h-40 resize-none overflow-y-auto text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+          className="flex-1 min-w-0 max-h-40 resize-none overflow-y-auto text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
         />
         <Button type="submit" size="sm" disabled={isLoading || !input.trim()}>
           <Send className="w-3.5 h-3.5" />

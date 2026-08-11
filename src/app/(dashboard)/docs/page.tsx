@@ -92,10 +92,10 @@ function ProjectDocsCard({
   return (
     <Link
       href={`/projects/${project.key.toLowerCase()}/docs`}
-      className="flex items-center gap-4 px-5 py-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl hover:border-indigo-400 dark:hover:border-indigo-600 transition-colors group"
+      className="flex items-center gap-4 px-5 py-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl hover:border-primary/80 transition-colors group"
     >
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${closed ? "bg-zinc-400 dark:bg-zinc-600" : "bg-indigo-700"}`}>
-        <span className="text-sm font-bold text-white">{project.key.slice(0, 2)}</span>
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${closed ? "bg-zinc-400 dark:bg-zinc-600" : "bg-primary"}`}>
+        <span className="text-sm font-bold text-primary-foreground">{project.key.slice(0, 2)}</span>
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 min-w-0">

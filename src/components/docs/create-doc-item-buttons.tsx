@@ -126,7 +126,7 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
         )}
         <button
           onClick={() => { setError(null); setPageDialogOpen(true); }}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
           New
@@ -236,7 +236,7 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
       <div className="flex items-center gap-3">
         <button
           onClick={() => { setError(null); setSectionDialogOpen(true); }}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
         >
           <FolderOpen className="w-4 h-4" />
           New Section
@@ -353,7 +353,7 @@ function PageDialog({
               type="button"
               onClick={() => { onOpenChange(false); onUploadDocument(); }}
               disabled={uploading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm border border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg text-zinc-500 dark:text-zinc-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm border border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg text-zinc-500 dark:text-zinc-400 hover:border-primary/80 hover:text-primary/80 transition-colors disabled:opacity-50"
             >
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               Upload PDF or Word document

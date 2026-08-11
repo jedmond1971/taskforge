@@ -119,7 +119,7 @@ export function DocDocumentView({ page, projectKey, readOnly = false }: DocDocum
             <a
               href={fileUrl}
               download={page.title}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
               Download
@@ -180,7 +180,7 @@ export function DocDocumentView({ page, projectKey, readOnly = false }: DocDocum
                 <a
                   href={fileUrl}
                   download={page.title}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   <Download className="w-4 h-4" />
                   Download {page.mimeType === "application/pdf" ? "PDF" : "Document"}

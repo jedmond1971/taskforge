@@ -40,8 +40,8 @@ export function CommentForm({ projectKey, issueId, currentUserInitial }: Comment
 
   return (
     <div className="flex gap-3">
-      <div className="w-7 h-7 rounded-full bg-indigo-700 flex items-center justify-center flex-shrink-0 mt-1">
-        <span className="text-xs text-white font-semibold">{currentUserInitial}</span>
+      <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-1">
+        <span className="text-xs text-primary-foreground font-semibold">{currentUserInitial}</span>
       </div>
       <div className="flex-1 space-y-2">
         {error && (
@@ -61,7 +61,7 @@ export function CommentForm({ projectKey, issueId, currentUserInitial }: Comment
             onClick={handleSubmit}
             disabled={isPending || !body.trim()}
             size="sm"
-            className="bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40"
+            className="disabled:opacity-40"
           >
             {isPending ? "Posting..." : "Comment"}
           </Button>

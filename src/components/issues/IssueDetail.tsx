@@ -145,7 +145,7 @@ function EditableTitle({ value, issueId, projectKey, onSaved, canEdit }: {
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="flex-1 text-xl font-bold bg-zinc-50 dark:bg-zinc-800 border border-indigo-500 rounded px-2 py-1 text-zinc-900 dark:text-zinc-100 focus:outline-none"
+          className="flex-1 text-xl font-bold bg-zinc-50 dark:bg-zinc-800 border border-primary rounded px-2 py-1 text-zinc-900 dark:text-zinc-100 focus:outline-none"
           onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") { setTitle(value); setEditing(false); } }}
           autoFocus
         />
@@ -170,7 +170,7 @@ function EditableTitle({ value, issueId, projectKey, onSaved, canEdit }: {
   );
 }
 
-const selectClass = "w-full px-2 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50";
+const selectClass = "w-full px-2 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50";
 
 function InlineSelect<T extends string>({ label, value, options, issueId, projectKey, fieldKey, onSaved, disabled: extraDisabled = false }: {
   label: string;
@@ -222,7 +222,7 @@ function SubIssueRow({ subIssue, projectKey }: { subIssue: SubIssue; projectKey:
       <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${statusCfg.color} ${statusCfg.bg} whitespace-nowrap`}>
         {subIssue.projectStatus.name}
       </span>
-      <span className="font-mono text-xs text-indigo-500 dark:text-indigo-400 shrink-0">{subIssue.key}</span>
+      <span className="font-mono text-xs text-primary shrink-0">{subIssue.key}</span>
       <span className="text-sm text-zinc-700 dark:text-zinc-300 flex-1 truncate group-hover:text-zinc-900 dark:group-hover:text-zinc-100">
         {subIssue.title}
       </span>
@@ -325,20 +325,20 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
           <>
             <Link
               href={`/projects/${projectKey}/issues/${issue.parent.key}`}
-              className="font-mono text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:underline"
+              className="font-mono text-primary hover:text-primary/80 hover:underline"
             >
               {issue.parent.key}
             </Link>
             <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
             <span className="flex items-center gap-1.5">
               <IssueTypeIcon type={issue.type} size={20} />
-              <span className="font-mono text-indigo-600 dark:text-indigo-400">{issue.key}</span>
+              <span className="font-mono text-primary">{issue.key}</span>
             </span>
           </>
         ) : (
           <span className="flex items-center gap-1.5">
             <IssueTypeIcon type={issue.type} size={20} />
-            <span className="font-mono text-indigo-600 dark:text-indigo-400">{issue.key}</span>
+            <span className="font-mono text-primary">{issue.key}</span>
           </span>
         )}
         <span>·</span>
@@ -379,7 +379,7 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
                   disabled={isPending}
                 />
                 <div className="flex gap-2">
-                  <button onClick={saveDescription} disabled={isPending} className="flex items-center gap-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg transition-colors disabled:opacity-50">
+                  <button onClick={saveDescription} disabled={isPending} className="flex items-center gap-1 px-3 py-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs rounded-lg transition-colors disabled:opacity-50">
                     <Check className="w-3.5 h-3.5" /> Save
                   </button>
                   <button onClick={() => { setDescription(issue.description ?? ""); setEditingDesc(false); }} className="flex items-center gap-1 px-3 py-1 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 text-xs border border-zinc-300 dark:border-zinc-700 rounded-lg">
@@ -417,7 +417,7 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
               {canEdit && (
                 <button
                   onClick={() => setSubIssueDialogOpen(true)}
-                  className="flex items-center gap-1 text-xs text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                  className="flex items-center gap-1 text-xs text-zinc-500 hover:text-primary/80 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Add sub-issue

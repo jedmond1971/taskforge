@@ -91,13 +91,13 @@ function IssueRow({
             </span>
             <Link
               href={`/projects/${projectKey}/issues/${issue.key}`}
-              className="flex-shrink-0 font-mono text-xs text-zinc-400 dark:text-zinc-500 mr-2 hover:text-indigo-600 dark:hover:text-indigo-400"
+              className="flex-shrink-0 font-mono text-xs text-zinc-400 dark:text-zinc-500 mr-2 hover:text-primary/80"
             >
               {issue.key}
             </Link>
             <Link
               href={`/projects/${projectKey}/issues/${issue.key}`}
-              className="text-sm text-zinc-900 dark:text-zinc-100 truncate hover:text-indigo-600 dark:hover:text-indigo-300"
+              className="text-sm text-zinc-900 dark:text-zinc-100 truncate hover:text-primary/80"
             >
               {issue.title}
             </Link>
@@ -120,8 +120,8 @@ function IssueRow({
         <td className="py-2.5 px-3 whitespace-nowrap">
           {issue.assignee ? (
             <div className="flex items-center gap-1.5">
-              <div className="w-6 h-6 rounded-full bg-indigo-700 flex items-center justify-center flex-shrink-0">
-                <span className="text-xs text-white font-medium">
+              <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                <span className="text-xs text-primary-foreground font-medium">
                   {issue.assignee.name.charAt(0)}
                 </span>
               </div>

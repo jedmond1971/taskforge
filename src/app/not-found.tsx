@@ -14,7 +14,7 @@ export default function NotFound() {
         <p className="text-sm text-zinc-400 dark:text-zinc-600">The page you&apos;re looking for doesn&apos;t exist.</p>
       </div>
       <Link href="/">
-        <Button className="bg-indigo-600 hover:bg-indigo-500 text-white">Go to dashboard</Button>
+        <Button>Go to dashboard</Button>
       </Link>
     </div>
   );

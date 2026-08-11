@@ -209,7 +209,7 @@ export function SearchPageClient({
                 type="checkbox"
                 checked={filterIsGlobal}
                 onChange={(e) => setFilterIsGlobal(e.target.checked)}
-                className="rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-indigo-600 focus:ring-indigo-500"
+                className="rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-primary focus:ring-primary"
               />
               <span className="text-sm text-zinc-700 dark:text-zinc-300">
                 Share with all users
@@ -228,7 +228,6 @@ export function SearchPageClient({
               </Button>
               <Button
                 onClick={handleSaveFilter}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white"
               >
                 {editingFilter ? "Update" : "Save"}
               </Button>

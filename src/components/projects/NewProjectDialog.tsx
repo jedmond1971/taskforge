@@ -60,7 +60,7 @@ export function NewProjectDialog({ trigger }: NewProjectDialogProps) {
     : (
       <Button
         size="sm"
-        className="bg-indigo-600 hover:bg-indigo-500 text-white gap-1.5"
+        className="gap-1.5"
         onClick={() => setOpen(true)}
       >
         <Plus className="w-4 h-4" />
@@ -143,7 +143,6 @@ export function NewProjectDialog({ trigger }: NewProjectDialogProps) {
             <Button
               type="submit"
               disabled={loading}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white"
             >
               {loading ? "Creating..." : "Create Project"}
             </Button>

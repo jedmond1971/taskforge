@@ -11,7 +11,7 @@ export default function IssueNotFound() {
         <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">Issue not found</h2>
         <p className="text-sm text-zinc-500">This issue may have been deleted or you don&apos;t have access.</p>
       </div>
-      <Link href="../../issues" className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors">
+      <Link href="../../issues" className="text-sm text-primary hover:text-primary/80 transition-colors">
         ← Back to issues
       </Link>
     </div>

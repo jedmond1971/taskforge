@@ -309,7 +309,7 @@ export function AdminOrgsClient({
               <select
                 value={createPlan}
                 onChange={(e) => setCreatePlan(e.target.value as Plan)}
-                className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               >
                 <option value="FREE">Free</option>
                 <option value="PRO">Pro</option>
@@ -321,7 +321,7 @@ export function AdminOrgsClient({
               <select
                 value={createOwnerId}
                 onChange={(e) => setCreateOwnerId(e.target.value)}
-                className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               >
                 {allUsers.map((u) => (
                   <option key={u.id} value={u.id}>{u.name} — {u.email}</option>
@@ -356,7 +356,7 @@ export function AdminOrgsClient({
                   <div className="flex items-center gap-2">
                     <Avatar className="w-7 h-7">
                       <AvatarImage src={m.user.avatarUrl ?? undefined} />
-                      <AvatarFallback className="bg-indigo-700 text-white text-xs font-semibold">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                         {getInitials(m.user.name)}
                       </AvatarFallback>
                     </Avatar>
@@ -368,7 +368,7 @@ export function AdminOrgsClient({
                   <div className="flex items-center gap-2">
                     <Badge className={
                       m.role === "OWNER"
-                        ? "bg-indigo-600/20 text-indigo-400 border-indigo-600/30"
+                        ? "bg-primary/20 text-primary border-primary/30"
                         : m.role === "ADMIN"
                         ? "bg-amber-600/20 text-amber-400 border-amber-600/30"
                         : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700"
@@ -399,7 +399,7 @@ export function AdminOrgsClient({
                 <select
                   value={addUserId}
                   onChange={(e) => setAddUserId(e.target.value)}
-                  className="flex-1 h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="flex-1 h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 >
                   <option value="">Select user...</option>
                   {availableUsers.map((u) => (
@@ -409,7 +409,7 @@ export function AdminOrgsClient({
                 <select
                   value={addRole}
                   onChange={(e) => setAddRole(e.target.value as OrgRole)}
-                  className="w-28 h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="w-28 h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 >
                   <option value="MEMBER">Member</option>
                   <option value="ADMIN">Admin</option>

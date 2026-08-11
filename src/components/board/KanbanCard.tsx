@@ -90,8 +90,8 @@ export function KanbanCard({ issue, projectKey, isDragOverlay = false }: KanbanC
 
       {issue.assignee && (
         <div className="flex items-center gap-1.5 mt-2">
-          <div className="w-5 h-5 rounded-full bg-indigo-700 flex items-center justify-center flex-shrink-0">
-            <span className="text-xs text-white font-medium leading-none">
+          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+            <span className="text-xs text-primary-foreground font-medium leading-none">
               {issue.assignee.name.charAt(0).toUpperCase()}
             </span>
           </div>

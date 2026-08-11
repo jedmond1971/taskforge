@@ -94,7 +94,7 @@ export function AvatarUpload({ currentImage, userName }: AvatarUploadProps) {
       <div className="relative group">
         <Avatar className="w-20 h-20">
           <AvatarImage src={previewUrl ?? currentImage ?? undefined} />
-          <AvatarFallback className="bg-indigo-700 text-white text-xl font-semibold">
+          <AvatarFallback className="bg-primary text-primary-foreground text-xl font-semibold">
             {getInitials(userName)}
           </AvatarFallback>
         </Avatar>
@@ -118,7 +118,7 @@ export function AvatarUpload({ currentImage, userName }: AvatarUploadProps) {
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors disabled:opacity-50"
+          className="text-xs text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
         >
           {uploading ? "Uploading…" : "Change photo"}
         </button>

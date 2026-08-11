@@ -208,7 +208,7 @@ export function KanbanBoard({ initialIssues, statuses, projectKey }: KanbanBoard
 
       {isSaving && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-4 py-2 text-xs text-zinc-700 dark:text-zinc-300 flex items-center gap-2 shadow-lg z-50">
-          <div className="w-3 h-3 border-2 border-indigo-500 dark:border-indigo-400 border-t-transparent rounded-full animate-spin" />
+          <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           Saving...
         </div>
       )}

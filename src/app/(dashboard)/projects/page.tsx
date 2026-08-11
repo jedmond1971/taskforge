@@ -46,8 +46,8 @@ export default async function ProjectsPage() {
                 <CardContent className="pt-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-indigo-700 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-bold text-white">{project.key.slice(0, 2)}</span>
+                      <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-bold text-primary-foreground">{project.key.slice(0, 2)}</span>
                       </div>
                       <div>
                         <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">{project.name}</h3>

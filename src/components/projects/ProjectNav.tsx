@@ -38,7 +38,7 @@ export function ProjectNav({ projectKey, isClosed, isAdmin }: ProjectNavProps) {
             className={cn(
               "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] flex items-center",
               isActive
-                ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
+                ? "border-primary text-primary"
                 : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
             )}
           >

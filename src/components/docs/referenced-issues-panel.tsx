@@ -65,7 +65,7 @@ export function ReferencedIssuesPanel({ projectKey, pageId }: ReferencedIssuesPa
               >
                 {issue.projectStatus.name}
               </span>
-              <span className="font-mono text-xs text-indigo-500 dark:text-indigo-400 shrink-0">
+              <span className="font-mono text-xs text-primary shrink-0">
                 {issue.key}
               </span>
               <span className="text-sm text-zinc-600 dark:text-zinc-400 truncate group-hover:text-zinc-900 dark:group-hover:text-zinc-100">

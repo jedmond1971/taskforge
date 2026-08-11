@@ -160,7 +160,7 @@ function StatusRow({
                 if (e.key === "Enter") saveEdit();
                 if (e.key === "Escape") cancelEdit();
               }}
-              className="flex-1 min-w-0 text-sm bg-zinc-50 dark:bg-zinc-800 border border-indigo-500 rounded px-2 py-1 text-zinc-900 dark:text-zinc-100 focus:outline-none"
+              className="flex-1 min-w-0 text-sm bg-zinc-50 dark:bg-zinc-800 border border-primary rounded px-2 py-1 text-zinc-900 dark:text-zinc-100 focus:outline-none"
             />
             <button
               onClick={saveEdit}
@@ -246,7 +246,7 @@ function AddStatusRow({
   }
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-indigo-500/50 bg-indigo-50/30 dark:bg-indigo-900/10">
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/50 bg-primary/10">
       <div className="w-4 h-4 flex-shrink-0" />
       <input
         ref={inputRef}
@@ -383,7 +383,7 @@ export function BoardSettings({ projectKey }: { projectKey: string }) {
           value={autoHideDays === null ? "never" : String(autoHideDays)}
           onChange={(e) => handleAutoHideChange(e.target.value)}
           disabled={isSavingAutoHide}
-          className="w-full max-w-xs px-2 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+          className="w-full max-w-xs px-2 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
         >
           <option value="never">Never</option>
           <option value="14">2 weeks</option>

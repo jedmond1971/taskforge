@@ -180,7 +180,7 @@ export function AdminInvitesClient({
         <select
           value={orgFilter}
           onChange={(e) => setOrgFilter(e.target.value)}
-          className="h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
         >
           <option value="">All Organizations</option>
           {orgs.map((org) => (
@@ -316,7 +316,7 @@ export function AdminInvitesClient({
                 <select
                   value={createOrgId}
                   onChange={(e) => setCreateOrgId(e.target.value)}
-                  className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 >
                   {orgs.map((org) => (
                     <option key={org.id} value={org.id}>
@@ -345,7 +345,7 @@ export function AdminInvitesClient({
               <select
                 value={createRole}
                 onChange={(e) => setCreateRole(e.target.value as "ADMIN" | "MEMBER")}
-                className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               >
                 <option value="MEMBER">Member</option>
                 <option value="ADMIN">Admin</option>

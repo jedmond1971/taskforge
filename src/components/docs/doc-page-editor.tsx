@@ -122,7 +122,7 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
           {mode === "view" && !readOnly ? (
             <button
               onClick={() => setMode("edit")}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
             >
               <Edit2 className="w-3.5 h-3.5" />
               Edit
@@ -148,7 +148,7 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
               <button
                 onClick={handleSave}
                 disabled={saving || !isDirty}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Save className="w-3.5 h-3.5" />
                 {saving ? "Saving…" : "Save"}
@@ -192,7 +192,7 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
                     No content yet.{" "}
                     <button
                       onClick={() => setMode("edit")}
-                      className="text-indigo-600 dark:text-indigo-400 hover:underline"
+                      className="text-primary hover:underline"
                     >
                       Click Edit to start writing.
                     </button>

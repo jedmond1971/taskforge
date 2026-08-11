@@ -110,8 +110,8 @@ export default async function ClosedProjectsPage() {
                         disabled={!isAdmin}
                         className={
                           isAdmin
-                            ? "text-xs px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-medium"
-                            : "text-xs px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium opacity-40 cursor-not-allowed"
+                            ? "text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
+                            : "text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-medium opacity-40 cursor-not-allowed"
                         }
                       >
                         Re-Open This Project

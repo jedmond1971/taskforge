@@ -43,7 +43,7 @@ function initDisplayValues(
 }
 
 const inputClass =
-  "w-full px-2 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50";
+  "w-full px-2 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50";
 
 export function CustomFieldsPanel({
   issueId,
@@ -168,7 +168,7 @@ export function CustomFieldsPanel({
                     save(field.id, checked);
                   }}
                   disabled={isPending || !canEdit}
-                  className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+                  className="w-4 h-4 rounded border-zinc-300 text-primary focus:ring-primary disabled:opacity-50"
                 />
                 <label
                   htmlFor={`cf-${field.id}`}
@@ -227,7 +227,7 @@ export function CustomFieldsPanel({
                             save(field.id, next.length > 0 ? next : null);
                           }}
                           disabled={isPending || !canEdit}
-                          className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+                          className="w-4 h-4 rounded border-zinc-300 text-primary focus:ring-primary disabled:opacity-50"
                         />
                         <span className="text-sm text-zinc-700 dark:text-zinc-300">{opt}</span>
                       </label>

@@ -69,7 +69,7 @@ interface ProjectSettingsProps {
 }
 
 const roleColors: Record<string, string> = {
-  PROJECT_LEAD: "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30",
+  PROJECT_LEAD: "bg-primary/20 text-primary border border-primary/30",
   TEAM_MEMBER: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30",
   VIEWER: "bg-zinc-500/20 text-zinc-400 border border-zinc-500/30",
 };
@@ -81,7 +81,7 @@ const roleLabels: Record<string, string> = {
 };
 
 const selectStyles =
-  "h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-indigo-500";
+  "h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-primary";
 
 function getInitials(name: string | null): string {
   if (!name) return "?";
@@ -128,7 +128,7 @@ export function ProjectSettings({
             className={cn(
               "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
               activeTab === tab.id
-                ? "border-indigo-500 text-indigo-400"
+                ? "border-primary text-primary"
                 : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
             )}
           >
@@ -226,7 +226,7 @@ function GeneralTab({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
         />
       </div>
 
@@ -253,7 +253,6 @@ function GeneralTab({
       <Button
         onClick={handleSave}
         disabled={saving}
-        className="bg-indigo-600 hover:bg-indigo-500 text-white"
       >
         {saving ? "Saving..." : "Save Changes"}
       </Button>
@@ -559,7 +558,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
         <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Add member</h3>
         <button
           onClick={() => setMode(mode === "search" ? "create" : "search")}
-          className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+          className="text-xs text-primary hover:text-primary/80 transition-colors"
         >
           {mode === "search"
             ? "Or create a new user"
@@ -652,7 +651,6 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
               <Button
                 onClick={handleAddMember}
                 disabled={adding}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white"
                 size="sm"
               >
                 <UserPlus className="size-3.5 mr-1" />
@@ -711,7 +709,6 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
           <Button
             onClick={handleCreateAndAdd}
             disabled={creating}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white"
           >
             <UserRoundPlus className="size-4 mr-1.5" />
             {creating ? "Creating..." : "Create & Add"}

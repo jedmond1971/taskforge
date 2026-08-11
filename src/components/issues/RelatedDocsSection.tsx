@@ -197,7 +197,7 @@ export function RelatedDocsSection({
             <button
               onClick={() => setPickerOpen(true)}
               disabled={isPending}
-              className="flex items-center gap-1 text-xs text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 text-xs text-zinc-500 hover:text-primary/80 transition-colors disabled:opacity-50"
             >
               <Plus className="w-3.5 h-3.5" />
               Link a doc page
@@ -220,7 +220,7 @@ export function RelatedDocsSection({
                   <PageTypeIcon type={link.page.type} />
                   <Link
                     href={`/projects/${projectKey}/docs/${link.page.id}`}
-                    className="flex-1 text-sm text-zinc-700 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline truncate"
+                    className="flex-1 text-sm text-zinc-700 dark:text-zinc-300 hover:text-primary/80 hover:underline truncate"
                   >
                     {link.page.title}
                   </Link>

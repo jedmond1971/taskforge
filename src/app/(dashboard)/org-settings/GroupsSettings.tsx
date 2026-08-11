@@ -131,7 +131,6 @@ function GroupNameDialog({
           <Button
             onClick={handleSubmit}
             disabled={saving || !name.trim()}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white"
           >
             {saving ? "Saving..." : isEdit ? "Save" : "Create"}
           </Button>
@@ -336,7 +335,7 @@ function GroupDetailDialog({
                     checked={!!grant}
                     disabled={busy}
                     onChange={() => handleToggleOrgWide(permission, grant?.id ?? null)}
-                    className="accent-indigo-500"
+                    className="accent-primary"
                   />
                   <span className="text-sm text-zinc-700 dark:text-zinc-300">
                     {PERMISSION_LABELS[permission]}
@@ -361,7 +360,7 @@ function GroupDetailDialog({
                       checked={!!orgWideGrant}
                       disabled={busy}
                       onChange={() => handleToggleOrgWide(permission, orgWideGrant?.id ?? null)}
-                      className="accent-indigo-500"
+                      className="accent-primary"
                     />
                     <span className="text-sm text-zinc-700 dark:text-zinc-300">
                       {PERMISSION_LABELS[permission]}
@@ -385,7 +384,7 @@ function GroupDetailDialog({
                               onChange={() =>
                                 handleToggleProject(permission, project.id, projectGrant?.id ?? null)
                               }
-                              className="accent-indigo-500"
+                              className="accent-primary"
                             />
                             <span className="text-xs text-zinc-600 dark:text-zinc-400">
                               {project.name}
@@ -404,7 +403,6 @@ function GroupDetailDialog({
         <DialogFooter>
           <Button
             onClick={() => onOpenChange(false)}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white"
           >
             Done
           </Button>
@@ -495,7 +493,7 @@ export function GroupsSettings({ orgId }: { orgId: string }) {
             setNameDialogOpen(true);
           }}
           size="sm"
-          className="bg-indigo-600 hover:bg-indigo-500 text-white flex-shrink-0"
+          className="flex-shrink-0"
         >
           <Plus className="size-3.5 mr-1" />
           New group

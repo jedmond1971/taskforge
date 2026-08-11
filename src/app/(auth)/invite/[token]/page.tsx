@@ -56,7 +56,7 @@ export default async function InvitePage({ params }: { params: { token: string }
         <p>This invite has already been used.</p>
         <Link
           href="/login"
-          className="inline-block mt-3 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 font-medium underline underline-offset-4"
+          className="inline-block mt-3 text-sm text-primary hover:text-primary/80 font-medium underline underline-offset-4"
         >
           Go to login
         </Link>

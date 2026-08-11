@@ -90,7 +90,7 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
             <p className="text-xs text-zinc-400 dark:text-zinc-600">No issues</p>
             <button
               onClick={() => setCreateOpen(true)}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors"
+              className="text-xs text-primary hover:text-primary/80 transition-colors"
             >
               Add one
             </button>

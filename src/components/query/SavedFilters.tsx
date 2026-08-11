@@ -84,7 +84,7 @@ export function SavedFilters({
               onClick={() => onRunFilter(qf.query)}
               className="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
             >
-              <p className="text-sm text-zinc-800 dark:text-zinc-200 group-hover:text-indigo-400 transition-colors">
+              <p className="text-sm text-zinc-800 dark:text-zinc-200 group-hover:text-primary/80 transition-colors">
                 {qf.name}
               </p>
               <p className="text-xs text-zinc-600 font-mono truncate mt-0.5">
@@ -112,7 +112,7 @@ export function SavedFilters({
                 <div className="flex items-center justify-between">
                   <button
                     onClick={() => onRunFilter(f.query)}
-                    className="text-sm text-zinc-800 dark:text-zinc-200 group-hover:text-indigo-400 transition-colors text-left flex-1 truncate"
+                    className="text-sm text-zinc-800 dark:text-zinc-200 group-hover:text-primary/80 transition-colors text-left flex-1 truncate"
                   >
                     {f.name}
                     {f.isGlobal && (
@@ -162,7 +162,7 @@ export function SavedFilters({
                 <div className="flex items-center justify-between">
                   <button
                     onClick={() => onRunFilter(f.query)}
-                    className="text-sm text-zinc-800 dark:text-zinc-200 group-hover:text-indigo-400 transition-colors text-left flex-1 truncate"
+                    className="text-sm text-zinc-800 dark:text-zinc-200 group-hover:text-primary/80 transition-colors text-left flex-1 truncate"
                   >
                     {f.name}
                   </button>

@@ -143,7 +143,7 @@ export default async function OAuthAuthorizePage({
           </button>
           <button
             type="submit"
-            className="flex-1 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
+            className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             Approve
           </button>

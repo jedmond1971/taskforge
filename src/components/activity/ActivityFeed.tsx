@@ -78,7 +78,7 @@ export function ActivityFeed({
                 {showIssue && entry.issue && (
                   <>
                     {" "}on{" "}
-                    <span className="font-mono text-xs text-indigo-600 dark:text-indigo-400">{entry.issue.key}</span>{" "}
+                    <span className="font-mono text-xs text-primary">{entry.issue.key}</span>{" "}
                     <span className="text-zinc-500 truncate">{entry.issue.title}</span>
                   </>
                 )}

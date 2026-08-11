@@ -61,7 +61,7 @@ const TYPE_BADGE: Record<CustomFieldType, string> = {
   NUMBER: "bg-blue-500/20 text-blue-400 border border-blue-500/30",
   DATE: "bg-purple-500/20 text-purple-400 border border-purple-500/30",
   CHECKBOX: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30",
-  SELECT: "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30",
+  SELECT: "bg-primary/20 text-primary border border-primary/30",
   MULTI_SELECT: "bg-amber-500/20 text-amber-400 border border-amber-500/30",
 };
 
@@ -75,7 +75,7 @@ const ALL_TYPES: CustomFieldType[] = [
 ];
 
 const selectStyles =
-  "w-full h-9 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed";
+  "w-full h-9 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed";
 
 // ─── Field Dialog ─────────────────────────────────────────────────────────────
 
@@ -251,7 +251,7 @@ function FieldDialog({
                 ))}
                 <button
                   onClick={addOption}
-                  className="flex items-center gap-1.5 text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+                  className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
                 >
                   <Plus className="size-3.5" />
                   Add option
@@ -279,7 +279,7 @@ function FieldDialog({
                       type="checkbox"
                       checked={selectedProjectIds.includes(project.id)}
                       onChange={() => toggleProject(project.id)}
-                      className="accent-indigo-500"
+                      className="accent-primary"
                     />
                     <span className="text-sm text-zinc-700 dark:text-zinc-300">
                       {project.name}
@@ -306,7 +306,6 @@ function FieldDialog({
           <Button
             onClick={handleSubmit}
             disabled={saving}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white"
           >
             {saving ? "Saving..." : isEdit ? "Save Changes" : "Create Field"}
           </Button>
@@ -408,7 +407,7 @@ export function CustomFieldsSettings({
         <Button
           onClick={openAdd}
           size="sm"
-          className="bg-indigo-600 hover:bg-indigo-500 text-white flex-shrink-0"
+          className="flex-shrink-0"
         >
           <Plus className="size-3.5 mr-1" />
           Add Field

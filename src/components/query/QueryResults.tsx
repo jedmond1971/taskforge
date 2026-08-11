@@ -147,7 +147,7 @@ export function QueryResults({ results, isLoading }: QueryResultsProps) {
                   <td className="px-4 py-3">
                     <Link
                       href={`/projects/${issue.project.key}/issues/${issue.key}`}
-                      className="text-zinc-500 hover:text-indigo-400 font-mono text-xs transition-colors"
+                      className="text-zinc-500 hover:text-primary/80 font-mono text-xs transition-colors"
                     >
                       {issue.key}
                     </Link>
@@ -155,13 +155,13 @@ export function QueryResults({ results, isLoading }: QueryResultsProps) {
                   <td className="px-4 py-3">
                     <Link
                       href={`/projects/${issue.project.key}/issues/${issue.key}`}
-                      className="text-zinc-900 dark:text-zinc-100 hover:text-indigo-400 transition-colors line-clamp-1"
+                      className="text-zinc-900 dark:text-zinc-100 hover:text-primary/80 transition-colors line-clamp-1"
                     >
                       {issue.title}
                     </Link>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-xs text-indigo-400 font-mono">
+                    <span className="text-xs text-primary font-mono">
                       {issue.project.key}
                     </span>
                   </td>

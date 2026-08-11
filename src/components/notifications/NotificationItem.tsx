@@ -37,12 +37,12 @@ export function NotificationItem({ notification, onRead }: NotificationItemProps
     <div
       className={`flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer ${
         !notification.read
-          ? "border-l-2 border-[#FF6A00] pl-[10px]"
+          ? "border-l-2 border-primary pl-[10px]"
           : "border-l-2 border-transparent pl-[10px]"
       }`}
     >
       {!notification.read && (
-        <span className="mt-1.5 flex-shrink-0 w-2 h-2 rounded-full bg-[#FF6A00]" />
+        <span className="mt-1.5 flex-shrink-0 w-2 h-2 rounded-full bg-primary" />
       )}
       {notification.read && <span className="mt-1.5 flex-shrink-0 w-2 h-2" />}
       <div className="flex-1 min-w-0">
