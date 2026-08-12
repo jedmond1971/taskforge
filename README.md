@@ -2,8 +2,6 @@
 
 A full-stack project management tool built as a portfolio project to demonstrate modern full-stack development skills.
 
-**Live demo:** [www.ciphercompass.com](https://www.ciphercompass.com)
-
 ---
 
 ## Features
