@@ -127,7 +127,7 @@ function IssueLinkPickerDialog({
                 onClick={() => setLinkType(type)}
                 className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
                   linkType === type
-                    ? "border-primary bg-primary text-primary"
+                    ? "border-primary bg-primary text-primary-foreground"
                     : "border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600"
                 }`}
               >
