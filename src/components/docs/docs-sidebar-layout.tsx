@@ -4,8 +4,6 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  FileText,
-  FileArchive,
   ChevronRight,
   ChevronDown,
   FolderOpen,
@@ -15,11 +13,13 @@ import {
 import { DocsSearchBar } from "./docs-search-bar";
 import { DocVisibilityToggle } from "./doc-visibility-toggle";
 import { CreateDocItemButtons } from "./create-doc-item-buttons";
+import { getDocIcon } from "@/lib/doc-icon";
 
 interface SidebarPage {
   id: string;
   title: string;
   type: string;
+  mimeType?: string | null;
 }
 
 interface SidebarSection {
@@ -178,6 +178,7 @@ function SidebarPageItem({
   projectKey: string;
   isActive: boolean;
 }) {
+  const { Icon, className } = getDocIcon(page.type, page.mimeType);
   return (
     <Link
       href={`/projects/${projectKey}/docs/${page.id}`}
@@ -187,11 +188,7 @@ function SidebarPageItem({
           : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
       }`}
     >
-      {page.type === "DOCUMENT" ? (
-        <FileArchive className="w-3.5 h-3.5 flex-shrink-0 text-zinc-400" />
-      ) : (
-        <FileText className="w-3.5 h-3.5 flex-shrink-0 text-zinc-400" />
-      )}
+      <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${className}`} />
       <span className="truncate">{page.title}</span>
     </Link>
   );

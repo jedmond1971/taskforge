@@ -28,14 +28,14 @@ async function getDocsSidebarData(projectKey: string, userId: string) {
         include: {
           pages: {
             orderBy: { position: "asc" },
-            select: { id: true, title: true, type: true },
+            select: { id: true, title: true, type: true, mimeType: true },
           },
         },
       },
       pages: {
         where: { sectionId: null },
         orderBy: { position: "asc" },
-        select: { id: true, title: true, type: true },
+        select: { id: true, title: true, type: true, mimeType: true },
       },
     },
   });
@@ -65,12 +65,13 @@ export default async function DocsLayout({
   const sections = docSpace.sections.map((s) => ({
     id: s.id,
     title: s.title,
-    pages: s.pages.map((p) => ({ id: p.id, title: p.title, type: p.type })),
+    pages: s.pages.map((p) => ({ id: p.id, title: p.title, type: p.type, mimeType: p.mimeType })),
   }));
   const pages = docSpace.pages.map((p) => ({
     id: p.id,
     title: p.title,
     type: p.type,
+    mimeType: p.mimeType,
   }));
 
   return (

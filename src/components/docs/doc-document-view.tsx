@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download, Upload, FileText, AlertCircle, Loader2 } from "lucide-react";
 import { ReferencedIssuesPanel } from "@/components/docs/referenced-issues-panel";
+import { getDocIcon } from "@/lib/doc-icon";
 
 interface DocDocumentViewProps {
   page: {
@@ -85,6 +86,8 @@ export function DocDocumentView({ page, projectKey, readOnly = false }: DocDocum
     }
   }
 
+  const { Icon: HeaderIcon, className: headerIconClassName } = getDocIcon("DOCUMENT", page.mimeType);
+
   return (
     <div className="flex flex-col min-h-0 flex-1">
       {/* Top bar */}
@@ -131,7 +134,7 @@ export function DocDocumentView({ page, projectKey, readOnly = false }: DocDocum
       {/* Title */}
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-          <FileText className="w-6 h-6 text-zinc-400 flex-shrink-0" />
+          <HeaderIcon className={`w-6 h-6 flex-shrink-0 ${headerIconClassName}`} />
           {page.title}
         </h1>
         <div className="flex items-center gap-3 mt-1 text-xs text-zinc-400">

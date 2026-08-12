@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, FileText, FolderOpen, Upload, Loader2 } from "lucide-react";
+import { Plus, FileText, FolderOpen, Upload, Loader2, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,12 @@ interface CreateDocItemButtonsProps {
   variant?: "full" | "icon-only" | "sidebar";
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDocItemButtonsProps) {
   const router = useRouter();
   const [pageDialogOpen, setPageDialogOpen] = useState(false);
@@ -29,7 +35,14 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [stagedFile, setStagedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function resetPageDialogState() {
+    setError(null);
+    setUploadError(null);
+    setStagedFile(null);
+  }
 
   async function handleCreatePage(e: React.FormEvent) {
     e.preventDefault();
@@ -77,28 +90,37 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
     }
   }
 
-  async function handleDocumentUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadError(null);
+    setStagedFile(file);
+    if (!pageTitle.trim()) {
+      // Derive a page title from the filename (strip extension)
+      const baseName = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+      setPageTitle(baseName || file.name);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleUploadSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stagedFile || !pageTitle.trim()) return;
     setUploading(true);
     setUploadError(null);
-
-    // Derive a page title from the filename (strip extension)
-    const baseName = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
-
     try {
       // 1. Create the DOCUMENT page stub
       const createRes = await fetch(`/api/docs/${projectKey}/pages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: baseName || file.name, type: "DOCUMENT" }),
+        body: JSON.stringify({ title: pageTitle.trim(), type: "DOCUMENT" }),
       });
       if (!createRes.ok) throw new Error("Failed to create page");
       const { page } = await createRes.json() as { page: { id: string } };
 
       // 2. Upload the file
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", stagedFile);
       const uploadRes = await fetch(`/api/docs/${projectKey}/pages/${page.id}/file`, {
         method: "POST",
         body: formData,
@@ -108,24 +130,36 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
         throw new Error(data.error ?? "Upload failed");
       }
 
+      setPageDialogOpen(false);
+      setPageTitle("");
+      setStagedFile(null);
       router.push(`/projects/${projectKey}/docs/${page.id}`);
       router.refresh();
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  }
+
+  function handlePageFormSubmit(e: React.FormEvent) {
+    if (stagedFile) {
+      void handleUploadSubmit(e);
+    } else {
+      void handleCreatePage(e);
+    }
+  }
+
+  function handlePageDialogOpenChange(o: boolean) {
+    setPageDialogOpen(o);
+    if (!o) resetPageDialogState();
   }
 
   if (variant === "icon-only") {
     return (
       <>
-        {uploadError && (
-          <span className="text-xs text-red-500">{uploadError}</span>
-        )}
         <button
-          onClick={() => { setError(null); setPageDialogOpen(true); }}
+          onClick={() => { resetPageDialogState(); setPageDialogOpen(true); }}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -134,21 +168,24 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
 
         <PageDialog
           open={pageDialogOpen}
-          onOpenChange={(o) => { setPageDialogOpen(o); if (!o) setError(null); }}
+          onOpenChange={handlePageDialogOpenChange}
           title={pageTitle}
           onTitleChange={setPageTitle}
-          onSubmit={handleCreatePage}
+          onSubmit={handlePageFormSubmit}
           creating={creating}
           error={error}
           onUploadDocument={() => fileInputRef.current?.click()}
           uploading={uploading}
+          uploadError={uploadError}
+          stagedFile={stagedFile}
+          onClearStagedFile={() => setStagedFile(null)}
         />
         <input
           ref={fileInputRef}
           type="file"
           accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           className="sr-only"
-          onChange={handleDocumentUpload}
+          onChange={handleFileSelected}
           disabled={uploading}
         />
       </>
@@ -158,7 +195,6 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
   if (variant === "sidebar") {
     return (
       <>
-        {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
         <div className="flex items-center gap-1">
           <button
             onClick={() => { setError(null); setSectionDialogOpen(true); }}
@@ -169,7 +205,7 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
             Section
           </button>
           <button
-            onClick={() => { setError(null); setPageDialogOpen(true); }}
+            onClick={() => { resetPageDialogState(); setPageDialogOpen(true); }}
             title="New Page"
             className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-md transition-colors"
           >
@@ -180,14 +216,17 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
 
         <PageDialog
           open={pageDialogOpen}
-          onOpenChange={(o) => { setPageDialogOpen(o); if (!o) setError(null); }}
+          onOpenChange={handlePageDialogOpenChange}
           title={pageTitle}
           onTitleChange={setPageTitle}
-          onSubmit={handleCreatePage}
+          onSubmit={handlePageFormSubmit}
           creating={creating}
           error={error}
           onUploadDocument={() => fileInputRef.current?.click()}
           uploading={uploading}
+          uploadError={uploadError}
+          stagedFile={stagedFile}
+          onClearStagedFile={() => setStagedFile(null)}
         />
 
         <Dialog open={sectionDialogOpen} onOpenChange={(o) => { setSectionDialogOpen(o); if (!o) setError(null); }}>
@@ -224,7 +263,7 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
           type="file"
           accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           className="sr-only"
-          onChange={handleDocumentUpload}
+          onChange={handleFileSelected}
           disabled={uploading}
         />
       </>
@@ -242,27 +281,27 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
           New Section
         </button>
         <button
-          onClick={() => { setError(null); setPageDialogOpen(true); }}
+          onClick={() => { resetPageDialogState(); setPageDialogOpen(true); }}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
         >
           <FileText className="w-4 h-4" />
           New Page
         </button>
       </div>
-      {uploadError && (
-        <p className="text-xs text-red-500 mt-1">{uploadError}</p>
-      )}
 
       <PageDialog
         open={pageDialogOpen}
-        onOpenChange={(o) => { setPageDialogOpen(o); if (!o) setError(null); }}
+        onOpenChange={handlePageDialogOpenChange}
         title={pageTitle}
         onTitleChange={setPageTitle}
-        onSubmit={handleCreatePage}
+        onSubmit={handlePageFormSubmit}
         creating={creating}
         error={error}
         onUploadDocument={() => fileInputRef.current?.click()}
         uploading={uploading}
+        uploadError={uploadError}
+        stagedFile={stagedFile}
+        onClearStagedFile={() => setStagedFile(null)}
       />
 
       <Dialog open={sectionDialogOpen} onOpenChange={(o) => { setSectionDialogOpen(o); if (!o) setError(null); }}>
@@ -299,7 +338,7 @@ export function CreateDocItemButtons({ projectKey, variant = "full" }: CreateDoc
         type="file"
         accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         className="sr-only"
-        onChange={handleDocumentUpload}
+        onChange={handleFileSelected}
         disabled={uploading}
       />
     </>
@@ -316,6 +355,9 @@ function PageDialog({
   error,
   onUploadDocument,
   uploading,
+  uploadError,
+  stagedFile,
+  onClearStagedFile,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -326,7 +368,11 @@ function PageDialog({
   error: string | null;
   onUploadDocument: () => void;
   uploading: boolean;
+  uploadError: string | null;
+  stagedFile: File | null;
+  onClearStagedFile: () => void;
 }) {
+  const submitting = creating || uploading;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
@@ -343,28 +389,55 @@ function PageDialog({
               onChange={(e) => onTitleChange(e.target.value)}
               maxLength={200}
             />
+            {stagedFile && (
+              <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="truncate">
+                  {stagedFile.name} · {formatFileSize(stagedFile.size)}
+                </span>
+                <button
+                  type="button"
+                  onClick={onClearStagedFile}
+                  className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 flex-shrink-0"
+                  aria-label="Remove staged file"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             {error && <p className="text-xs text-red-500">{error}</p>}
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
-              <span className="text-xs text-zinc-400">or</span>
-              <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
-            </div>
-            <button
-              type="button"
-              onClick={() => { onOpenChange(false); onUploadDocument(); }}
-              disabled={uploading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm border border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg text-zinc-500 dark:text-zinc-400 hover:border-primary/80 hover:text-primary/80 transition-colors disabled:opacity-50"
-            >
-              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              Upload PDF or Word document
-            </button>
+            {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
+            {!stagedFile && (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+                  <span className="text-xs text-zinc-400">or</span>
+                  <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+                </div>
+                <button
+                  type="button"
+                  onClick={onUploadDocument}
+                  disabled={uploading}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm border border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg text-zinc-500 dark:text-zinc-400 hover:border-primary/80 hover:text-primary/80 transition-colors disabled:opacity-50"
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload PDF or Word document
+                </button>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={creating || !title.trim()}>
-              {creating ? "Creating…" : "Create"}
+            <Button type="submit" disabled={submitting || !title.trim()}>
+              {submitting ? (
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  {stagedFile ? "Uploading…" : "Creating…"}
+                </span>
+              ) : (
+                stagedFile ? "Upload" : "Create"
+              )}
             </Button>
           </DialogFooter>
         </form>
