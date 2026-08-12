@@ -4,9 +4,9 @@ import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { StatusCategory, IssuePriority, IssueType, IssueLinkType, DocPageType, CustomFieldType } from "@prisma/client";
-import { updateIssue, deleteIssue } from "@/app/(dashboard)/projects/[projectKey]/actions";
+import { updateIssue, deleteIssue, setIssueParent } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { CATEGORY_COLOR, PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
-import { Pencil, Trash2, Check, X, ChevronRight, Plus } from "lucide-react";
+import { Pencil, Trash2, Check, X, ChevronRight, Plus, Link2 } from "lucide-react";
 import { IssueTypeIcon } from "@/components/icons/IssueTypeIcon";
 import { LabelInput } from "@/components/issues/LabelInput";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ import { RichTextDisplay } from "@/components/ui/rich-text-display";
 import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
 import { RelatedDocsSection } from "@/components/issues/RelatedDocsSection";
 import { LinkedIssuesSection } from "@/components/issues/LinkedIssuesSection";
+import { ParentPicker, IssuePickerDialog, type PickerIssue } from "@/components/issues/ParentPicker";
 import { CustomFieldsPanel } from "@/components/issues/CustomFieldsPanel";
 import { AiChatPanel } from "@/components/ai/AiChatPanel";
 
@@ -55,6 +56,7 @@ type ParentIssue = {
   id: string;
   key: string;
   title: string;
+  type: IssueType;
   projectStatus: ProjectStatus;
 };
 type DocLink = {
@@ -242,6 +244,7 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
   const [labels, setLabels] = useState<string[]>(issue.labels);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [subIssueDialogOpen, setSubIssueDialogOpen] = useState(false);
+  const [subIssueLinkPickerOpen, setSubIssueLinkPickerOpen] = useState(false);
   const [dueDate, setDueDate] = useState<string>(
     issue.dueDate ? new Date(issue.dueDate).toISOString().split("T")[0] : ""
   );
@@ -254,6 +257,19 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
   const currentUserInitial = currentUserName.charAt(0).toUpperCase();
 
   function refresh() { router.refresh(); }
+
+  function handleLinkExistingSubIssue(selected: PickerIssue) {
+    setSubIssueLinkPickerOpen(false);
+    startTransition(async () => {
+      try {
+        await setIssueParent(projectKey, selected.id, issue.id);
+        toast.success("Issue added as sub-issue");
+        refresh();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to add sub-issue");
+      }
+    });
+  }
 
   function saveDescription() {
     startTransition(async () => {
@@ -321,26 +337,18 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
     <div className="max-w-5xl min-w-0 flex-1">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-zinc-500 mb-4 flex-wrap">
-        {issue.parent ? (
-          <>
-            <Link
-              href={`/projects/${projectKey}/issues/${issue.parent.key}`}
-              className="font-mono text-primary hover:text-primary/80 hover:underline"
-            >
-              {issue.parent.key}
-            </Link>
-            <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-            <span className="flex items-center gap-1.5">
-              <IssueTypeIcon type={issue.type} size={20} />
-              <span className="font-mono text-primary">{issue.key}</span>
-            </span>
-          </>
-        ) : (
-          <span className="flex items-center gap-1.5">
-            <IssueTypeIcon type={issue.type} size={20} />
-            <span className="font-mono text-primary">{issue.key}</span>
-          </span>
-        )}
+        <ParentPicker
+          issueId={issue.id}
+          projectKey={projectKey}
+          currentParent={issue.parent}
+          canEdit={canEdit}
+          onChanged={refresh}
+        />
+        {issue.parent && <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
+        <span className="flex items-center gap-1.5">
+          <IssueTypeIcon type={issue.type} size={20} />
+          <span className="font-mono text-primary">{issue.key}</span>
+        </span>
         <span>·</span>
         <span>{issue.project.name}</span>
       </div>
@@ -415,15 +423,34 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
                 )}
               </h3>
               {canEdit && (
-                <button
-                  onClick={() => setSubIssueDialogOpen(true)}
-                  className="flex items-center gap-1 text-xs text-zinc-500 hover:text-primary/80 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add sub-issue
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setSubIssueLinkPickerOpen(true)}
+                    className="flex items-center gap-1 text-xs text-zinc-500 hover:text-primary/80 transition-colors"
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    Link existing issue
+                  </button>
+                  <button
+                    onClick={() => setSubIssueDialogOpen(true)}
+                    className="flex items-center gap-1 text-xs text-zinc-500 hover:text-primary/80 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add sub-issue
+                  </button>
+                </div>
               )}
             </div>
+            {subIssueLinkPickerOpen && (
+              <IssuePickerDialog
+                projectKey={projectKey}
+                excludeIssueId={issue.id}
+                excludeIds={new Set(issue.children.map((c) => c.id))}
+                title="Link existing issue"
+                onSelect={handleLinkExistingSubIssue}
+                onClose={() => setSubIssueLinkPickerOpen(false)}
+              />
+            )}
             <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
               {issue.children.length === 0 ? (
                 <p className="text-sm text-zinc-400 dark:text-zinc-600 italic px-3 py-3">

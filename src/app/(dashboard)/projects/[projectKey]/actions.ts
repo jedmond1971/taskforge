@@ -421,7 +421,7 @@ export async function getIssue(projectKey: string, issueKey: string) {
       projectStatus: { select: { id: true, name: true, category: true } },
       assignee: { select: { id: true, name: true, avatarUrl: true } },
       reporter: { select: { id: true, name: true, avatarUrl: true } },
-      parent: { select: { id: true, key: true, title: true, projectStatus: { select: { id: true, name: true, category: true } } } },
+      parent: { select: { id: true, key: true, title: true, type: true, projectStatus: { select: { id: true, name: true, category: true } } } },
       children: {
         select: {
           id: true,
@@ -587,6 +587,89 @@ export async function unlinkIssue(projectKey: string, linkId: string) {
   await prisma.issueLink.delete({ where: { id: linkId } });
 
   revalidatePath(`/projects/${projectKey}/issues`);
+}
+
+// --- PARENT MANAGEMENT ---
+
+export async function searchIssuesForParent(projectKey: string, query: string, excludeIssueId: string) {
+  const { projectId } = await requireProjectMember(projectKey);
+
+  const issues = await prisma.issue.findMany({
+    where: {
+      projectId,
+      id: { not: excludeIssueId },
+      OR: [
+        { key: { contains: query.toUpperCase() } },
+        { title: { contains: query, mode: "insensitive" } },
+      ],
+    },
+    select: {
+      id: true,
+      key: true,
+      title: true,
+      type: true,
+      projectStatus: { select: { id: true, name: true, category: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+
+  return issues;
+}
+
+export async function setIssueParent(projectKey: string, issueId: string, parentId: string | null) {
+  const { userId, projectId } = await requireProjectRole(projectKey, canEditIssues);
+
+  const issue = await prisma.issue.findFirst({
+    where: { id: issueId, projectId },
+    select: { id: true, key: true, title: true, parent: { select: { key: true } } },
+  });
+  if (!issue) throw new Error("Issue not found");
+
+  if (parentId === issueId) throw new Error("An issue cannot be its own parent");
+
+  let newParentKey: string | null = null;
+  if (parentId) {
+    const candidate = await prisma.issue.findFirst({
+      where: { id: parentId, projectId },
+      select: { id: true, key: true, parentId: true },
+    });
+    if (!candidate) throw new Error("Parent issue not found in this project");
+
+    // Walk up the candidate's ancestor chain to guard against a cycle.
+    let cursor: string | null = candidate.parentId;
+    let depth = 0;
+    while (cursor && depth < 50) {
+      if (cursor === issueId) {
+        throw new Error("Cannot set parent — this would create a circular hierarchy");
+      }
+      const next: { parentId: string | null } | null = await prisma.issue.findUnique({
+        where: { id: cursor },
+        select: { parentId: true },
+      });
+      cursor = next?.parentId ?? null;
+      depth++;
+    }
+
+    newParentKey = candidate.key;
+  }
+
+  await prisma.issue.update({ where: { id: issueId }, data: { parentId } });
+
+  await logActivity({
+    issueId,
+    userId,
+    action: "updated",
+    field: "parent",
+    oldValue: issue.parent?.key ?? "",
+    newValue: newParentKey ?? "",
+  });
+
+  revalidatePath(`/projects/${projectKey}/issues`);
+  revalidatePath(`/projects/${projectKey}/issues/${issue.key}`);
+  revalidatePath(`/projects/${projectKey}/board`);
+  if (issue.parent?.key) revalidatePath(`/projects/${projectKey}/issues/${issue.parent.key}`);
+  if (newParentKey) revalidatePath(`/projects/${projectKey}/issues/${newParentKey}`);
 }
 
 // --- GET PROJECT STATUSES (for status dropdowns, accessible to all members) ---
