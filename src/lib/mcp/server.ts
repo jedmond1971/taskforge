@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { IssuePriority, IssueType, Prisma, DocPageType } from "@prisma/client";
+import { IssuePriority, IssueType, IssueLinkType, Prisma, DocPageType } from "@prisma/client";
 import { generateIssueKeyWithRetry } from "@/lib/issue-keys";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 import { PRIORITY_MAP, formatIssue, resolveStatusForProject } from "@/app/api/v1/_helpers";
@@ -24,6 +24,11 @@ function errorResult(message: string) {
 function hasScope(ctx: OAuthTokenContext, scope: OAuthScope): boolean {
   return ctx.scope.split(/\s+/).includes(scope);
 }
+
+const LINK_TYPE_MAP: Record<string, IssueLinkType> = {
+  BLOCKS: IssueLinkType.BLOCKS,
+  RELATES_TO: IssueLinkType.RELATES_TO,
+};
 
 // Looks up a project scoped to the token's org — never by key alone, mirroring
 // the external API's org-isolation rule (a globally-unique key doesn't mean a
@@ -92,6 +97,8 @@ async function requireIssueMembership(issueKey: string, ctx: OAuthTokenContext) 
       reporterId: true,
       labels: true,
       dueDate: true,
+      parentId: true,
+      parent: { select: { key: true } },
       projectStatus: { select: { id: true, name: true } },
     },
   });
@@ -497,6 +504,216 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return textResult(formatIssue(updated as any));
+    }
+  );
+
+  server.registerTool(
+    "link_issues",
+    {
+      title: "Link Issues",
+      description: "Create a relationship (BLOCKS or RELATES_TO) between two issues in the same project.",
+      inputSchema: {
+        sourceIssueKey: z.string().describe("Issue key, e.g. JFR-103"),
+        targetIssueKey: z.string().describe("Issue key, e.g. JFR-104"),
+        linkType: z.enum(["BLOCKS", "RELATES_TO"]),
+      },
+    },
+    async ({ sourceIssueKey, targetIssueKey, linkType }) => {
+      if (!hasScope(ctx, "issues:write")) return errorResult("Missing scope: issues:write");
+
+      const source = await requireIssueMembership(sourceIssueKey, ctx);
+      if (!source) return errorResult(`Issue not found or you are not a member: ${sourceIssueKey}`);
+      const target = await requireIssueMembership(targetIssueKey, ctx);
+      if (!target) return errorResult(`Issue not found or you are not a member: ${targetIssueKey}`);
+
+      if (source.issue.id === target.issue.id) return errorResult("An issue cannot be linked to itself");
+      // IssueLink has no cross-project constraint at the DB level, so this must be enforced here.
+      if (source.issue.projectId !== target.issue.projectId) {
+        return errorResult("Both issues must belong to the same project");
+      }
+
+      const grants = await getUserGrants(ctx.userId, ctx.orgId, source.issue.projectId);
+      if (!canEditIssues(source.role, grants)) return errorResult("Forbidden: requires team member role or higher");
+
+      const resolvedLinkType = LINK_TYPE_MAP[linkType];
+      let link: { id: string };
+      try {
+        link = await prisma.issueLink.create({
+          data: {
+            sourceIssueId: source.issue.id,
+            targetIssueId: target.issue.id,
+            linkType: resolvedLinkType,
+            createdById: ctx.userId,
+          },
+          select: { id: true },
+        });
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          return errorResult("This link already exists");
+        }
+        throw e;
+      }
+
+      await prisma.activityLog.create({
+        data: {
+          issueId: source.issue.id,
+          userId: ctx.userId,
+          action: "updated",
+          field: "link",
+          oldValue: "",
+          newValue: `${linkType} ${target.issue.key}`,
+        },
+      });
+
+      return textResult({
+        id: link.id,
+        sourceIssueKey: source.issue.key,
+        targetIssueKey: target.issue.key,
+        linkType,
+      });
+    }
+  );
+
+  server.registerTool(
+    "unlink_issues",
+    {
+      title: "Unlink Issues",
+      description:
+        "Remove a relationship between two issues, identified either by linkId (from link_issues or search_issues output) or by sourceIssueKey + targetIssueKey + linkType.",
+      inputSchema: {
+        linkId: z.string().optional(),
+        sourceIssueKey: z.string().optional().describe("Required if linkId is omitted"),
+        targetIssueKey: z.string().optional().describe("Required if linkId is omitted"),
+        linkType: z.enum(["BLOCKS", "RELATES_TO"]).optional().describe("Required if linkId is omitted"),
+      },
+    },
+    async ({ linkId, sourceIssueKey, targetIssueKey, linkType }) => {
+      if (!hasScope(ctx, "issues:write")) return errorResult("Missing scope: issues:write");
+
+      let link: { id: string; sourceIssueId: string; targetIssueId: string; linkType: IssueLinkType } | null = null;
+
+      if (linkId) {
+        link = await prisma.issueLink.findFirst({
+          where: { id: linkId, sourceIssue: { project: { orgId: ctx.orgId, isClosed: false } } },
+          select: { id: true, sourceIssueId: true, targetIssueId: true, linkType: true },
+        });
+      } else if (sourceIssueKey && targetIssueKey && linkType) {
+        const source = await requireIssueMembership(sourceIssueKey, ctx);
+        if (!source) return errorResult(`Issue not found or you are not a member: ${sourceIssueKey}`);
+        const target = await requireIssueMembership(targetIssueKey, ctx);
+        if (!target) return errorResult(`Issue not found or you are not a member: ${targetIssueKey}`);
+        link = await prisma.issueLink.findFirst({
+          where: {
+            sourceIssueId: source.issue.id,
+            targetIssueId: target.issue.id,
+            linkType: LINK_TYPE_MAP[linkType],
+          },
+          select: { id: true, sourceIssueId: true, targetIssueId: true, linkType: true },
+        });
+      } else {
+        return errorResult("Provide linkId, or sourceIssueKey + targetIssueKey + linkType");
+      }
+      if (!link) return errorResult("Link not found");
+
+      // Re-resolve by id (rather than reusing the lookups above) so both entry
+      // paths share one org/membership/permission check.
+      const source = await prisma.issue.findFirst({
+        where: { id: link.sourceIssueId, project: { orgId: ctx.orgId } },
+        select: { id: true, key: true, projectId: true },
+      });
+      const target = await prisma.issue.findFirst({
+        where: { id: link.targetIssueId },
+        select: { key: true },
+      });
+      if (!source || !target) return errorResult("Link not found");
+
+      const member = await prisma.projectMember.findUnique({
+        where: { userId_projectId: { userId: ctx.userId, projectId: source.projectId } },
+      });
+      if (!member) return errorResult("Link not found");
+
+      const grants = await getUserGrants(ctx.userId, ctx.orgId, source.projectId);
+      if (!canEditIssues(member.role, grants)) return errorResult("Forbidden: requires team member role or higher");
+
+      await prisma.issueLink.delete({ where: { id: link.id } });
+
+      await prisma.activityLog.create({
+        data: {
+          issueId: source.id,
+          userId: ctx.userId,
+          action: "updated",
+          field: "link",
+          oldValue: `${link.linkType} ${target.key}`,
+          newValue: "",
+        },
+      });
+
+      return textResult({ id: link.id, removed: true });
+    }
+  );
+
+  server.registerTool(
+    "set_issue_parent",
+    {
+      title: "Set Issue Parent",
+      description: "Set or clear an issue's parent (epic/story hierarchy). Both issues must be in the same project.",
+      inputSchema: {
+        issueKey: z.string().describe("Issue key, e.g. JFR-103"),
+        parentIssueKey: z.string().nullable().describe("Issue key to set as parent, or null to clear the parent"),
+      },
+    },
+    async ({ issueKey, parentIssueKey }) => {
+      if (!hasScope(ctx, "issues:write")) return errorResult("Missing scope: issues:write");
+
+      const membership = await requireIssueMembership(issueKey, ctx);
+      if (!membership) return errorResult(`Issue not found or you are not a member: ${issueKey}`);
+      const { issue, role } = membership;
+      const grants = await getUserGrants(ctx.userId, ctx.orgId, issue.projectId);
+      if (!canEditIssues(role, grants)) return errorResult("Forbidden: requires team member role or higher");
+
+      let newParentId: string | null = null;
+      let newParentKey: string | null = null;
+      if (parentIssueKey) {
+        const candidate = await requireIssueMembership(parentIssueKey, ctx);
+        if (!candidate) return errorResult(`Parent issue not found or you are not a member: ${parentIssueKey}`);
+        if (candidate.issue.id === issue.id) return errorResult("An issue cannot be its own parent");
+        if (candidate.issue.projectId !== issue.projectId) {
+          return errorResult("Parent issue must be in the same project");
+        }
+
+        // Walk up the candidate's ancestor chain to guard against a cycle.
+        let cursor: string | null = candidate.issue.parentId;
+        let depth = 0;
+        while (cursor && depth < 50) {
+          if (cursor === issue.id) {
+            return errorResult("Cannot set parent — this would create a circular hierarchy");
+          }
+          const next: { parentId: string | null } | null = await prisma.issue.findUnique({
+            where: { id: cursor },
+            select: { parentId: true },
+          });
+          cursor = next?.parentId ?? null;
+          depth++;
+        }
+
+        newParentId = candidate.issue.id;
+        newParentKey = candidate.issue.key;
+      }
+
+      await prisma.issue.update({ where: { id: issue.id }, data: { parentId: newParentId } });
+
+      await prisma.activityLog.create({
+        data: {
+          issueId: issue.id,
+          userId: ctx.userId,
+          action: "updated",
+          field: "parent",
+          oldValue: issue.parent?.key ?? "",
+          newValue: newParentKey ?? "",
+        },
+      });
+
+      return textResult({ issueKey: issue.key, parentIssueKey: newParentKey });
     }
   );
 
