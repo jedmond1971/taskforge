@@ -228,6 +228,7 @@ See `.context-docs/data-integrity.md` for full details. Key facts:
 - S3 objects are cleaned up on delete (issues, doc sections, project delete).
 - Notification cap = 100; PageRevision cap = 50.
 - `SavedFilter` requires `projectId` — global `/search` page cannot save/load filters.
+- **`DocPage.position` DOES have a DB-level unique constraint** — a DEFERRABLE unique on `(sectionId, position)` plus a non-deferrable partial index for unsectioned pages (migration `20260601000000_position_uniqueness`). Any code writing multiple DocPage positions across separate requests (not one shared transaction) must renumber through a temporary offset first to avoid a 409 — see `persistListOrder` in `docs-sidebar-layout.tsx`.
 
 ---
 
