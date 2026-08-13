@@ -13,7 +13,7 @@ import {
 import { DocsSearchBar } from "./docs-search-bar";
 import { DocVisibilityToggle } from "./doc-visibility-toggle";
 import { CreateDocItemButtons } from "./create-doc-item-buttons";
-import { getDocIcon } from "@/lib/doc-icon";
+import { DocTypeIcon } from "@/components/docs/doc-type-icon";
 
 interface SidebarPage {
   id: string;
@@ -178,7 +178,6 @@ function SidebarPageItem({
   projectKey: string;
   isActive: boolean;
 }) {
-  const { Icon, className } = getDocIcon(page.type, page.mimeType);
   return (
     <Link
       href={`/projects/${projectKey}/docs/${page.id}`}
@@ -188,7 +187,7 @@ function SidebarPageItem({
           : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
       }`}
     >
-      <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${className}`} />
+      <DocTypeIcon type={page.type} mimeType={page.mimeType} size={14} />
       <span className="truncate">{page.title}</span>
     </Link>
   );
