@@ -88,7 +88,7 @@ See `.context-docs/groups-rbac.md` for the full design (Permission enum mapping,
 
 This project uses **`@base-ui/react`** (NOT Radix UI). Standard shadcn components that depend on Radix do not exist here. Custom equivalents are built on Base UI primitives.
 
-- `src/components/ui/confirm-dialog.tsx` — use for all destructive action confirmations (not `window.confirm()`)
+- `src/components/ui/confirm-dialog.tsx` — use for all destructive action confirmations (not `window.confirm()`). Its `onConfirm` closes the dialog immediately (`onOpenChange(false)` fires right after `onConfirm()`, not after the async work resolves) — the established pattern (`AttachmentsPanel`, doc page delete JFR-132) is to let the dialog close optimistically and surface failures via a `sonner` toast afterward, not to keep the dialog open with a loading state.
 - `src/components/ui/rich-text-editor.tsx` — TipTap v2 editor
 - `src/components/ui/rich-text-display.tsx` — read-only HTML renderer for TipTap content
 
@@ -178,7 +178,7 @@ See `.context-docs/sprints.md` for all 10 rules. Key facts:
 
 ## Docs module invariants
 
-See `.context-docs/docs-invariants.md` for all 8 rules. Key facts:
+See `.context-docs/docs-invariants.md` for all 10 rules. Key facts:
 
 - DocSpaces are lazy-upserted via `resolveDocCtx` (`src/app/api/docs/_helpers.ts`) — do not pre-create them.
 - `DocPageType`: `NATIVE` (TipTap HTML) or `DOCUMENT` (file upload). No other types.
@@ -262,7 +262,7 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 ## Reference docs (load when relevant)
 
 - .context-docs/sprints.md — all 10 Sprint workflow rules (workflowMode lock, board scoping, one-active-sprint DB constraint, sprintScopeId)
-- .context-docs/docs-invariants.md — all 8 Docs module rules (DocSpace, roles, revisions, file lifecycle)
+- .context-docs/docs-invariants.md — all 10 Docs module rules (DocSpace, roles, revisions, file lifecycle, delete UI)
 - .context-docs/data-integrity.md — A2 audit invariants (key gen, kanban positions, S3 cleanup, caps)
 - .context-docs/rich-text.md — TipTap packages, HTML storage, empty-state normalization
 - .context-docs/notifications.md — trigger points, known gaps, UI entry points, server actions
