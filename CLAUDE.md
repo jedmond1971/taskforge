@@ -10,7 +10,8 @@
 ### Pre-commit checklist (run before every commit)
 1. `npm run lint` — zero errors required. Pre-existing warnings are acceptable; new ones are not.
 2. `npx tsc --noEmit` — zero type errors required.
-3. `git diff --name-only --cached` — verify only files changed in this session are staged.
+3. `npm test` — zero failures required. This step was missing from this checklist until JFR-131 (2026-08-13): lint and tsc both passed locally while a hand-written test mock (see `.context-docs/testing-notes.md`) was stale, and CI caught it on push instead. Run it locally before pushing, not just as a CI backstop.
+4. `git diff --name-only --cached` — verify only files changed in this session are staged.
 
 **If `tsc --noEmit` fails with "Cannot find module" for a route you just deleted** — Next.js leaves stale type stubs under `.next/types/app/api/<path>/`. Delete the matching directory (`rm -rf .next/types/app/api/<path>`) and re-run.
 
@@ -92,6 +93,8 @@ This project uses **`@base-ui/react`** (NOT Radix UI). Standard shadcn component
 - `src/components/ui/rich-text-display.tsx` — read-only HTML renderer for TipTap content
 
 See `.context-docs/rich-text.md` for TipTap packages, storage format, and empty-state behavior.
+
+**No Tailwind typography plugin (`@tailwindcss/typography`) is installed** — there is no `prose`/`prose-invert` class available. Rich-text/HTML content (TipTap output, and now mammoth-converted DOCX preview HTML) is styled via a hand-written `.rich-prose` class in `src/app/globals.css`, applied through `RichTextDisplay` (`src/components/ui/rich-text-display.tsx`). Extend `.rich-prose` with new element rules (e.g. the `table`/`sup`/`sub`/`u` rules added for DOCX preview, JFR-131) rather than reaching for a `prose` class that doesn't exist here.
 
 **No `Tooltip` component exists** — `src/components/ui/` has nothing for hover tooltips (checked while building the collapsible sidebar, JFR-101). For icon-only UI, use plain `title`/`aria-label` attributes rather than assuming a themed tooltip is available; building a Base UI Tooltip primitive is a separate, larger piece of scope.
 
