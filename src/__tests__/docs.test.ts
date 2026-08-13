@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
 
-const { mockPrisma, mockAuthFn, mockDeleteObject } = vi.hoisted(() => {
+const { mockPrisma, mockAuthFn, mockDeleteObject, mockDeleteObjectsWithPrefix } = vi.hoisted(() => {
   const mockPrisma = {
     project: { findFirst: vi.fn() },
     projectMember: { findFirst: vi.fn(), findUnique: vi.fn() },
@@ -30,15 +30,18 @@ const { mockPrisma, mockAuthFn, mockDeleteObject } = vi.hoisted(() => {
   };
   const mockAuthFn = vi.fn();
   const mockDeleteObject = vi.fn().mockResolvedValue(undefined);
-  return { mockPrisma, mockAuthFn, mockDeleteObject };
+  const mockDeleteObjectsWithPrefix = vi.fn().mockResolvedValue(undefined);
+  return { mockPrisma, mockAuthFn, mockDeleteObject, mockDeleteObjectsWithPrefix };
 });
 
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/auth", () => ({ auth: mockAuthFn }));
 vi.mock("@/lib/s3", () => ({
   deleteObject: mockDeleteObject,
+  deleteObjectsWithPrefix: mockDeleteObjectsWithPrefix,
   putObject: vi.fn(),
   getPresignedDownloadUrl: vi.fn(),
+  getObjectBuffer: vi.fn(),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
