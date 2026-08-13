@@ -84,6 +84,13 @@ export function DocsSidebarLayout({
           <DocsSearchBar projectKey={projectKey} />
         </div>
 
+        {/* Create */}
+        {canEdit && (
+          <div className="p-3 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
+            <CreateDocItemButtons projectKey={projectKey} variant="sidebar" />
+          </div>
+        )}
+
         {/* Nav tree */}
         <nav className="flex-1 p-2 space-y-0.5">
           {/* Docs home */}
@@ -145,18 +152,13 @@ export function DocsSidebarLayout({
           ))}
         </nav>
 
-        {/* Footer: create + visibility */}
-        {(canEdit || canManage) && (
-          <div className="p-3 border-t border-zinc-100 dark:border-zinc-800 shrink-0 space-y-2">
-            {canManage && (
-              <DocVisibilityToggle
-                projectKey={projectKey}
-                initialIsPublic={isPublic}
-              />
-            )}
-            {canEdit && (
-              <CreateDocItemButtons projectKey={projectKey} variant="sidebar" />
-            )}
+        {/* Footer: visibility */}
+        {canManage && (
+          <div className="p-3 border-t border-zinc-100 dark:border-zinc-800 shrink-0">
+            <DocVisibilityToggle
+              projectKey={projectKey}
+              initialIsPublic={isPublic}
+            />
           </div>
         )}
       </aside>

@@ -102,9 +102,6 @@ export default async function ProjectDocsPage({ params }: { params: { projectKey
               initialIsPublic={docSpace.isPublic}
             />
           )}
-          {canEdit && (
-            <CreateDocItemButtons projectKey={project.key.toLowerCase()} variant="icon-only" />
-          )}
         </div>
       </div>
 
