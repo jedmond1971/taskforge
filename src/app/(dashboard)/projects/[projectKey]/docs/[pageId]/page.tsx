@@ -4,7 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import { DocPageEditor } from "@/components/docs/doc-page-editor";
 import { DocDocumentView } from "@/components/docs/doc-document-view";
 import { SetPageTitle } from "@/components/layout/PageTitleContext";
-import { canEditIssues, getUserGrants } from "@/lib/permissions";
+import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 import { ProjectMemberRole } from "@prisma/client";
 
 async function getPageData(projectKey: string, pageId: string, userId: string) {
@@ -60,6 +60,7 @@ export default async function DocPagePage({
 
   const { project, page, revisions, role, isClosed, grants } = data;
   const readOnly = isClosed || !canEditIssues(role, grants);
+  const canManage = !isClosed && canManageProject(role, grants);
 
   const serializedPage = {
     ...page,
@@ -75,6 +76,7 @@ export default async function DocPagePage({
           page={serializedPage}
           projectKey={project.key.toLowerCase()}
           readOnly={readOnly}
+          canDelete={canManage}
         />
       </>
     );
@@ -94,6 +96,7 @@ export default async function DocPagePage({
         projectKey={project.key.toLowerCase()}
         projectName={project.name}
         readOnly={readOnly}
+        canDelete={canManage}
       />
     </>
   );

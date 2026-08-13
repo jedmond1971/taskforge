@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Download, Upload, FileText, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, Upload, FileText, AlertCircle, Loader2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { ReferencedIssuesPanel } from "@/components/docs/referenced-issues-panel";
 import { DocTypeIcon } from "@/components/docs/doc-type-icon";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface DocDocumentViewProps {
   page: {
@@ -17,6 +20,7 @@ interface DocDocumentViewProps {
   };
   projectKey: string;
   readOnly?: boolean;
+  canDelete?: boolean;
 }
 
 function formatBytes(bytes: number): string {
@@ -33,13 +37,15 @@ function isDocx(mimeType: string | null): boolean {
   return mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 }
 
-export function DocDocumentView({ page, projectKey, readOnly = false }: DocDocumentViewProps) {
+export function DocDocumentView({ page, projectKey, readOnly = false, canDelete = false }: DocDocumentViewProps) {
+  const router = useRouter();
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [replacing, setReplacing] = useState(false);
   const [replaceError, setReplaceError] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -92,6 +98,17 @@ export function DocDocumentView({ page, projectKey, readOnly = false }: DocDocum
     }
   }
 
+  async function handleDelete() {
+    try {
+      const res = await fetch(`/api/docs/${projectKey}/pages/${page.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      router.push(`/projects/${projectKey}/docs`);
+      router.refresh();
+    } catch {
+      toast.error("Failed to delete document. Please try again.");
+    }
+  }
+
   return (
     <div className="flex flex-col min-h-0 flex-1">
       {/* Top bar */}
@@ -107,6 +124,16 @@ export function DocDocumentView({ page, projectKey, readOnly = false }: DocDocum
         <div className="flex items-center gap-2">
           {replaceError && (
             <span className="text-xs text-red-500">{replaceError}</span>
+          )}
+          {canDelete && (
+            <button
+              onClick={() => setDeleteOpen(true)}
+              title="Delete document"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Delete</span>
+            </button>
           )}
           {!readOnly && (
             <label className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer ${replacing ? "opacity-50 pointer-events-none" : ""}`}>
@@ -202,6 +229,15 @@ export function DocDocumentView({ page, projectKey, readOnly = false }: DocDocum
           )
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete this document?"
+        description={`"${page.title}" will be permanently deleted.`}
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

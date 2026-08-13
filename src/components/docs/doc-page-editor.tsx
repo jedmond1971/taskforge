@@ -3,11 +3,13 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Edit2, Save, X, History, Check } from "lucide-react";
+import { ArrowLeft, Edit2, Save, X, History, Check, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { RichTextDisplay } from "@/components/ui/rich-text-display";
 import { VersionHistoryPanel } from "@/components/docs/version-history-panel";
 import { ReferencedIssuesPanel } from "@/components/docs/referenced-issues-panel";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Revision {
   id: string;
@@ -30,9 +32,10 @@ interface DocPageEditorProps {
   projectKey: string;
   projectName: string;
   readOnly?: boolean;
+  canDelete?: boolean;
 }
 
-export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = false }: DocPageEditorProps) {
+export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = false, canDelete = false }: DocPageEditorProps) {
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [title, setTitle] = useState(page.title);
@@ -45,6 +48,8 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
   const [historyOpen, setHistoryOpen] = useState(false);
   const [revisions, setRevisions] = useState<Revision[]>(initialRevisions);
   const [editorKey, setEditorKey] = useState(0);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const isDirty = title !== savedTitle || content !== savedContent;
 
@@ -93,6 +98,19 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
     router.refresh();
   }, [router]);
 
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/docs/${projectKey}/pages/${page.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      router.push(`/projects/${projectKey}/docs`);
+      router.refresh();
+    } catch {
+      toast.error("Failed to delete page. Please try again.");
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col min-h-0 flex-1">
       {/* Top bar */}
@@ -118,6 +136,17 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
             <History className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">History</span>
           </button>
+
+          {canDelete && mode === "view" && (
+            <button
+              onClick={() => setDeleteOpen(true)}
+              title="Delete page"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md text-zinc-500 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Delete</span>
+            </button>
+          )}
 
           {mode === "view" && !readOnly ? (
             <button
@@ -219,6 +248,15 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
           />
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete this page?"
+        description={`"${savedTitle}" and its version history will be permanently deleted. This can't be undone.`}
+        confirmLabel={deleting ? "Deleting…" : "Delete"}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
