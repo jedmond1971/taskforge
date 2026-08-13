@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { UserRole, OrgRole, Plan, ProjectMemberRole } from "@prisma/client";
-import { deleteObject } from "@/lib/s3";
+import { deleteObject, deleteObjectsWithPrefix } from "@/lib/s3";
 import { sendOrgInviteEmail, getInviteExpiryDate } from "@/lib/invites";
 import { logAdminAction } from "@/lib/audit-log";
 
@@ -487,7 +487,7 @@ export async function adminDeleteProject(projectId: string): Promise<ActionResul
       docSpace: { projectId },
       fileKey: { not: null },
     },
-    select: { fileKey: true },
+    select: { id: true, docSpaceId: true, fileKey: true },
   });
 
   const keysToDelete = [
@@ -500,6 +500,14 @@ export async function adminDeleteProject(projectId: string): Promise<ActionResul
       await deleteObject(key);
     } catch (e) {
       console.error(`Failed to delete S3 object ${key}:`, e);
+    }
+  }
+
+  for (const page of docPages) {
+    try {
+      await deleteObjectsWithPrefix(`docs/${page.docSpaceId}/${page.id}/docx-images/`);
+    } catch (e) {
+      console.error(`Failed to delete docx-images for page ${page.id}:`, e);
     }
   }
 

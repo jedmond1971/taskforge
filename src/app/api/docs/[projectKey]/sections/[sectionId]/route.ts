@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { deleteObject } from "@/lib/s3";
+import { deleteObject, deleteObjectsWithPrefix } from "@/lib/s3";
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
 import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 
@@ -87,7 +87,7 @@ export async function DELETE(
     // Delete S3 objects for DOCUMENT pages in this section before cascading
     const documentPages = await prisma.docPage.findMany({
       where: { sectionId: result.section.id, type: "DOCUMENT", fileKey: { not: null } },
-      select: { fileKey: true },
+      select: { id: true, docSpaceId: true, fileKey: true },
     });
     for (const page of documentPages) {
       if (page.fileKey) {
@@ -96,6 +96,11 @@ export async function DELETE(
         } catch (e) {
           console.error(`Failed to delete S3 object ${page.fileKey}:`, e);
         }
+      }
+      try {
+        await deleteObjectsWithPrefix(`docs/${page.docSpaceId}/${page.id}/docx-images/`);
+      } catch (e) {
+        console.error(`Failed to delete docx-images for page ${page.id}:`, e);
       }
     }
 

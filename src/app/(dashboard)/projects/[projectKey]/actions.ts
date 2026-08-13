@@ -17,7 +17,7 @@ import { CATEGORY_ORDER } from "@/lib/issue-utils";
 import bcrypt from "bcryptjs";
 import { notificationService } from "@/lib/notifications";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
-import { deleteObject } from "@/lib/s3";
+import { deleteObject, deleteObjectsWithPrefix } from "@/lib/s3";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
 
 // Helper: verify user is a project member, returns { userId, projectId }
@@ -997,7 +997,7 @@ export async function deleteProject(projectKey: string) {
       docSpace: { projectId },
       fileKey: { not: null },
     },
-    select: { fileKey: true },
+    select: { id: true, docSpaceId: true, fileKey: true },
   });
 
   const keysToDelete = [
@@ -1010,6 +1010,14 @@ export async function deleteProject(projectKey: string) {
       await deleteObject(key);
     } catch (e) {
       console.error(`Failed to delete S3 object ${key}:`, e);
+    }
+  }
+
+  for (const page of docPages) {
+    try {
+      await deleteObjectsWithPrefix(`docs/${page.docSpaceId}/${page.id}/docx-images/`);
+    } catch (e) {
+      console.error(`Failed to delete docx-images for page ${page.id}:`, e);
     }
   }
 

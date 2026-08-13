@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { deleteObject } from "@/lib/s3";
+import { deleteObject, deleteObjectsWithPrefix } from "@/lib/s3";
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
 import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
@@ -162,6 +162,7 @@ export async function DELETE(
     if (result.page.fileKey) {
       await deleteObject(result.page.fileKey).catch(() => {});
     }
+    await deleteObjectsWithPrefix(`docs/${result.page.docSpaceId}/${result.page.id}/docx-images/`).catch(() => {});
     await prisma.docPage.delete({ where: { id: result.page.id } });
 
     return NextResponse.json({ deleted: true, id: result.page.id });

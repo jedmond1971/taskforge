@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { putObject, getPresignedDownloadUrl, deleteObject } from "@/lib/s3";
+import { putObject, getPresignedDownloadUrl, deleteObject, deleteObjectsWithPrefix, getObjectBuffer } from "@/lib/s3";
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
+import { convertDocxToPreviewHtml } from "@/lib/docx-preview";
+
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export const maxDuration = 60;
 
@@ -50,8 +53,17 @@ export async function GET(
     if (!result) return NextResponse.json({ error: "Page not found" }, { status: 404 });
     if (!result.page.fileKey) return NextResponse.json({ error: "No file attached" }, { status: 404 });
 
+    let html = result.page.docxPreviewHtml;
+    if (html === null && result.page.mimeType === DOCX_MIME && result.page.fileKey) {
+      const buffer = await getObjectBuffer(result.page.fileKey);
+      html = await convertDocxToPreviewHtml(buffer, result.page.docSpaceId, result.page.id, params.projectKey);
+      if (html !== null) {
+        await prisma.docPage.update({ where: { id: result.page.id }, data: { docxPreviewHtml: html } });
+      }
+    }
+
     const url = await getPresignedDownloadUrl(result.page.fileKey);
-    return NextResponse.json({ url, mimeType: result.page.mimeType, fileName: result.page.title });
+    return NextResponse.json({ url, mimeType: result.page.mimeType, fileName: result.page.title, html });
   } catch (error) {
     console.error("GET /api/docs/.../file error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -89,13 +101,22 @@ export async function POST(
       return NextResponse.json({ error: "File exceeds 50 MB limit" }, { status: 400 });
     }
 
-    if (result.page.fileKey) {
-      await deleteObject(result.page.fileKey).catch(() => {});
+    const isReplace = !!result.page.fileKey;
+    if (isReplace) {
+      await Promise.all([
+        deleteObject(result.page.fileKey!).catch(() => {}),
+        deleteObjectsWithPrefix(`docs/${result.page.docSpaceId}/${result.page.id}/docx-images/`).catch(() => {}),
+      ]);
     }
 
     const fileKey = `docs/${result.page.docSpaceId}/${result.page.id}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
     const buffer = Buffer.from(await file.arrayBuffer());
     await putObject(fileKey, buffer, file.type);
+
+    let docxPreviewHtml: string | null = null;
+    if (file.type === DOCX_MIME) {
+      docxPreviewHtml = await convertDocxToPreviewHtml(buffer, result.page.docSpaceId, result.page.id, params.projectKey);
+    }
 
     const updated = await prisma.docPage.update({
       where: { id: result.page.id },
@@ -104,6 +125,7 @@ export async function POST(
         fileKey,
         fileSize: file.size,
         mimeType: file.type,
+        docxPreviewHtml,
       },
       include: {
         author: { select: { id: true, name: true, avatarUrl: true } },

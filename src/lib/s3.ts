@@ -3,6 +3,8 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  ListObjectsV2Command,
+  DeleteObjectsCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -48,4 +50,26 @@ export async function putObject(
 
 export async function deleteObject(key: string): Promise<void> {
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+}
+
+export async function deleteObjectsWithPrefix(prefix: string): Promise<void> {
+  let continuationToken: string | undefined;
+  do {
+    const list = await s3.send(
+      new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: continuationToken })
+    );
+    const keys = (list.Contents ?? []).map((o) => ({ Key: o.Key! })).filter((o) => o.Key);
+    if (keys.length > 0) {
+      await s3.send(new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: keys } }));
+    }
+    continuationToken = list.IsTruncated ? list.NextContinuationToken : undefined;
+  } while (continuationToken);
+}
+
+export async function getObjectBuffer(key: string): Promise<Buffer> {
+  const result = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const stream = result.Body as NodeJS.ReadableStream;
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks);
 }

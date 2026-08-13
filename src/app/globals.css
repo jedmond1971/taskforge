@@ -139,6 +139,16 @@
 .rich-prose ul[data-type="taskList"] li > div { flex: 1; }
 .rich-prose ul[data-type="taskList"] li[data-checked="true"] > div { text-decoration: line-through; opacity: 0.6; }
 
+/* DOCX preview extras — tables, sup/sub, underline (mammoth output only, TipTap never produces these) */
+.rich-prose u { text-decoration: underline; }
+.rich-prose sup { vertical-align: super; font-size: 0.75em; }
+.rich-prose sub { vertical-align: sub; font-size: 0.75em; }
+.rich-prose table { border-collapse: collapse; margin: 0.5rem 0; width: auto; }
+.rich-prose th, .rich-prose td { border: 1px solid oklch(0.88 0 0); padding: 0.35rem 0.6rem; text-align: left; }
+.dark .rich-prose th, .dark .rich-prose td { border-color: oklch(0.3 0 0); }
+.rich-prose th { font-weight: 600; background: oklch(0.96 0.006 60); }
+.dark .rich-prose th { background: oklch(0.22 0 0); }
+
 @layer base {
   .theme {
     --font-heading: var(--font-sans);

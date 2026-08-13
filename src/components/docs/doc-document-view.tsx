@@ -29,8 +29,13 @@ function isPdf(mimeType: string | null): boolean {
   return mimeType === "application/pdf";
 }
 
+function isDocx(mimeType: string | null): boolean {
+  return mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+}
+
 export function DocDocumentView({ page, projectKey, readOnly = false }: DocDocumentViewProps) {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [replacing, setReplacing] = useState(false);
@@ -43,10 +48,11 @@ export function DocDocumentView({ page, projectKey, readOnly = false }: DocDocum
     setError(null);
     fetch(`/api/docs/${projectKey}/pages/${page.id}/file`)
       .then((r) => r.json())
-      .then((data: { url?: string; error?: string }) => {
+      .then((data: { url?: string; html?: string | null; error?: string }) => {
         if (cancelled) return;
         if (data.url) {
           setFileUrl(data.url);
+          setPreviewHtml(data.html ?? null);
         } else {
           setError(data.error ?? "Failed to load file");
         }
@@ -165,6 +171,11 @@ export function DocDocumentView({ page, projectKey, readOnly = false }: DocDocum
               src={fileUrl}
               className="w-full h-full min-h-[600px]"
               title={page.title}
+            />
+          ) : isDocx(page.mimeType) && previewHtml ? (
+            <div
+              className="rich-prose text-sm text-zinc-700 dark:text-zinc-300 max-w-none p-6 overflow-y-auto h-full"
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
           ) : (
             <div className="flex flex-col items-center justify-center gap-4 py-20 text-center px-6">
