@@ -6,6 +6,7 @@ import { DocDocumentView } from "@/components/docs/doc-document-view";
 import { SetPageTitle } from "@/components/layout/PageTitleContext";
 import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 import { ProjectMemberRole } from "@prisma/client";
+import { recordDocPageView } from "@/lib/doc-page-views";
 
 async function getPageData(projectKey: string, pageId: string, userId: string) {
   const project = await prisma.project.findFirst({
@@ -33,6 +34,12 @@ async function getPageData(projectKey: string, pageId: string, userId: string) {
     },
   });
   if (!page) return null;
+
+  try {
+    await recordDocPageView(userId, page.id);
+  } catch (err) {
+    console.error("Failed to record doc page view:", err);
+  }
 
   const revisions = await prisma.pageRevision.findMany({
     where: { pageId: page.id },

@@ -71,6 +71,12 @@ enum DocPageType {
   DOCUMENT
 }
 
+enum DocPageStatus {
+  DRAFT
+  IN_REVIEW
+  PUBLISHED
+}
+
 enum IssueLinkType {
   BLOCKS
   RELATES_TO
@@ -130,6 +136,7 @@ model User {
   docPages          DocPage[]
   pageRevisions     PageRevision[]
   issueDocLinks     IssueDocLink[]
+  docPageViews      DocPageView[]
   issueLinks        IssueLink[]
   invitedOrgInvites OrgInvite[]     @relation("InvitedBy")
   adminAuditLogs    AdminAuditLog[]
@@ -478,26 +485,28 @@ model DocSection {
 }
 
 model DocPage {
-  id              String      @id @default(cuid())
+  id              String        @id @default(cuid())
   docSpaceId      String
   sectionId       String?
   title           String
-  type            DocPageType @default(NATIVE)
+  type            DocPageType   @default(NATIVE)
+  status          DocPageStatus @default(PUBLISHED)
   content         String?
   fileKey         String?
   fileSize        Int?
   mimeType        String?
-  docxPreviewHtml String?     @db.Text
+  docxPreviewHtml String?       @db.Text
   authorId        String
-  position        Int         @default(0)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  position        Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   docSpace   DocSpace       @relation(fields: [docSpaceId], references: [id], onDelete: Cascade)
   section    DocSection?    @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   author     User           @relation(fields: [authorId], references: [id])
   revisions  PageRevision[]
   issueLinks IssueDocLink[]
+  views      DocPageView[]
 
   @@index([docSpaceId])
   @@index([sectionId])
@@ -519,6 +528,19 @@ model PageRevision {
   author User    @relation(fields: [authorId], references: [id])
 
   @@index([pageId])
+}
+
+model DocPageView {
+  id       String   @id @default(cuid())
+  userId   String
+  pageId   String
+  viewedAt DateTime @default(now())
+
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  page DocPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pageId])
+  @@index([userId, viewedAt])
 }
 
 model IssueDocLink {

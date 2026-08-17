@@ -3,12 +3,15 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Edit2, Save, X, History, Check, Trash2 } from "lucide-react";
+import { ArrowLeft, Edit2, Save, X, History, Check, Trash2, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { DocPageStatus } from "@prisma/client";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
-import { RichTextDisplay } from "@/components/ui/rich-text-display";
+import { RichTextDisplay, type TocHeading } from "@/components/ui/rich-text-display";
 import { VersionHistoryPanel } from "@/components/docs/version-history-panel";
 import { ReferencedIssuesPanel } from "@/components/docs/referenced-issues-panel";
+import { DocTocRail } from "@/components/docs/doc-toc-rail";
+import { DOC_STATUS_CONFIG } from "@/lib/doc-status";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Revision {
@@ -22,6 +25,7 @@ interface DocPage {
   id: string;
   title: string;
   content: string | null;
+  status: DocPageStatus;
   updatedAt: string;
   author: { id: string; name: string; avatarUrl: string | null };
 }
@@ -50,8 +54,40 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
   const [editorKey, setEditorKey] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [status, setStatus] = useState<DocPageStatus>(page.status);
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [toc, setToc] = useState<TocHeading[]>([]);
 
   const isDirty = title !== savedTitle || content !== savedContent;
+
+  async function handleStatusChange(next: DocPageStatus) {
+    const prev = status;
+    setStatus(next);
+    setSavingStatus(true);
+    try {
+      const res = await fetch(`/api/docs/${projectKey}/pages/${page.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: next }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+      router.refresh();
+    } catch {
+      setStatus(prev);
+      toast.error("Failed to update status");
+    } finally {
+      setSavingStatus(false);
+    }
+  }
+
+  async function handleShare() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied");
+    } catch {
+      toast.error("Failed to copy link");
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -148,6 +184,17 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
             </button>
           )}
 
+          {mode === "view" && (
+            <button
+              onClick={handleShare}
+              title="Copy link"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Share</span>
+            </button>
+          )}
+
           {mode === "view" && !readOnly ? (
             <button
               onClick={() => setMode("edit")}
@@ -211,29 +258,52 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{savedTitle}</h1>
-              <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4">
-                {savedContent ? (
-                  <RichTextDisplay content={savedContent} />
-                ) : (
-                  <p className="text-sm text-zinc-400 dark:text-zinc-600 italic">
-                    No content yet.{" "}
-                    <button
-                      onClick={() => setMode("edit")}
-                      className="text-primary hover:underline"
+            <div className="flex gap-0">
+              <DocTocRail headings={toc} />
+              <div className="flex-1 min-w-0 space-y-4">
+                <div className="flex items-center gap-2">
+                  {readOnly ? (
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${DOC_STATUS_CONFIG[status].bg} ${DOC_STATUS_CONFIG[status].color}`}
                     >
-                      Click Edit to start writing.
-                    </button>
+                      {DOC_STATUS_CONFIG[status].label}
+                    </span>
+                  ) : (
+                    <select
+                      value={status}
+                      disabled={savingStatus}
+                      onChange={(e) => handleStatusChange(e.target.value as DocPageStatus)}
+                      className={`text-xs font-medium rounded-full pl-2.5 pr-6 py-0.5 border-0 outline-none cursor-pointer disabled:opacity-50 ${DOC_STATUS_CONFIG[status].bg} ${DOC_STATUS_CONFIG[status].color}`}
+                    >
+                      {Object.entries(DOC_STATUS_CONFIG).map(([value, cfg]) => (
+                        <option key={value} value={value}>{cfg.label}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{savedTitle}</h1>
+                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4">
+                  {savedContent ? (
+                    <RichTextDisplay content={savedContent} onHeadingsExtracted={setToc} />
+                  ) : (
+                    <p className="text-sm text-zinc-400 dark:text-zinc-600 italic">
+                      No content yet.{" "}
+                      <button
+                        onClick={() => setMode("edit")}
+                        className="text-primary hover:underline"
+                      >
+                        Click Edit to start writing.
+                      </button>
+                    </p>
+                  )}
+                </div>
+                <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                  <p className="text-xs text-zinc-400">
+                    Last updated {new Date(page.updatedAt).toLocaleDateString()} by {page.author.name}
                   </p>
-                )}
+                </div>
+                <ReferencedIssuesPanel projectKey={projectKey} pageId={page.id} />
               </div>
-              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                <p className="text-xs text-zinc-400">
-                  Last updated {new Date(page.updatedAt).toLocaleDateString()} by {page.author.name}
-                </p>
-              </div>
-              <ReferencedIssuesPanel projectKey={projectKey} pageId={page.id} />
             </div>
           )}
         </div>

@@ -5,6 +5,7 @@ import { deleteObject, deleteObjectsWithPrefix } from "@/lib/s3";
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
 import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
+import { DocPageStatus } from "@prisma/client";
 
 async function resolvePage(projectKey: string, pageId: string, userId: string) {
   const ctx = await resolveDocCtx(projectKey, userId);
@@ -61,17 +62,24 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { title, content, sectionId, position } = await req.json() as {
+    const { title, content, sectionId, position, status } = await req.json() as {
       title?: string;
       content?: string;
       sectionId?: string | null;
       position?: number;
+      status?: string;
     };
+
+    if (status !== undefined && !Object.values(DocPageStatus).includes(status as DocPageStatus)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+
     const data: Record<string, unknown> = {};
     if (title !== undefined) data.title = title.trim();
     if (content !== undefined) data.content = sanitizeTipTapHtml(content);
     if (sectionId !== undefined) data.sectionId = sectionId;
     if (position !== undefined) data.position = position;
+    if (status !== undefined) data.status = status;
 
     if (Object.keys(data).length === 0) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });

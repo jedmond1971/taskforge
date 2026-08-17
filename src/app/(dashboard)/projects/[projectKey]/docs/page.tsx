@@ -1,14 +1,13 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { BookOpen, FolderOpen } from "lucide-react";
+import { BookOpen, Globe } from "lucide-react";
 import { CreateDocItemButtons } from "@/components/docs/create-doc-item-buttons";
-import { DocsSearchBar } from "@/components/docs/docs-search-bar";
 import { DocVisibilityToggle } from "@/components/docs/doc-visibility-toggle";
+import { RecentlyViewedDocs } from "@/components/docs/recently-viewed-docs";
+import { DocsListBody } from "@/components/docs/docs-list-body";
 import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 import { ProjectMemberRole } from "@prisma/client";
-import { DocTypeIcon } from "@/components/docs/doc-type-icon";
 
 async function getDocSpaceData(projectKey: string, userId: string) {
   const project = await prisma.project.findFirst({
@@ -33,21 +32,41 @@ async function getDocSpaceData(projectKey: string, userId: string) {
         include: {
           pages: {
             orderBy: { position: "asc" },
-            select: { id: true, title: true, type: true, updatedAt: true, mimeType: true },
+            select: {
+              id: true, title: true, type: true, status: true, updatedAt: true, mimeType: true,
+              author: { select: { id: true, name: true, avatarUrl: true } },
+            },
           },
         },
       },
       pages: {
         where: { sectionId: null },
         orderBy: { position: "asc" },
-        select: { id: true, title: true, type: true, updatedAt: true, mimeType: true },
+        select: {
+          id: true, title: true, type: true, status: true, updatedAt: true, mimeType: true,
+          author: { select: { id: true, name: true, avatarUrl: true } },
+        },
       },
     },
   });
 
   const grants = await getUserGrants(userId, project.orgId, project.id);
 
-  return { project, docSpace, role: member.role as ProjectMemberRole, grants };
+  const recentlyViewed = await prisma.docPageView.findMany({
+    where: { userId, page: { docSpaceId: docSpace.id } },
+    orderBy: { viewedAt: "desc" },
+    take: 6,
+    include: {
+      page: {
+        select: {
+          id: true, title: true, type: true, status: true, mimeType: true,
+          author: { select: { id: true, name: true, avatarUrl: true } },
+        },
+      },
+    },
+  });
+
+  return { project, docSpace, role: member.role as ProjectMemberRole, grants, recentlyViewed };
 }
 
 export default async function ProjectDocsPage({ params }: { params: { projectKey: string } }) {
@@ -57,7 +76,7 @@ export default async function ProjectDocsPage({ params }: { params: { projectKey
   const data = await getDocSpaceData(params.projectKey, session.user.id);
   if (!data) redirect("/projects");
 
-  const { project, docSpace, role, grants } = data;
+  const { project, docSpace, role, grants, recentlyViewed } = data;
   const canEdit = !project.isClosed && canEditIssues(role, grants);
   const canManage = !project.isClosed && canManageProject(role, grants);
 
@@ -88,76 +107,35 @@ export default async function ProjectDocsPage({ params }: { params: { projectKey
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Docs</h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Docs</h2>
+            {docSpace.isPublic && !canManage && (
+              <span className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 rounded-full text-xs font-semibold">
+                <Globe className="w-3 h-3" />
+                Public
+              </span>
+            )}
+          </div>
           <p className="text-zinc-500 text-sm">
             {totalPages} page{totalPages !== 1 ? "s" : ""}
             {docSpace.sections.length > 0 && ` across ${docSpace.sections.length} section${docSpace.sections.length !== 1 ? "s" : ""}`}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <DocsSearchBar projectKey={project.key.toLowerCase()} />
-          {canManage && (
-            <DocVisibilityToggle
-              projectKey={project.key.toLowerCase()}
-              initialIsPublic={docSpace.isPublic}
-            />
-          )}
-        </div>
+        {canManage && (
+          <DocVisibilityToggle
+            projectKey={project.key.toLowerCase()}
+            initialIsPublic={docSpace.isPublic}
+          />
+        )}
       </div>
 
-      {/* Unsectioned pages */}
-      {docSpace.pages.length > 0 && (
-        <div className="space-y-1">
-          {docSpace.pages.map((page) => (
-            <PageRow key={page.id} page={page} projectKey={project.key.toLowerCase()} />
-          ))}
-        </div>
-      )}
+      <RecentlyViewedDocs recentlyViewed={recentlyViewed} projectKey={project.key.toLowerCase()} />
 
-      {/* Sections */}
-      {docSpace.sections.map((section) => (
-        <div key={section.id} className="space-y-1">
-          <div className="flex items-center gap-2 py-1">
-            <FolderOpen className="w-4 h-4 text-zinc-400" />
-            <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">
-              {section.title}
-            </span>
-            <span className="text-xs text-zinc-400">({section.pages.length})</span>
-          </div>
-          {section.pages.length === 0 ? (
-            <p className="pl-6 text-sm text-zinc-400 italic">No pages in this section</p>
-          ) : (
-            section.pages.map((page) => (
-              <PageRow key={page.id} page={page} projectKey={project.key.toLowerCase()} indent />
-            ))
-          )}
-        </div>
-      ))}
+      <DocsListBody
+        projectKey={project.key.toLowerCase()}
+        pages={docSpace.pages}
+        sections={docSpace.sections}
+      />
     </div>
-  );
-}
-
-function PageRow({
-  page,
-  projectKey,
-  indent = false,
-}: {
-  page: { id: string; title: string; type: string; updatedAt: Date; mimeType: string | null };
-  projectKey: string;
-  indent?: boolean;
-}) {
-  return (
-    <Link
-      href={`/projects/${projectKey}/docs/${page.id}`}
-      className={`flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors group ${indent ? "ml-5" : ""}`}
-    >
-      <DocTypeIcon type={page.type} mimeType={page.mimeType} size={16} />
-      <span className="flex-1 text-sm text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 truncate">
-        {page.title}
-      </span>
-      <span className="text-xs text-zinc-400 hidden sm:block">
-        {new Date(page.updatedAt).toLocaleDateString()}
-      </span>
-    </Link>
   );
 }

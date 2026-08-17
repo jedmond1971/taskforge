@@ -25,6 +25,7 @@ const { mockPrisma, mockAuthFn, mockDeleteObject, mockDeleteObjectsWithPrefix } 
     },
     pageRevision: { findMany: vi.fn(), create: vi.fn(), count: vi.fn().mockResolvedValue(0), deleteMany: vi.fn() },
     issueDocLink: { findMany: vi.fn() },
+    docPageView: { upsert: vi.fn(), findMany: vi.fn() },
     groupPermission: { findMany: vi.fn().mockResolvedValue([]) },
     $transaction: vi.fn((cb: (tx: unknown) => unknown) => cb(mockPrisma)),
   };
@@ -409,6 +410,37 @@ describe("PATCH /api/docs/[projectKey]/pages/[pageId]", () => {
 
     const res = await patchPage(makeRequest({ title: "New Title" }), PAGE_PARAMS);
     expect(res.status).toBe(200);
+  });
+
+  it("returns 400 for an invalid status value", async () => {
+    mockSession();
+    setupMemberCtx("TEAM_MEMBER");
+    mockPrisma.docPage.findFirst.mockResolvedValue({
+      id: "p-1", content: null, fileKey: null,
+      author: { id: "user-1", name: "Alice", avatarUrl: null }, section: null,
+    });
+
+    const res = await patchPage(makeRequest({ status: "NOT_A_STATUS" }), PAGE_PARAMS);
+    expect(res.status).toBe(400);
+  });
+
+  it("updates status for TEAM_MEMBER", async () => {
+    mockSession();
+    setupMemberCtx("TEAM_MEMBER");
+    mockPrisma.docPage.findFirst.mockResolvedValue({
+      id: "p-1", content: null, fileKey: null,
+      author: { id: "user-1", name: "Alice", avatarUrl: null }, section: null,
+    });
+    mockPrisma.docPage.update.mockResolvedValue({
+      id: "p-1", title: "Title", content: null, status: "DRAFT",
+      author: { id: "user-1", name: "Alice", avatarUrl: null }, section: null,
+    });
+
+    const res = await patchPage(makeRequest({ status: "DRAFT" }), PAGE_PARAMS);
+    expect(res.status).toBe(200);
+    expect(mockPrisma.docPage.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "DRAFT" }) })
+    );
   });
 });
 
