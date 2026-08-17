@@ -178,12 +178,15 @@ See `.context-docs/sprints.md` for all 10 rules. Key facts:
 
 ## Docs module invariants
 
-See `.context-docs/docs-invariants.md` for all 10 rules. Key facts:
+See `.context-docs/docs-invariants.md` for all 13 rules. Key facts:
 
 - DocSpaces are lazy-upserted via `resolveDocCtx` (`src/app/api/docs/_helpers.ts`) — do not pre-create them.
 - `DocPageType`: `NATIVE` (TipTap HTML) or `DOCUMENT` (file upload). No other types.
 - Role enforcement: read = any member (or any authed user if `isPublic`); edit = `TEAM_MEMBER+`; delete = `PROJECT_LEAD`.
 - Page revisions auto-snapshot on every content save; cap = 50.
+- `DocPage.status` (`DocPageStatus`: `DRAFT | IN_REVIEW | PUBLISHED`, default `PUBLISHED`, JFR-133) is display-only, not an access gate.
+- `DocPageView` (JFR-133) tracks per-user recently-viewed pages, written directly from the doc-detail Server Component, not a REST endpoint.
+- TOC heading-id extraction (`rich-text-display.tsx`) is client-side and its `useEffect` must stay dependency-array-free — see rule 13 in docs-invariants.md for why.
 
 ---
 
@@ -262,7 +265,7 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 ## Reference docs (load when relevant)
 
 - .context-docs/sprints.md — all 10 Sprint workflow rules (workflowMode lock, board scoping, one-active-sprint DB constraint, sprintScopeId)
-- .context-docs/docs-invariants.md — all 10 Docs module rules (DocSpace, roles, revisions, file lifecycle, delete UI)
+- .context-docs/docs-invariants.md — all 13 Docs module rules (DocSpace, roles, revisions, file lifecycle, delete UI, status, recently-viewed, TOC extraction)
 - .context-docs/data-integrity.md — A2 audit invariants (key gen, kanban positions, S3 cleanup, caps)
 - .context-docs/rich-text.md — TipTap packages, HTML storage, empty-state normalization
 - .context-docs/notifications.md — trigger points, known gaps, UI entry points, server actions
