@@ -43,6 +43,8 @@ export function RichTextDisplay({ content, className = "", onHeadingsExtracted }
   // dev-mode-only React quirk can reset this dangerouslySetInnerHTML node's markup right
   // after the first extraction's setState — re-running unconditionally makes id assignment
   // self-healing. The signature guard below prevents that from looping renders forever.
+  // Keep this effect dependency-array-free — see docs-invariants.md rule 13 for the full
+  // history, and __tests__/rich-text-display.test.tsx for the regression test.
   useEffect(() => {
     if (!onHeadingsExtracted) return;
     const headings = Array.from(containerRef.current?.querySelectorAll("h2") ?? []);
