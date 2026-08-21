@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Search, Plus, Users, Trash2, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -246,7 +247,12 @@ export function AdminOrgsClient({
               orgs.map((org) => (
                 <tr key={org.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                   <td className="px-4 py-3">
-                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{org.name}</p>
+                    <Link
+                      href={`/admin/orgs/${org.id}`}
+                      className="text-sm font-medium text-zinc-900 dark:text-zinc-100 hover:underline"
+                    >
+                      {org.name}
+                    </Link>
                     <p className="text-xs text-zinc-500">{org.slug}</p>
                   </td>
                   <td className="px-4 py-3">

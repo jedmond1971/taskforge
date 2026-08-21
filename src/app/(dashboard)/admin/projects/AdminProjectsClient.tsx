@@ -23,6 +23,7 @@ type AdminProject = {
   key: string;
   isClosed: boolean;
   createdAt: Date;
+  org: { id: string; name: string };
   _count: { members: number; issues: number };
   members: { user: { name: string } }[];
 };
@@ -128,6 +129,9 @@ export function AdminProjectsClient({
                 Project
               </th>
               <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                Org
+              </th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
                 Owner
               </th>
               <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
@@ -147,7 +151,7 @@ export function AdminProjectsClient({
           <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {projects.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-zinc-500 text-sm">
+                <td colSpan={7} className="px-4 py-8 text-center text-zinc-500 text-sm">
                   No projects found.
                 </td>
               </tr>
@@ -157,7 +161,12 @@ export function AdminProjectsClient({
                   <td className="px-4 py-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{project.name}</p>
+                        <Link
+                          href={`/admin/projects/${project.id}`}
+                          className="text-sm font-medium text-zinc-900 dark:text-zinc-100 hover:underline"
+                        >
+                          {project.name}
+                        </Link>
                         {project.isClosed && (
                           <span className="text-xs font-medium text-red-500 bg-red-50 dark:bg-red-950/30 px-1.5 py-0.5 rounded">
                             Closed
@@ -166,6 +175,11 @@ export function AdminProjectsClient({
                       </div>
                       <p className="text-xs text-zinc-500">{project.key}</p>
                     </div>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-zinc-400">
+                    <Link href={`/admin/orgs/${project.org.id}`} className="hover:underline hover:text-zinc-600 dark:hover:text-zinc-300">
+                      {project.org.name}
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-sm text-zinc-400">
                     {project.members[0]?.user.name ?? "No owner"}

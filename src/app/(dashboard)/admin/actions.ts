@@ -291,6 +291,7 @@ export async function getAdminProjects(search?: string) {
       key: true,
       isClosed: true,
       createdAt: true,
+      org: { select: { id: true, name: true } },
       _count: { select: { members: true, issues: true } },
       members: {
         where: { role: "PROJECT_LEAD" },
@@ -299,6 +300,28 @@ export async function getAdminProjects(search?: string) {
       },
     },
     orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getAdminProjectDetail(projectId: string) {
+  await requireAdmin();
+  return prisma.project.findUnique({
+    where: { id: projectId },
+    select: {
+      id: true,
+      name: true,
+      key: true,
+      isClosed: true,
+      createdAt: true,
+      org: { select: { id: true, name: true, slug: true } },
+      members: {
+        select: {
+          role: true,
+          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        },
+        orderBy: { role: "asc" },
+      },
+    },
   });
 }
 
@@ -339,6 +362,39 @@ export async function getAdminOrgMembers(orgId: string) {
       user: { select: { id: true, name: true, email: true, avatarUrl: true } },
     },
     orderBy: { role: "asc" },
+  });
+}
+
+export async function getAdminOrgDetail(orgId: string) {
+  await requireAdmin();
+  return prisma.organization.findUnique({
+    where: { id: orgId },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      plan: true,
+      createdAt: true,
+      owner: { select: { id: true, name: true, email: true } },
+      members: {
+        select: {
+          role: true,
+          user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        },
+        orderBy: { role: "asc" },
+      },
+      projects: {
+        select: {
+          id: true,
+          name: true,
+          key: true,
+          isClosed: true,
+          createdAt: true,
+          _count: { select: { members: true, issues: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      },
+    },
   });
 }
 
