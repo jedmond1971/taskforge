@@ -8,11 +8,9 @@ import {
   getProjectMembers,
   getProjectStatuses,
 } from "@/app/(dashboard)/projects/[projectKey]/actions";
-import { IssueList } from "@/components/issues/IssueList";
 import { IssueFiltersBar } from "@/components/issues/IssueFiltersBar";
-import { AutoRefresh } from "@/components/layout/AutoRefresh";
-import { Button } from "@/components/ui/button";
-import { ListChecks } from "lucide-react";
+import { BulkEditView } from "@/components/issues/BulkEditView";
+import { ArrowLeft } from "lucide-react";
 
 interface PageProps {
   params: { projectKey: string };
@@ -32,7 +30,7 @@ function isValidType(v: string): v is IssueType {
   return ["BUG", "TASK", "STORY", "EPIC"].includes(v);
 }
 
-export default async function IssuesPage({ params, searchParams }: PageProps) {
+export default async function BulkEditPage({ params, searchParams }: PageProps) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -41,7 +39,6 @@ export default async function IssuesPage({ params, searchParams }: PageProps) {
     getProjectMembers(params.projectKey),
   ]);
 
-  // Resolve status name → statusId for filtering
   let statusId: string | undefined;
   if (searchParams.status) {
     const match = allStatuses.find(
@@ -60,34 +57,29 @@ export default async function IssuesPage({ params, searchParams }: PageProps) {
 
   const issues = await getIssues(params.projectKey, filters);
 
-  const bulkEditParams = new URLSearchParams();
-  if (searchParams.status) bulkEditParams.set("status", searchParams.status);
-  if (searchParams.priority) bulkEditParams.set("priority", searchParams.priority);
-  if (searchParams.type) bulkEditParams.set("type", searchParams.type);
-  if (searchParams.assigneeId) bulkEditParams.set("assigneeId", searchParams.assigneeId);
-  if (searchParams.search) bulkEditParams.set("search", searchParams.search);
-  const bulkEditQuery = bulkEditParams.toString();
+  const backParams = new URLSearchParams();
+  if (searchParams.status) backParams.set("status", searchParams.status);
+  if (searchParams.priority) backParams.set("priority", searchParams.priority);
+  if (searchParams.type) backParams.set("type", searchParams.type);
+  if (searchParams.assigneeId) backParams.set("assigneeId", searchParams.assigneeId);
+  if (searchParams.search) backParams.set("search", searchParams.search);
+  const backQuery = backParams.toString();
+  const backHref = `/projects/${params.projectKey}/issues${backQuery ? `?${backQuery}` : ""}`;
 
   return (
     <div className="space-y-4">
-      <AutoRefresh />
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100">Issues</h2>
-          <p className="text-zinc-500 text-sm">{issues.length} issue{issues.length !== 1 ? "s" : ""}</p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          render={
-            <Link
-              href={`/projects/${params.projectKey}/issues/bulk-edit${bulkEditQuery ? `?${bulkEditQuery}` : ""}`}
-            />
-          }
+      <div>
+        <Link
+          href={backHref}
+          className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mb-2"
         >
-          <ListChecks className="w-3.5 h-3.5" />
-          Bulk Edit
-        </Button>
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back to Issues
+        </Link>
+        <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100">Bulk Edit Issues</h2>
+        <p className="text-zinc-500 text-sm">
+          {issues.length} issue{issues.length !== 1 ? "s" : ""} match the current filters
+        </p>
       </div>
       <Suspense fallback={<div className="h-10" />}>
         <IssueFiltersBar
@@ -97,7 +89,13 @@ export default async function IssuesPage({ params, searchParams }: PageProps) {
           currentFilters={searchParams}
         />
       </Suspense>
-      <IssueList issues={issues} projectKey={params.projectKey} />
+      <BulkEditView
+        issues={issues}
+        statuses={allStatuses}
+        members={members.map((m) => m.user)}
+        projectKey={params.projectKey}
+        backHref={backHref}
+      />
     </div>
   );
 }

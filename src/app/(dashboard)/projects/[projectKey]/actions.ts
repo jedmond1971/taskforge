@@ -275,48 +275,208 @@ export async function updateIssue(
   return { success: true, issue };
 }
 
-// --- BULK UPDATE ISSUES ---
-export async function bulkUpdateIssues(
+// --- BULK UPDATE ISSUE FIELDS ---
+export type BulkIssueUpdates = Partial<{
+  statusId: string;
+  priority: IssuePriority;
+  type: IssueType;
+  assigneeId: string | null;
+  dueDate: Date | null;
+  addLabels: string[];
+  removeLabels: string[];
+}>;
+
+type BulkIssuePlan = {
+  id: string;
+  updateData: Prisma.IssueUncheckedUpdateInput;
+  hasChange: boolean;
+  statusChanging: boolean;
+  statusChangedName?: string;
+  activityEntries: { field: string; oldValue: string; newValue: string }[];
+};
+
+export async function bulkUpdateIssueFields(
   projectKey: string,
   issueIds: string[],
-  statusId: string
+  updates: BulkIssueUpdates
 ) {
   if (!issueIds.length) return { success: true, count: 0 };
 
+  const addLabels = updates.addLabels ?? [];
+  const removeLabels = updates.removeLabels ?? [];
+  const hasFieldUpdate = (["statusId", "priority", "type", "assigneeId", "dueDate"] as const).some(
+    (field) => field in updates && updates[field] !== undefined
+  );
+  if (!hasFieldUpdate && addLabels.length === 0 && removeLabels.length === 0) {
+    return { success: true, count: 0 };
+  }
+
   const { userId, projectId } = await requireProjectRole(projectKey, canEditIssues);
 
-  const status = await prisma.projectStatus.findFirst({
-    where: { id: statusId, projectId },
-  });
-  if (!status) throw new Error("Invalid status");
+  if (updates.assigneeId) {
+    const assigneeMember = await prisma.projectMember.findUnique({
+      where: { userId_projectId: { userId: updates.assigneeId, projectId } },
+    });
+    if (!assigneeMember) throw new Error("Assignee is not a member of this project");
+  }
 
-  // Assign sequential positions starting after existing issues in the destination
-  // column to satisfy the unique (projectId, statusId, position) constraint.
-  const basePosition = await prisma.issue.count({
-    where: { projectId, statusId, id: { notIn: issueIds } },
-  });
-  await prisma.$transaction(
-    issueIds.map((id, i) =>
-      prisma.issue.update({
-        where: { id },
-        data: { statusId, position: basePosition + i, statusChangedAt: new Date() },
-      })
-    )
-  );
+  let targetStatus: { id: string; name: string } | null = null;
+  let statusNamesById: Record<string, string> = {};
+  if (updates.statusId) {
+    targetStatus = await prisma.projectStatus.findFirst({
+      where: { id: updates.statusId, projectId },
+      select: { id: true, name: true },
+    });
+    if (!targetStatus) throw new Error("Invalid status");
 
-  await prisma.activityLog.createMany({
-    data: issueIds.map((issueId) => ({
-      issueId,
+    const allStatuses = await prisma.projectStatus.findMany({
+      where: { projectId },
+      select: { id: true, name: true },
+    });
+    statusNamesById = Object.fromEntries(allStatuses.map((s) => [s.id, s.name]));
+  }
+
+  const targetIssues = await prisma.issue.findMany({
+    where: { id: { in: issueIds }, projectId },
+    select: {
+      id: true,
+      key: true,
+      title: true,
+      statusId: true,
+      priority: true,
+      type: true,
+      assigneeId: true,
+      labels: true,
+      dueDate: true,
+      reporterId: true,
+    },
+  });
+  if (targetIssues.length !== issueIds.length) {
+    throw new Error("One or more issues were not found in this project");
+  }
+
+  const plans: BulkIssuePlan[] = targetIssues.map((issue) => {
+    const updateData: Prisma.IssueUncheckedUpdateInput = {};
+    const activityEntries: { field: string; oldValue: string; newValue: string }[] = [];
+    let hasChange = false;
+
+    if ("priority" in updates && updates.priority !== undefined && updates.priority !== issue.priority) {
+      updateData.priority = updates.priority;
+      activityEntries.push({ field: "priority", oldValue: issue.priority, newValue: updates.priority });
+      hasChange = true;
+    }
+    if ("type" in updates && updates.type !== undefined && updates.type !== issue.type) {
+      updateData.type = updates.type;
+      activityEntries.push({ field: "type", oldValue: issue.type, newValue: updates.type });
+      hasChange = true;
+    }
+    if ("assigneeId" in updates && updates.assigneeId !== undefined && updates.assigneeId !== issue.assigneeId) {
+      updateData.assigneeId = updates.assigneeId;
+      activityEntries.push({ field: "assignee", oldValue: issue.assigneeId ?? "", newValue: updates.assigneeId ?? "" });
+      hasChange = true;
+    }
+    if ("dueDate" in updates && updates.dueDate !== undefined) {
+      const oldTime = issue.dueDate ? issue.dueDate.getTime() : null;
+      const newTime = updates.dueDate ? updates.dueDate.getTime() : null;
+      if (oldTime !== newTime) {
+        updateData.dueDate = updates.dueDate;
+        activityEntries.push({ field: "due date", oldValue: String(issue.dueDate ?? ""), newValue: String(updates.dueDate ?? "") });
+        hasChange = true;
+      }
+    }
+
+    let statusChanging = false;
+    let statusChangedName: string | undefined;
+    if (updates.statusId && updates.statusId !== issue.statusId) {
+      statusChanging = true;
+      hasChange = true;
+      statusChangedName = targetStatus!.name;
+      activityEntries.push({
+        field: "status",
+        oldValue: statusNamesById[issue.statusId] ?? "",
+        newValue: targetStatus!.name,
+      });
+    }
+
+    if ("addLabels" in updates || "removeLabels" in updates) {
+      const merged = Array.from(
+        new Set([...issue.labels.filter((l) => !removeLabels.includes(l)), ...addLabels])
+      );
+      const oldSorted = [...issue.labels].sort();
+      const newSorted = [...merged].sort();
+      const labelsChanged =
+        oldSorted.length !== newSorted.length || oldSorted.some((l, i) => l !== newSorted[i]);
+      if (labelsChanged) {
+        updateData.labels = merged;
+        activityEntries.push({ field: "labels", oldValue: issue.labels.join(", "), newValue: merged.join(", ") });
+        hasChange = true;
+      }
+    }
+
+    return { id: issue.id, updateData, hasChange, statusChanging, statusChangedName, activityEntries };
+  });
+
+  const anyStatusChange = plans.some((p) => p.statusChanging);
+  const statusChangedAt = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    if (anyStatusChange) {
+      await lockProjectForPositionWrite(tx, projectId);
+    }
+    for (const plan of plans) {
+      if (!plan.hasChange) continue;
+      let data = plan.updateData;
+      if (plan.statusChanging) {
+        const position = await nextPositionInStatus(tx, projectId, updates.statusId as string);
+        data = { ...data, statusId: updates.statusId, position, statusChangedAt };
+      }
+      await tx.issue.update({ where: { id: plan.id }, data });
+    }
+  });
+
+  const activityRows = plans.flatMap((plan) =>
+    plan.activityEntries.map((entry) => ({
+      issueId: plan.id,
       userId,
       action: "updated",
-      field: "status",
-      newValue: status.name,
-    })),
-  });
+      field: entry.field,
+      oldValue: entry.oldValue,
+      newValue: entry.newValue,
+    }))
+  );
+  if (activityRows.length) {
+    await prisma.activityLog.createMany({ data: activityRows });
+  }
+
+  for (const issue of targetIssues) {
+    const plan = plans.find((p) => p.id === issue.id);
+    if (!plan) continue;
+
+    if (typeof plan.updateData.assigneeId === "string") {
+      await notificationService.issueAssigned({
+        assigneeId: plan.updateData.assigneeId,
+        issueKey: issue.key,
+        issueTitle: issue.title,
+        issueId: issue.id,
+        actorId: userId,
+      });
+    }
+    if (plan.statusChanging) {
+      await notificationService.statusChanged({
+        issueKey: issue.key,
+        issueTitle: issue.title,
+        issueId: issue.id,
+        newStatus: plan.statusChangedName!,
+        assigneeId: issue.assigneeId,
+        reporterId: issue.reporterId,
+        actorId: userId,
+      });
+    }
+  }
 
   revalidatePath(`/projects/${projectKey}/issues`);
   revalidatePath(`/projects/${projectKey}/board`);
-  return { success: true, count: issueIds.length };
+  return { success: true, count: plans.filter((p) => p.hasChange).length };
 }
 
 // --- DELETE ISSUE ---
