@@ -152,12 +152,14 @@ Internal API for Claude Code to track work. Full docs in `CLAUDE_API.md`. **Crea
 - **Issue creation is `POST /api/v1/issues` with `projectId` in the body** — there is no `/api/v1/projects/[key]/issues` route; using it returns 404. `projectId` must be the cuid, not the project key. Get the cuid from `GET /api/v1/projects` if you only know the key.
 - **`GET` and `PATCH /api/v1/issues/[id]` accept the issue key** (e.g. `JFR-88`) as well as the cuid. Using a cuid for PATCH returns 404 — always use the key form (e.g. `JFR-88`) for single-issue operations.
 - **Comments endpoint is `POST /api/v1/issues/[key]/comments`** — there is no `/api/v1/comments` route; posting to it returns 404. Body: `{ authorId, body }` (HTML string).
+- **`GET /api/v1/issues?status=...` requires `projectId` in the same request** — omitting it returns `400 { "error": "projectId is required when filtering by status" }`, even though `status` alone is otherwise a documented, independent filter. `assigneeId` alone (no `status`, no `projectId`) works fine across all projects. To find a user's issues in a given status across projects, fetch by `assigneeId` only and filter the `status.name` client-side.
 
 ---
 
 ## Local dev environment (Windows / Jed's machine)
 
 - **Local `.env` exists** — `/home/jamie/Projects/TaskForge/.env` is present and contains `V1_API_KEY`, `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`. If it ever goes missing, recreate from `.env.example` and re-add secrets from Railway.
+- **Spurious file-mode-only diffs (`644`↔`755`) show up in `git status` with no content change** — seen on `package.json`, `vitest.config.ts`, and files under `src/components/ui/`, persisting across sessions with no one having touched them. Likely a WSL/Windows-mount artifact (NTFS doesn't preserve unix exec bits reliably). `git diff` on the affected file shows only `old mode`/`new mode` lines, no content. Safe to leave alone — don't restage or commit a mode flip unless you deliberately changed a file's executable bit.
 - Docker Postgres on port 5433 — start with `docker start taskforge-db` if not running (see startup checklist above).
 - Seeded test users (all password `password123`, actual domain per `prisma/seed.ts` is `@jedforge.dev`, not `@taskforge.dev` as earlier notes here said — corrected 2026-08-06): `admin@jedforge.dev` (Alice Chen, `UserRole.ADMIN` — use this account to test any admin-gated feature), `member@jedforge.dev`, `carol@jedforge.dev`, `dave@jedforge.dev`.
 - Seeded local projects (keys): `PL` (Product Launch), `MA` (Mobile App), `WR` (Website Redesign). `prisma/seed.ts` does **not** create a local `JFR` project (corrected 2026-08-06 — earlier notes here were wrong). Production has additional projects (`JFR`, `TFEN`, `JFDOCS`, `WEQUIZ`, etc.) that do not exist in local dev.
