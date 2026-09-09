@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { authConfig } from "./auth.config";
+import { checkRateLimit, recordFailure, getClientIp, logAuthFailure, LOGIN_RATE_LIMIT } from "./rate-limit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -12,21 +13,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        const email = (credentials.email as string).trim().toLowerCase();
+        const ip = getClientIp(request);
+        const key = `login:${ip}:${email}`;
+
+        const limit = await checkRateLimit(key, LOGIN_RATE_LIMIT);
+        if (!limit.allowed) {
+          logAuthFailure({ scope: "login", reason: "rate_limited", email, ip });
+          return null;
+        }
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
+          where: { email },
         });
 
-        if (!user) return null;
+        const passwordMatch = user
+          ? await bcrypt.compare(credentials.password as string, user.passwordHash)
+          : false;
 
-        const passwordMatch = await bcrypt.compare(
-          credentials.password as string,
-          user.passwordHash
-        );
-
-        if (!passwordMatch) return null;
+        if (!user || !passwordMatch) {
+          await recordFailure(key, LOGIN_RATE_LIMIT.windowMs);
+          logAuthFailure({ scope: "login", reason: "invalid_credentials", email, ip });
+          return null;
+        }
 
         return {
           id: user.id,

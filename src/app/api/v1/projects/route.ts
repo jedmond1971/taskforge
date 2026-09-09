@@ -4,7 +4,7 @@ import { requireV1ApiKey } from "@/lib/v1-auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const authError = requireV1ApiKey(request);
+    const authError = await requireV1ApiKey(request);
     if (authError) return authError;
     const projects = await prisma.project.findMany({
       where: { isClosed: false },

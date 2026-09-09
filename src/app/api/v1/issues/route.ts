@@ -17,7 +17,7 @@ const ISSUE_INCLUDE = {
 
 export async function GET(request: NextRequest) {
   try {
-    const authError = requireV1ApiKey(request);
+    const authError = await requireV1ApiKey(request);
     if (authError) return authError;
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authError = requireV1ApiKey(request);
+    const authError = await requireV1ApiKey(request);
     if (authError) return authError;
     const body = (await request.json()) as Record<string, unknown>;
     const { projectId, title, description, status, priority, assigneeId, reporterId } = body;

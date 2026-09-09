@@ -18,7 +18,7 @@ export async function GET(
   { params }: { params: { key: string } }
 ) {
   try {
-    const authError = requireV1ApiKey(request);
+    const authError = await requireV1ApiKey(request);
     if (authError) return authError;
     const issue = await prisma.issue.findUnique({
       where: { key: params.key.toUpperCase() },
@@ -39,7 +39,7 @@ export async function PATCH(
   { params }: { params: { key: string } }
 ) {
   try {
-    const authError = requireV1ApiKey(request);
+    const authError = await requireV1ApiKey(request);
     if (authError) return authError;
     const issue = await prisma.issue.findUnique({
       where: { key: params.key.toUpperCase() },
@@ -168,7 +168,7 @@ export async function DELETE(
   { params }: { params: { key: string } }
 ) {
   try {
-    const authError = requireV1ApiKey(request);
+    const authError = await requireV1ApiKey(request);
     if (authError) return authError;
     const issue = await prisma.issue.findUnique({
       where: { key: params.key.toUpperCase() },

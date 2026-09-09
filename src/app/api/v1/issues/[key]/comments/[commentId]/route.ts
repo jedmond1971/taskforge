@@ -8,7 +8,7 @@ export async function PATCH(
   { params }: { params: { key: string; commentId: string } }
 ) {
   try {
-    const authError = requireV1ApiKey(request);
+    const authError = await requireV1ApiKey(request);
     if (authError) return authError;
     const comment = await prisma.comment.findUnique({
       where: { id: params.commentId },
@@ -53,7 +53,7 @@ export async function DELETE(
   { params }: { params: { key: string; commentId: string } }
 ) {
   try {
-    const authError = requireV1ApiKey(request);
+    const authError = await requireV1ApiKey(request);
     if (authError) return authError;
     const comment = await prisma.comment.findUnique({
       where: { id: params.commentId },

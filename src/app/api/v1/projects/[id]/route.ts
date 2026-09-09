@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authError = requireV1ApiKey(request);
+    const authError = await requireV1ApiKey(request);
     if (authError) return authError;
     const project = await prisma.project.findUnique({
       where: { id: params.id },
