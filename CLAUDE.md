@@ -5,7 +5,7 @@
 ### Startup checklist (run at the beginning of every session)
 1. `git status` — confirm the working tree is clean before starting. Commit or stash any pre-existing changes first.
 2. `docker start taskforge-db 2>/dev/null; docker ps --filter name=taskforge-db --format "{{.Status}}"` — confirm Postgres is running. **Empty output means the container doesn't exist at all** (confirmed happens in a fresh environment, 2026-08-06) — `docker start` on a nonexistent container fails silently rather than erroring. See `.context-docs/local-dev-tooling.md` for the recreate-and-reseed recipe.
-3. Find or create a JedForge issue for the work ahead. The only open production projects are **JFR** (JedForge work) and **WEQUIZ** (both in "The OG" org) — TFEN and JFDOCS are closed; use JFR for new JedForge issues. See `CLAUDE_API.md` → Working Convention.
+3. Find or create a JedForge issue for the work ahead. Open production projects: **JFR** (JedForge work), **WEQUIZ**, and **SECH** (Security Hardening — confirmed open 2026-09-09, tracking issues like SECH-82) — TFEN and JFDOCS are closed; use JFR for new JedForge-tooling issues, but work an existing ticket (e.g. a SECH-* issue) directly when one is named. See `CLAUDE_API.md` → Working Convention.
 
 ### Pre-commit checklist (run before every commit)
 1. `npm run lint` — zero errors required. Pre-existing warnings are acceptable; new ones are not.
