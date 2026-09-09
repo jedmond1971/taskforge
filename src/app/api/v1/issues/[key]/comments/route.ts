@@ -23,10 +23,8 @@ function formatComment(comment: {
   };
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { key: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ key: string }> }) {
+  const params = await props.params;
   try {
     const authError = requireV1ApiKey(request);
     if (authError) return authError;
@@ -51,10 +49,8 @@ export async function GET(
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { key: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ key: string }> }) {
+  const params = await props.params;
   try {
     const authError = requireV1ApiKey(request);
     if (authError) return authError;

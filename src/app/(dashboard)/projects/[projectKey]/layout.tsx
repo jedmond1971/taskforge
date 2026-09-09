@@ -6,6 +6,7 @@ import { ProjectNav } from "@/components/projects/ProjectNav";
 import { ProjectShortcuts } from "@/components/projects/ProjectShortcuts";
 import { canManageCustomFields } from "@/lib/permissions";
 
+
 async function getProjectAsMember(key: string, userId: string) {
   return prisma.project.findFirst({
     where: {
@@ -16,17 +17,22 @@ async function getProjectAsMember(key: string, userId: string) {
   });
 }
 
-export default async function ProjectLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: { projectKey: string };
-}) {
+export default async function ProjectLayout(
+  props: {
+    children: React.ReactNode;
+    params: Promise<{ projectKey: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    children
+  } = props;
+
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const pathname = headers().get("x-pathname") ?? "";
+  const pathname = (await headers()).get("x-pathname") ?? "";
   const isSettingsPath = /\/projects\/[^/]+\/settings(\/|$)/i.test(pathname);
 
   let project = await getProjectAsMember(params.projectKey, session.user.id);

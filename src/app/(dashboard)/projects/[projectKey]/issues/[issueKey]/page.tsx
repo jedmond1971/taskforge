@@ -14,11 +14,13 @@ import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { isAiChatEnabled } from "@/lib/ai/feature-flag";
 import { prisma } from "@/lib/prisma";
 
+
 interface PageProps {
-  params: { projectKey: string; issueKey: string };
+  params: Promise<{ projectKey: string; issueKey: string }>;
 }
 
-export default async function IssueDetailPage({ params }: PageProps) {
+export default async function IssueDetailPage(props: PageProps) {
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) redirect("/login");
 

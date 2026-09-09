@@ -2,6 +2,7 @@ import { BellOff } from "lucide-react";
 import { getNotifications } from "./actions";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 
+
 export default async function NotificationsPage() {
   const notifications = await getNotifications();
 

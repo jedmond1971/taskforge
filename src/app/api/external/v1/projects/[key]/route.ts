@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireExternalApiKey, err, formatProject } from "../../_helpers";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { key: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ key: string }> }) {
+  const params = await props.params;
   try {
     const ctx = await requireExternalApiKey(request);
     if (ctx instanceof NextResponse) return ctx;

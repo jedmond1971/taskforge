@@ -7,6 +7,7 @@ import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 import { PRIORITY_MAP, formatIssue, resolveStatusForProject } from "@/app/api/v1/_helpers";
 import { normalizeBody, TYPE_MAP, ISSUE_INCLUDE } from "@/app/api/external/v1/_helpers";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
+import { upsertDocSpaceSafe } from "@/app/api/docs/_helpers";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
 import { notificationService } from "@/lib/notifications";
 import { parse, validate, executeQuery, ParseError } from "@/lib/query";
@@ -66,7 +67,7 @@ async function requireDocContext(projectKey: string, ctx: OAuthTokenContext) {
   });
   if (!member) return null;
 
-  const docSpace = await prisma.docSpace.upsert({
+  const docSpace = await upsertDocSpaceSafe({
     where: { projectId: project.id },
     create: { projectId: project.id },
     update: {},

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Users, GitBranch, Plus } from "lucide-react";
 import { NewProjectDialog } from "@/components/projects/NewProjectDialog";
 
+
 async function getProjects(userId: string) {
   return prisma.project.findMany({
     where: { members: { some: { userId } }, isClosed: false },

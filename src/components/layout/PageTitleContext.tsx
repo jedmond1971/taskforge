@@ -18,6 +18,9 @@ export function PageTitleProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
+    // Clears the previous page's title on route change; the new page's own
+    // SetPageTitle (if any) re-sets it in its own effect. This is a context-wide
+    // reset driven by navigation, not state derived from this component's own props.
     setTitle(null);
   }, [pathname]);
 

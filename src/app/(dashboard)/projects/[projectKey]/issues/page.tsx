@@ -14,15 +14,16 @@ import { AutoRefresh } from "@/components/layout/AutoRefresh";
 import { Button } from "@/components/ui/button";
 import { ListChecks } from "lucide-react";
 
+
 interface PageProps {
-  params: { projectKey: string };
-  searchParams: {
+  params: Promise<{ projectKey: string }>;
+  searchParams: Promise<{
     status?: string;
     priority?: string;
     type?: string;
     assigneeId?: string;
     search?: string;
-  };
+  }>;
 }
 
 function isValidPriority(v: string): v is IssuePriority {
@@ -32,7 +33,9 @@ function isValidType(v: string): v is IssueType {
   return ["BUG", "TASK", "STORY", "EPIC"].includes(v);
 }
 
-export default async function IssuesPage({ params, searchParams }: PageProps) {
+export default async function IssuesPage(props: PageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) redirect("/login");
 

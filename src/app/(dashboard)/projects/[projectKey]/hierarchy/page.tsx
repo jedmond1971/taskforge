@@ -3,11 +3,13 @@ import { redirect } from "next/navigation";
 import { getIssuesHierarchy } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { HierarchyView } from "@/components/issues/HierarchyView";
 
+
 interface PageProps {
-  params: { projectKey: string };
+  params: Promise<{ projectKey: string }>;
 }
 
-export default async function HierarchyPage({ params }: PageProps) {
+export default async function HierarchyPage(props: PageProps) {
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) redirect("/login");
 

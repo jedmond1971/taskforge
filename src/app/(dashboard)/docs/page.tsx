@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, FileText, ChevronRight, Lock } from "lucide-react";
 
+
 async function getProjectsWithDocs(userId: string) {
   const memberships = await prisma.projectMember.findMany({
     where: { userId },

@@ -10,8 +10,9 @@ import { resolveDocCtx } from "@/app/api/docs/_helpers";
 // objects under this page's own docx-images/ prefix.
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { projectKey: string; pageId: string; imageKey: string } }
+  props: { params: Promise<{ projectKey: string; pageId: string; imageKey: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

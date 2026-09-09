@@ -6,10 +6,8 @@ import { resolveDocCtx } from "@/app/api/docs/_helpers";
 const MAX_RESULTS = 20;
 
 // GET /api/docs/[projectKey]/search?q=<query>
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { projectKey: string } }
-) {
+export async function GET(req: NextRequest, props: { params: Promise<{ projectKey: string }> }) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -15,10 +15,8 @@ import {
 } from "../../../_helpers";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { key: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ key: string }> }) {
+  const params = await props.params;
   try {
     const ctx = await requireExternalApiKey(request);
     if (ctx instanceof NextResponse) return ctx;
@@ -81,10 +79,8 @@ export async function GET(
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { key: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ key: string }> }) {
+  const params = await props.params;
   try {
     const ctx = await requireExternalApiKey(request);
     if (ctx instanceof NextResponse) return ctx;

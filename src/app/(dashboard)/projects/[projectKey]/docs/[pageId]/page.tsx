@@ -8,6 +8,7 @@ import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permission
 import { ProjectMemberRole } from "@prisma/client";
 import { recordDocPageView } from "@/lib/doc-page-views";
 
+
 async function getPageData(projectKey: string, pageId: string, userId: string) {
   const project = await prisma.project.findFirst({
     where: { key: projectKey.toUpperCase() },
@@ -54,11 +55,12 @@ async function getPageData(projectKey: string, pageId: string, userId: string) {
   return { project, page, revisions, role: member.role as ProjectMemberRole, isClosed: project.isClosed, grants };
 }
 
-export default async function DocPagePage({
-  params,
-}: {
-  params: { projectKey: string; pageId: string };
-}) {
+export default async function DocPagePage(
+  props: {
+    params: Promise<{ projectKey: string; pageId: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) redirect("/login");
 

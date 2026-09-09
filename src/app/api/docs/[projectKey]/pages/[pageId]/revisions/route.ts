@@ -5,8 +5,9 @@ import { prisma } from "@/lib/prisma";
 // GET /api/docs/[projectKey]/pages/[pageId]/revisions
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { projectKey: string; pageId: string } }
+  props: { params: Promise<{ projectKey: string; pageId: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

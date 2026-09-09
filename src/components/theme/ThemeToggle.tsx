@@ -9,6 +9,8 @@ export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Hydration-mismatch guard (next-themes' documented pattern): resolvedTheme
+    // is unknown during SSR, so this must flip after mount, not during render.
     setMounted(true);
   }, []);
 

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getInviteWithStatus } from "@/lib/invites";
 import { InviteAcceptClient } from "./InviteAcceptClient";
 
+
 const accentLine = (
   <div
     className="absolute top-0 rounded-sm"
@@ -30,7 +31,8 @@ function ErrorCard({ title, children }: { title: string; children: React.ReactNo
 
 type Mode = "new-user" | "existing-matching" | "existing-mismatch" | "needs-login";
 
-export default async function InvitePage({ params }: { params: { token: string } }) {
+export default async function InvitePage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const { token } = params;
   const invite = await getInviteWithStatus(token);
 

@@ -20,8 +20,9 @@ async function resolveSection(projectKey: string, sectionId: string, userId: str
 // PATCH /api/docs/[projectKey]/sections/[sectionId] — requires TEAM_MEMBER or PROJECT_LEAD
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { projectKey: string; sectionId: string } }
+  props: { params: Promise<{ projectKey: string; sectionId: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -67,8 +68,9 @@ export async function PATCH(
 // DELETE /api/docs/[projectKey]/sections/[sectionId] — requires PROJECT_LEAD
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { projectKey: string; sectionId: string } }
+  props: { params: Promise<{ projectKey: string; sectionId: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

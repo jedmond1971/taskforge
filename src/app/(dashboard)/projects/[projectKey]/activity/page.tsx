@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
 
+
 async function getProjectActivity(projectKey: string, userId: string) {
   const project = await prisma.project.findFirst({
     where: { key: projectKey.toUpperCase(), members: { some: { userId } } },
@@ -23,7 +24,8 @@ async function getProjectActivity(projectKey: string, userId: string) {
   return entries;
 }
 
-export default async function ActivityPage({ params }: { params: { projectKey: string } }) {
+export default async function ActivityPage(props: { params: Promise<{ projectKey: string }> }) {
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) redirect("/login");
 
