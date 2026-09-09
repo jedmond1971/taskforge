@@ -71,7 +71,7 @@
     "tailwindcss": "^4.2.2",
     "tsx": "^4.21.0",
     "typescript": "^5",
-    "vitest": "^3.2.4"
+    "vitest": "^5.0.0"
   },
   "overrides": {
     "@types/react": "19.2.18",
