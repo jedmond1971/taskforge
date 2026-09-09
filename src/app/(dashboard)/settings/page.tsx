@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 import { AvatarUpload } from "@/components/settings/AvatarUpload";
 
+
 export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");

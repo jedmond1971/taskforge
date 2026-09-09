@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Users, GitBranch } from "lucide-react";
 import { reopenProject } from "../closed-actions";
 
+
 async function getClosedProjects(userId: string, isAdmin: boolean) {
   if (isAdmin) {
     return prisma.project.findMany({

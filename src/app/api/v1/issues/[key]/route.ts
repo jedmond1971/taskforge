@@ -13,10 +13,8 @@ const ISSUE_INCLUDE = {
   _count: { select: { comments: true, attachments: true } },
 } as const;
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { key: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ key: string }> }) {
+  const params = await props.params;
   try {
     const authError = await requireV1ApiKey(request);
     if (authError) return authError;
@@ -34,10 +32,8 @@ export async function GET(
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { key: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ key: string }> }) {
+  const params = await props.params;
   try {
     const authError = await requireV1ApiKey(request);
     if (authError) return authError;
@@ -163,10 +159,8 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { key: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ key: string }> }) {
+  const params = await props.params;
   try {
     const authError = await requireV1ApiKey(request);
     if (authError) return authError;

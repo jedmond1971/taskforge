@@ -16,8 +16,9 @@ import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-p
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { key: string; issueKey: string } }
+  props: { params: Promise<{ key: string; issueKey: string }> }
 ) {
+  const params = await props.params;
   try {
     const ctx = await requireExternalApiKey(request);
     if (ctx instanceof NextResponse) return ctx;
@@ -40,8 +41,9 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { key: string; issueKey: string } }
+  props: { params: Promise<{ key: string; issueKey: string }> }
 ) {
+  const params = await props.params;
   try {
     const ctx = await requireExternalApiKey(request);
     if (ctx instanceof NextResponse) return ctx;

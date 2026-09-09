@@ -8,6 +8,8 @@ import { RecentlyViewedDocs } from "@/components/docs/recently-viewed-docs";
 import { DocsListBody } from "@/components/docs/docs-list-body";
 import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 import { ProjectMemberRole } from "@prisma/client";
+import { upsertDocSpaceSafe } from "@/app/api/docs/_helpers";
+
 
 async function getDocSpaceData(projectKey: string, userId: string) {
   const project = await prisma.project.findFirst({
@@ -22,7 +24,7 @@ async function getDocSpaceData(projectKey: string, userId: string) {
   });
   if (!member) return null;
 
-  const docSpace = await prisma.docSpace.upsert({
+  const docSpace = await upsertDocSpaceSafe({
     where: { projectId: project.id },
     create: { projectId: project.id },
     update: {},
@@ -69,7 +71,8 @@ async function getDocSpaceData(projectKey: string, userId: string) {
   return { project, docSpace, role: member.role as ProjectMemberRole, grants, recentlyViewed };
 }
 
-export default async function ProjectDocsPage({ params }: { params: { projectKey: string } }) {
+export default async function ProjectDocsPage(props: { params: Promise<{ projectKey: string }> }) {
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) redirect("/login");
 

@@ -435,7 +435,7 @@ describe("PATCH /api/issues/[issueId]", () => {
 
     const res = await patchIssue(
       makeRequest({ assigneeId: "outsider" }),
-      { params: { issueId: "issue-1" } }
+      { params: Promise.resolve({ issueId: "issue-1" }) }
     );
     expect(res.status).toBe(400);
     expect(mockPrisma.issue.update).not.toHaveBeenCalled();
@@ -447,7 +447,7 @@ describe("PATCH /api/issues/[issueId]", () => {
 
     const res = await patchIssue(
       makeRequest({ assigneeId: null }),
-      { params: { issueId: "issue-1" } }
+      { params: Promise.resolve({ issueId: "issue-1" }) }
     );
     expect(res.status).toBe(200);
     expect(mockPrisma.issue.update).toHaveBeenCalled();
@@ -462,7 +462,7 @@ describe("PATCH /api/issues/[issueId]", () => {
 
     const res = await patchIssue(
       makeRequest({ assigneeId: "user-2" }),
-      { params: { issueId: "issue-1" } }
+      { params: Promise.resolve({ issueId: "issue-1" }) }
     );
     expect(res.status).toBe(200);
     expect(mockPrisma.issue.update).toHaveBeenCalled();

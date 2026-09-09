@@ -1,5 +1,5 @@
 declare module "react-file-icon" {
-  import type { ReactElement } from "react";
+  import type { JSX } from "react";
 
   export interface FileIconProps {
     color?: string;
@@ -32,7 +32,7 @@ declare module "react-file-icon" {
       | "video";
   }
 
-  export function FileIcon(props: FileIconProps): ReactElement;
+  export function FileIcon(props: FileIconProps): JSX.Element;
 
   export const defaultStyles: Record<string, FileIconProps>;
 }

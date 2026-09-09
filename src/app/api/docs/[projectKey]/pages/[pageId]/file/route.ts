@@ -43,8 +43,9 @@ async function resolvePage(projectKey: string, pageId: string, userId: string) {
 // GET /api/docs/[projectKey]/pages/[pageId]/file — return a presigned download URL
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { projectKey: string; pageId: string } }
+  props: { params: Promise<{ projectKey: string; pageId: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -73,8 +74,9 @@ export async function GET(
 // POST /api/docs/[projectKey]/pages/[pageId]/file — upload or replace the file (TEAM_MEMBER+)
 export async function POST(
   req: NextRequest,
-  { params }: { params: { projectKey: string; pageId: string } }
+  props: { params: Promise<{ projectKey: string; pageId: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

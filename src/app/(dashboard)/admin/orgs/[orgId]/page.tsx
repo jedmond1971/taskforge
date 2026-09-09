@@ -7,6 +7,7 @@ import { SetPageTitle } from "@/components/layout/PageTitleContext";
 import { getAdminOrgDetail } from "../../actions";
 import type { Plan, OrgRole } from "@prisma/client";
 
+
 const PLAN_LABELS: Record<Plan, string> = { FREE: "Free", PRO: "Pro", TEAM: "Team" };
 const ROLE_LABELS: Record<OrgRole, string> = { OWNER: "Owner", ADMIN: "Admin", MEMBER: "Member" };
 
@@ -14,11 +15,12 @@ function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
-export default async function AdminOrgDetailPage({
-  params,
-}: {
-  params: { orgId: string };
-}) {
+export default async function AdminOrgDetailPage(
+  props: {
+    params: Promise<{ orgId: string }>;
+  }
+) {
+  const params = await props.params;
   const org = await getAdminOrgDetail(params.orgId);
   if (!org) notFound();
 

@@ -6,10 +6,8 @@ import { resolveDocCtx } from "@/app/api/docs/_helpers";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
 
 // GET /api/docs/[projectKey]/pages
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { projectKey: string } }
-) {
+export async function GET(req: NextRequest, props: { params: Promise<{ projectKey: string }> }) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -39,10 +37,8 @@ export async function GET(
 }
 
 // POST /api/docs/[projectKey]/pages — requires TEAM_MEMBER or PROJECT_LEAD
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { projectKey: string } }
-) {
+export async function POST(req: NextRequest, props: { params: Promise<{ projectKey: string }> }) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

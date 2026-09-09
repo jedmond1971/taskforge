@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+
 export default function RegisterPage() {
   return (
     <div className="min-h-screen w-full flex items-center justify-center px-4 sm:px-6">

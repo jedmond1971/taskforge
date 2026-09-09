@@ -7,6 +7,7 @@ import { AutoRefresh } from "@/components/layout/AutoRefresh";
 import { CATEGORY_ORDER } from "@/lib/issue-utils";
 import { StatusCategory } from "@prisma/client";
 
+
 const ISSUE_SELECT = {
   id: true,
   key: true,
@@ -75,7 +76,8 @@ async function getBoardData(projectKey: string, userId: string) {
   return { ...project, statuses: sortedStatuses, issues: visibleIssues, activeSprintId };
 }
 
-export default async function BoardPage({ params }: { params: { projectKey: string } }) {
+export default async function BoardPage(props: { params: Promise<{ projectKey: string }> }) {
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) redirect("/login");
 

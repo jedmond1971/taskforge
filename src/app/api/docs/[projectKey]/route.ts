@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { resolveDocCtx } from "@/app/api/docs/_helpers";
+import { resolveDocCtx, upsertDocSpaceSafe } from "@/app/api/docs/_helpers";
 
 // GET /api/docs/[projectKey] — fetch (or lazily create) the docspace with sections and pages
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { projectKey: string } }
-) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ projectKey: string }> }) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -43,10 +41,8 @@ export async function GET(
 }
 
 // PATCH /api/docs/[projectKey] — update docspace visibility (PROJECT_LEAD only)
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { projectKey: string } }
-) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ projectKey: string }> }) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -68,7 +64,7 @@ export async function PATCH(
       return NextResponse.json({ error: "isPublic must be a boolean" }, { status: 400 });
     }
 
-    const docSpace = await prisma.docSpace.upsert({
+    const docSpace = await upsertDocSpaceSafe({
       where: { projectId: member.project.id },
       create: { projectId: member.project.id, isPublic: body.isPublic },
       update: { isPublic: body.isPublic },

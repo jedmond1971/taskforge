@@ -7,6 +7,7 @@ import { SetPageTitle } from "@/components/layout/PageTitleContext";
 import { getAdminProjectDetail } from "../../actions";
 import type { ProjectMemberRole } from "@prisma/client";
 
+
 const ROLE_LABELS: Record<ProjectMemberRole, string> = {
   PROJECT_LEAD: "Project Lead",
   TEAM_MEMBER: "Team Member",
@@ -17,11 +18,12 @@ function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
-export default async function AdminProjectDetailPage({
-  params,
-}: {
-  params: { projectId: string };
-}) {
+export default async function AdminProjectDetailPage(
+  props: {
+    params: Promise<{ projectId: string }>;
+  }
+) {
+  const params = await props.params;
   const project = await getAdminProjectDetail(params.projectId);
   if (!project) notFound();
 

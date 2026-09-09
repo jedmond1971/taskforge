@@ -160,14 +160,14 @@ describe("GET /api/docs/[projectKey]", () => {
 
   it("returns 401 when unauthenticated", async () => {
     mockNoSession();
-    const res = await getDocSpace(makeGetRequest(), { params: { projectKey: "PRJ" } });
+    const res = await getDocSpace(makeGetRequest(), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(401);
   });
 
   it("returns 404 when project not found / access denied", async () => {
     mockSession();
     mockPrisma.project.findFirst.mockResolvedValue(null);
-    const res = await getDocSpace(makeGetRequest(), { params: { projectKey: "UNKNOWN" } });
+    const res = await getDocSpace(makeGetRequest(), { params: Promise.resolve({ projectKey: "UNKNOWN" }) });
     expect(res.status).toBe(404);
   });
 
@@ -181,7 +181,7 @@ describe("GET /api/docs/[projectKey]", () => {
       pages: [],
     });
 
-    const res = await getDocSpace(makeGetRequest(), { params: { projectKey: "PRJ" } });
+    const res = await getDocSpace(makeGetRequest(), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.docSpace).toBeDefined();
@@ -195,14 +195,14 @@ describe("PATCH /api/docs/[projectKey]", () => {
 
   it("returns 401 when unauthenticated", async () => {
     mockNoSession();
-    const res = await patchDocSpace(makeRequest({ isPublic: true }), { params: { projectKey: "PRJ" } });
+    const res = await patchDocSpace(makeRequest({ isPublic: true }), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(401);
   });
 
   it("returns 404 when user is not a project member", async () => {
     mockSession();
     mockPrisma.projectMember.findFirst.mockResolvedValue(null);
-    const res = await patchDocSpace(makeRequest({ isPublic: true }), { params: { projectKey: "PRJ" } });
+    const res = await patchDocSpace(makeRequest({ isPublic: true }), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(404);
   });
 
@@ -212,7 +212,7 @@ describe("PATCH /api/docs/[projectKey]", () => {
       role: "TEAM_MEMBER",
       project: { id: "proj-1" },
     });
-    const res = await patchDocSpace(makeRequest({ isPublic: true }), { params: { projectKey: "PRJ" } });
+    const res = await patchDocSpace(makeRequest({ isPublic: true }), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(403);
   });
 
@@ -222,7 +222,7 @@ describe("PATCH /api/docs/[projectKey]", () => {
       role: "PROJECT_LEAD",
       project: { id: "proj-1" },
     });
-    const res = await patchDocSpace(makeRequest({ isPublic: "yes" }), { params: { projectKey: "PRJ" } });
+    const res = await patchDocSpace(makeRequest({ isPublic: "yes" }), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(400);
   });
 
@@ -234,7 +234,7 @@ describe("PATCH /api/docs/[projectKey]", () => {
     });
     mockPrisma.docSpace.upsert.mockResolvedValue({ id: "ds-1", isPublic: true });
 
-    const res = await patchDocSpace(makeRequest({ isPublic: true }), { params: { projectKey: "PRJ" } });
+    const res = await patchDocSpace(makeRequest({ isPublic: true }), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.docSpace.isPublic).toBe(true);
@@ -248,7 +248,7 @@ describe("GET /api/docs/[projectKey]/pages", () => {
 
   it("returns 401 when unauthenticated", async () => {
     mockNoSession();
-    const res = await getPages(makeGetRequest(), { params: { projectKey: "PRJ" } });
+    const res = await getPages(makeGetRequest(), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(401);
   });
 
@@ -257,7 +257,7 @@ describe("GET /api/docs/[projectKey]/pages", () => {
     setupMemberCtx("VIEWER");
     mockPrisma.docPage.findMany.mockResolvedValue([{ id: "p-1", title: "Home" }]);
 
-    const res = await getPages(makeGetRequest(), { params: { projectKey: "PRJ" } });
+    const res = await getPages(makeGetRequest(), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.pages).toHaveLength(1);
@@ -272,21 +272,21 @@ describe("POST /api/docs/[projectKey]/pages", () => {
   it("returns 403 for VIEWER", async () => {
     mockSession();
     setupMemberCtx("VIEWER");
-    const res = await postPages(makeRequest({ title: "New Page" }), { params: { projectKey: "PRJ" } });
+    const res = await postPages(makeRequest({ title: "New Page" }), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(403);
   });
 
   it("returns 403 for authenticated non-member on a public docspace", async () => {
     mockSession();
     setupPublicNonMember();
-    const res = await postPages(makeRequest({ title: "New Page" }), { params: { projectKey: "PRJ" } });
+    const res = await postPages(makeRequest({ title: "New Page" }), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(403);
   });
 
   it("returns 400 when title is empty", async () => {
     mockSession();
     setupMemberCtx("TEAM_MEMBER");
-    const res = await postPages(makeRequest({ title: "  " }), { params: { projectKey: "PRJ" } });
+    const res = await postPages(makeRequest({ title: "  " }), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(400);
   });
 
@@ -301,7 +301,7 @@ describe("POST /api/docs/[projectKey]/pages", () => {
       author: { id: "user-1", name: "Alice", avatarUrl: null },
     });
 
-    const res = await postPages(makeRequest({ title: "My Page" }), { params: { projectKey: "PRJ" } });
+    const res = await postPages(makeRequest({ title: "My Page" }), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.page.title).toBe("My Page");
@@ -315,7 +315,7 @@ describe("GET /api/docs/[projectKey]/pages/[pageId]", () => {
 
   it("returns 401 when unauthenticated", async () => {
     mockNoSession();
-    const res = await getPage(makeGetRequest(), { params: { projectKey: "PRJ", pageId: "p-1" } });
+    const res = await getPage(makeGetRequest(), { params: Promise.resolve({ projectKey: "PRJ", pageId: "p-1" }) });
     expect(res.status).toBe(401);
   });
 
@@ -331,7 +331,7 @@ describe("GET /api/docs/[projectKey]/pages/[pageId]", () => {
       section: null,
     });
 
-    const res = await getPage(makeGetRequest(), { params: { projectKey: "PRJ", pageId: "p-1" } });
+    const res = await getPage(makeGetRequest(), { params: Promise.resolve({ projectKey: "PRJ", pageId: "p-1" }) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.page.id).toBe("p-1");
@@ -341,7 +341,7 @@ describe("GET /api/docs/[projectKey]/pages/[pageId]", () => {
 // ─── PATCH /api/docs/[projectKey]/pages/[pageId] ─────────────────────────────
 
 describe("PATCH /api/docs/[projectKey]/pages/[pageId]", () => {
-  const PAGE_PARAMS = { params: { projectKey: "PRJ", pageId: "p-1" } };
+  const PAGE_PARAMS = { params: Promise.resolve({ projectKey: "PRJ", pageId: "p-1" }) };
 
   beforeEach(() => vi.clearAllMocks());
 
@@ -447,7 +447,7 @@ describe("PATCH /api/docs/[projectKey]/pages/[pageId]", () => {
 // ─── DELETE /api/docs/[projectKey]/pages/[pageId] ────────────────────────────
 
 describe("DELETE /api/docs/[projectKey]/pages/[pageId]", () => {
-  const PAGE_PARAMS = { params: { projectKey: "PRJ", pageId: "p-1" } };
+  const PAGE_PARAMS = { params: Promise.resolve({ projectKey: "PRJ", pageId: "p-1" }) };
 
   beforeEach(() => vi.clearAllMocks());
 
@@ -500,7 +500,7 @@ describe("GET /api/docs/[projectKey]/sections", () => {
 
   it("returns 401 when unauthenticated", async () => {
     mockNoSession();
-    const res = await getSections(makeGetRequest(), { params: { projectKey: "PRJ" } });
+    const res = await getSections(makeGetRequest(), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(401);
   });
 
@@ -509,7 +509,7 @@ describe("GET /api/docs/[projectKey]/sections", () => {
     setupMemberCtx("VIEWER");
     mockPrisma.docSection.findMany.mockResolvedValue([{ id: "s-1", title: "Getting Started", pages: [] }]);
 
-    const res = await getSections(makeGetRequest(), { params: { projectKey: "PRJ" } });
+    const res = await getSections(makeGetRequest(), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.sections).toHaveLength(1);
@@ -524,14 +524,14 @@ describe("POST /api/docs/[projectKey]/sections", () => {
   it("returns 403 for VIEWER", async () => {
     mockSession();
     setupMemberCtx("VIEWER");
-    const res = await postSections(makeRequest({ title: "New Section" }), { params: { projectKey: "PRJ" } });
+    const res = await postSections(makeRequest({ title: "New Section" }), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(403);
   });
 
   it("returns 400 when title is empty", async () => {
     mockSession();
     setupMemberCtx("TEAM_MEMBER");
-    const res = await postSections(makeRequest({ title: "" }), { params: { projectKey: "PRJ" } });
+    const res = await postSections(makeRequest({ title: "" }), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(400);
   });
 
@@ -541,7 +541,7 @@ describe("POST /api/docs/[projectKey]/sections", () => {
     mockPrisma.docSection.aggregate.mockResolvedValue({ _max: { position: null } });
     mockPrisma.docSection.create.mockResolvedValue({ id: "s-1", title: "New Section", position: 0 });
 
-    const res = await postSections(makeRequest({ title: "New Section" }), { params: { projectKey: "PRJ" } });
+    const res = await postSections(makeRequest({ title: "New Section" }), { params: Promise.resolve({ projectKey: "PRJ" }) });
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.section.title).toBe("New Section");
@@ -551,7 +551,7 @@ describe("POST /api/docs/[projectKey]/sections", () => {
 // ─── PATCH /api/docs/[projectKey]/sections/[sectionId] ───────────────────────
 
 describe("PATCH /api/docs/[projectKey]/sections/[sectionId]", () => {
-  const SECTION_PARAMS = { params: { projectKey: "PRJ", sectionId: "s-1" } };
+  const SECTION_PARAMS = { params: Promise.resolve({ projectKey: "PRJ", sectionId: "s-1" }) };
 
   beforeEach(() => vi.clearAllMocks());
 
@@ -587,7 +587,7 @@ describe("PATCH /api/docs/[projectKey]/sections/[sectionId]", () => {
 // ─── DELETE /api/docs/[projectKey]/sections/[sectionId] ──────────────────────
 
 describe("DELETE /api/docs/[projectKey]/sections/[sectionId]", () => {
-  const SECTION_PARAMS = { params: { projectKey: "PRJ", sectionId: "s-1" } };
+  const SECTION_PARAMS = { params: Promise.resolve({ projectKey: "PRJ", sectionId: "s-1" }) };
 
   beforeEach(() => vi.clearAllMocks());
 
@@ -622,7 +622,7 @@ describe("GET /api/docs/[projectKey]/search", () => {
     mockNoSession();
     const res = await searchPages(
       makeGetRequest("http://localhost/search?q=hello"),
-      { params: { projectKey: "PRJ" } }
+      { params: Promise.resolve({ projectKey: "PRJ" }) }
     );
     expect(res.status).toBe(401);
   });
@@ -633,7 +633,7 @@ describe("GET /api/docs/[projectKey]/search", () => {
 
     const res = await searchPages(
       makeGetRequest("http://localhost/search?q="),
-      { params: { projectKey: "PRJ" } }
+      { params: Promise.resolve({ projectKey: "PRJ" }) }
     );
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -657,7 +657,7 @@ describe("GET /api/docs/[projectKey]/search", () => {
 
     const res = await searchPages(
       makeGetRequest("http://localhost/search?q=database"),
-      { params: { projectKey: "PRJ" } }
+      { params: Promise.resolve({ projectKey: "PRJ" }) }
     );
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -685,7 +685,7 @@ describe("GET /api/docs/[projectKey]/search", () => {
 
     const res = await searchPages(
       makeGetRequest("http://localhost/search?q=database"),
-      { params: { projectKey: "PRJ" } }
+      { params: Promise.resolve({ projectKey: "PRJ" }) }
     );
     const body = await res.json();
     expect(body.results[0].snippet).toBeNull();
@@ -695,7 +695,7 @@ describe("GET /api/docs/[projectKey]/search", () => {
 // ─── GET /api/docs/[projectKey]/pages/[pageId]/revisions ─────────────────────
 
 describe("GET /api/docs/[projectKey]/pages/[pageId]/revisions", () => {
-  const REV_PARAMS = { params: { projectKey: "PRJ", pageId: "p-1" } };
+  const REV_PARAMS = { params: Promise.resolve({ projectKey: "PRJ", pageId: "p-1" }) };
 
   beforeEach(() => vi.clearAllMocks());
 

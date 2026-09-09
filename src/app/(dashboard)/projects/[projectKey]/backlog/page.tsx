@@ -5,6 +5,7 @@ import { AutoRefresh } from "@/components/layout/AutoRefresh";
 import { BacklogView } from "@/components/projects/BacklogView";
 import { canManageSprint, canEditIssues, getUserGrants } from "@/lib/permissions";
 
+
 const ISSUE_SELECT = {
   id: true,
   key: true,
@@ -41,7 +42,8 @@ async function getBacklogData(projectKey: string, userId: string) {
   return { project, currentSprint, backlogIssues };
 }
 
-export default async function BacklogPage({ params }: { params: { projectKey: string } }) {
+export default async function BacklogPage(props: { params: Promise<{ projectKey: string }> }) {
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) redirect("/login");
 

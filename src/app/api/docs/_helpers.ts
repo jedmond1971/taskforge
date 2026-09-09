@@ -1,5 +1,31 @@
 import { prisma } from "@/lib/prisma";
-import { ProjectMemberRole } from "@prisma/client";
+import { Prisma, ProjectMemberRole } from "@prisma/client";
+
+/**
+ * Prisma's upsert() isn't atomic against a genuine concurrent-insert race: two
+ * requests can both miss the `where` lookup and both attempt `create`, and the
+ * loser hits a unique-constraint violation (P2002) instead of falling through
+ * to `update`. This became reachable in normal usage once Next.js started
+ * prefetching visible nav links more eagerly (Next 16 upgrade, SECH-81),
+ * which fires a concurrent request racing the user's own navigation on a
+ * DocSpace's first-ever lazy-create. Retry once as a plain fetch on P2002.
+ */
+export async function upsertDocSpaceSafe<T extends Prisma.DocSpaceUpsertArgs>(
+  args: Prisma.SelectSubset<T, Prisma.DocSpaceUpsertArgs>
+): Promise<Prisma.DocSpaceGetPayload<T>> {
+  try {
+    return (await prisma.docSpace.upsert(args)) as Prisma.DocSpaceGetPayload<T>;
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return (await prisma.docSpace.findUniqueOrThrow({
+        where: args.where,
+        select: args.select,
+        include: args.include,
+      } as Prisma.DocSpaceFindUniqueOrThrowArgs)) as Prisma.DocSpaceGetPayload<T>;
+    }
+    throw err;
+  }
+}
 
 export type DocCtx = {
   projectId: string;
@@ -41,7 +67,7 @@ export async function resolveDocCtx(
     return { projectId: project.id, orgId: project.orgId, docSpaceId: docSpace.id, isPublic: true, role: null };
   }
 
-  const docSpace = await prisma.docSpace.upsert({
+  const docSpace = await upsertDocSpaceSafe({
     where: { projectId: project.id },
     create: { projectId: project.id },
     update: {},

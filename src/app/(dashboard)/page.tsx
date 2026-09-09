@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { FolderKanban, CheckCircle2, Clock, AlertCircle, CalendarClock, Plus } from "lucide-react";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
 
+
 async function getUserProjects(userId: string) {
   return prisma.project.findMany({
     where: {

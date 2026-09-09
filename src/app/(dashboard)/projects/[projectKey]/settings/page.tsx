@@ -4,11 +4,13 @@ import { redirect, notFound } from "next/navigation";
 import { ProjectSettings } from "./ProjectSettings";
 import { canManageCustomFields, canManageMembers, getUserGrants } from "@/lib/permissions";
 
-export default async function SettingsPage({
-  params,
-}: {
-  params: { projectKey: string };
-}) {
+
+export default async function SettingsPage(
+  props: {
+    params: Promise<{ projectKey: string }>;
+  }
+) {
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) redirect("/login");
 

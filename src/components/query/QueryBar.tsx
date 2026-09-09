@@ -207,6 +207,7 @@ export function QueryBar({
 
   // Load history and auto-focus on mount
   useEffect(() => {
+    // Syncing with localStorage, an external system — not derivable at render time.
     setHistory(loadHistory());
     inputRef.current?.focus();
   }, []);

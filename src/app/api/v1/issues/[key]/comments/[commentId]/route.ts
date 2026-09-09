@@ -5,8 +5,9 @@ import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { key: string; commentId: string } }
+  props: { params: Promise<{ key: string; commentId: string }> }
 ) {
+  const params = await props.params;
   try {
     const authError = await requireV1ApiKey(request);
     if (authError) return authError;
@@ -50,8 +51,9 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { key: string; commentId: string } }
+  props: { params: Promise<{ key: string; commentId: string }> }
 ) {
+  const params = await props.params;
   try {
     const authError = await requireV1ApiKey(request);
     if (authError) return authError;

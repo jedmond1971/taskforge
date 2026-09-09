@@ -6,10 +6,8 @@ import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { notificationService } from "@/lib/notifications";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { issueId: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ issueId: string }> }) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) {
@@ -132,10 +130,8 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { issueId: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ issueId: string }> }) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) {

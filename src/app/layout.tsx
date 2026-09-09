@@ -5,6 +5,7 @@ import { SessionProvider } from "@/components/providers/session-provider";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {

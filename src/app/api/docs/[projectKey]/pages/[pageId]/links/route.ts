@@ -28,8 +28,9 @@ async function resolvePageInProject(projectKey: string, pageId: string, userId: 
 // Returns issues linked to this page
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { projectKey: string; pageId: string } }
+  props: { params: Promise<{ projectKey: string; pageId: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

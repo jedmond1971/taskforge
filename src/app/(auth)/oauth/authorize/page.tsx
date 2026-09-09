@@ -5,6 +5,7 @@ import { validateAuthorizeRequest, type AuthorizeParams } from "@/lib/oauth/vali
 import { parseRequestedScope, OAUTH_SCOPES } from "@/lib/oauth/scopes";
 import { approveAuthorization, denyAuthorization } from "./actions";
 
+
 const accentLine = (
   <div
     className="absolute top-0 rounded-sm"
@@ -31,11 +32,12 @@ function asString(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export default async function OAuthAuthorizePage({
-  searchParams,
-}: {
-  searchParams: Record<string, string | string[] | undefined>;
-}) {
+export default async function OAuthAuthorizePage(
+  props: {
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const params: AuthorizeParams = {
     response_type: asString(searchParams.response_type),
     client_id: asString(searchParams.client_id),

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Users, FolderKanban, CircleDot, Building2, Mail, ScrollText } from "lucide-react";
 
+
 export default async function AdminPage() {
   const [userCount, projectCount, issueCount, orgCount, pendingInviteCount] = await Promise.all([
     prisma.user.count(),

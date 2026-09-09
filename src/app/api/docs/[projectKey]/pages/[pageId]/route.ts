@@ -26,8 +26,9 @@ async function resolvePage(projectKey: string, pageId: string, userId: string) {
 // GET /api/docs/[projectKey]/pages/[pageId]
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { projectKey: string; pageId: string } }
+  props: { params: Promise<{ projectKey: string; pageId: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -45,8 +46,9 @@ export async function GET(
 // PATCH /api/docs/[projectKey]/pages/[pageId] — requires TEAM_MEMBER or PROJECT_LEAD
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { projectKey: string; pageId: string } }
+  props: { params: Promise<{ projectKey: string; pageId: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -150,8 +152,9 @@ export async function PATCH(
 // DELETE /api/docs/[projectKey]/pages/[pageId] — requires PROJECT_LEAD
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { projectKey: string; pageId: string } }
+  props: { params: Promise<{ projectKey: string; pageId: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

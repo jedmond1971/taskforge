@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { StrictMode, useCallback, useRef, useState } from "react";
+import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
 import { act, render, screen } from "@testing-library/react";
 import { RichTextDisplay, type TocHeading } from "../rich-text-display";
 
@@ -21,7 +21,9 @@ function TocHost({
 }) {
   const [toc, setToc] = useState<TocHeading[]>([]);
   const onExtractRef = useRef(onExtract);
-  onExtractRef.current = onExtract;
+  useEffect(() => {
+    onExtractRef.current = onExtract;
+  });
   const handleHeadingsExtracted = useCallback((headings: TocHeading[]) => {
     onExtractRef.current?.(headings);
     setToc(headings);

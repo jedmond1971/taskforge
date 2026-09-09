@@ -35,10 +35,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
+    // Closes the mobile sidebar overlay on navigation; driven by route change,
+    // not state derived from this component's own props.
     setSidebarOpen(false);
   }, [pathname]);
 
   useEffect(() => {
+    // Syncing with localStorage, an external system — not derivable at render time.
     setCollapsed(loadSidebarCollapsed());
     setMounted(true);
   }, []);

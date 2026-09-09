@@ -12,15 +12,16 @@ import { IssueFiltersBar } from "@/components/issues/IssueFiltersBar";
 import { BulkEditView } from "@/components/issues/BulkEditView";
 import { ArrowLeft } from "lucide-react";
 
+
 interface PageProps {
-  params: { projectKey: string };
-  searchParams: {
+  params: Promise<{ projectKey: string }>;
+  searchParams: Promise<{
     status?: string;
     priority?: string;
     type?: string;
     assigneeId?: string;
     search?: string;
-  };
+  }>;
 }
 
 function isValidPriority(v: string): v is IssuePriority {
@@ -30,7 +31,9 @@ function isValidType(v: string): v is IssueType {
   return ["BUG", "TASK", "STORY", "EPIC"].includes(v);
 }
 
-export default async function BulkEditPage({ params, searchParams }: PageProps) {
+export default async function BulkEditPage(props: PageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) redirect("/login");
 

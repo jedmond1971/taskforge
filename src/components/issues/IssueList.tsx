@@ -39,6 +39,13 @@ const priorityWeight: Record<IssuePriority, number> = {
   LOW: 3,
 };
 
+function SortIcon({ field, sortField, sortOrder }: { field: SortField; sortField: SortField; sortOrder: SortOrder }) {
+  if (sortField !== field) return <ChevronUp className="w-3 h-3 text-zinc-400 dark:text-zinc-600" />;
+  return sortOrder === "asc"
+    ? <ChevronUp className="w-3 h-3 text-primary" />
+    : <ChevronDown className="w-3 h-3 text-primary" />;
+}
+
 export function IssueList({ issues, projectKey }: IssueListProps) {
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -70,13 +77,6 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
     return (new Date(a[sortField]).getTime() - new Date(b[sortField]).getTime()) * dir;
   });
 
-  function SortIcon({ field }: { field: SortField }) {
-    if (sortField !== field) return <ChevronUp className="w-3 h-3 text-zinc-400 dark:text-zinc-600" />;
-    return sortOrder === "asc"
-      ? <ChevronUp className="w-3 h-3 text-primary" />
-      : <ChevronDown className="w-3 h-3 text-primary" />;
-  }
-
   if (sorted.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-16">
@@ -103,7 +103,7 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
               className="text-left px-4 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 w-24"
               onClick={() => handleSort("key")}
             >
-              <span className="flex items-center gap-1">Key <SortIcon field="key" /></span>
+              <span className="flex items-center gap-1">Key <SortIcon field="key" sortField={sortField} sortOrder={sortOrder} /></span>
             </th>
             <th className="text-left px-4 py-2.5 text-zinc-500 font-medium">Title</th>
             <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-32">Status</th>
@@ -111,7 +111,7 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
               className="text-left px-4 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 w-28"
               onClick={() => handleSort("priority")}
             >
-              <span className="flex items-center gap-1">Priority <SortIcon field="priority" /></span>
+              <span className="flex items-center gap-1">Priority <SortIcon field="priority" sortField={sortField} sortOrder={sortOrder} /></span>
             </th>
             <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-20">Type</th>
             <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-32 hidden sm:table-cell">Assignee</th>
@@ -119,13 +119,13 @@ export function IssueList({ issues, projectKey }: IssueListProps) {
               className="text-left px-4 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 w-28 hidden md:table-cell"
               onClick={() => handleSort("dueDate")}
             >
-              <span className="flex items-center gap-1">Due <SortIcon field="dueDate" /></span>
+              <span className="flex items-center gap-1">Due <SortIcon field="dueDate" sortField={sortField} sortOrder={sortOrder} /></span>
             </th>
             <th
               className="text-left px-4 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300 w-28 hidden sm:table-cell"
               onClick={() => handleSort("createdAt")}
             >
-              <span className="flex items-center gap-1">Created <SortIcon field="createdAt" /></span>
+              <span className="flex items-center gap-1">Created <SortIcon field="createdAt" sortField={sortField} sortOrder={sortOrder} /></span>
             </th>
           </tr>
         </thead>

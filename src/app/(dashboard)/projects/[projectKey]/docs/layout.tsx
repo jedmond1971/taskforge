@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 import { ProjectMemberRole } from "@prisma/client";
 import { DocsSidebarLayout } from "@/components/docs/docs-sidebar-layout";
+import { upsertDocSpaceSafe } from "@/app/api/docs/_helpers";
+
 
 async function getDocsSidebarData(projectKey: string, userId: string) {
   const project = await prisma.project.findFirst({
@@ -18,7 +20,7 @@ async function getDocsSidebarData(projectKey: string, userId: string) {
   });
   if (!member) return null;
 
-  const docSpace = await prisma.docSpace.upsert({
+  const docSpace = await upsertDocSpaceSafe({
     where: { projectId: project.id },
     create: { projectId: project.id },
     update: {},
@@ -45,13 +47,18 @@ async function getDocsSidebarData(projectKey: string, userId: string) {
   return { project, docSpace, role: member.role as ProjectMemberRole, grants };
 }
 
-export default async function DocsLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: { projectKey: string };
-}) {
+export default async function DocsLayout(
+  props: {
+    children: React.ReactNode;
+    params: Promise<{ projectKey: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    children
+  } = props;
+
   const session = await auth();
   if (!session?.user) redirect("/login");
 
