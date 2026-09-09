@@ -114,7 +114,7 @@ export function AvatarUpload({ currentImage, userName }: AvatarUploadProps) {
 
       <div className="space-y-1">
         <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Profile picture</p>
-        <p className="text-xs text-zinc-500">JPG, PNG, GIF · Max 10 MB · Resized to 256×256</p>
+        <p className="text-xs text-zinc-500">JPG, PNG, GIF · Max 5 MB · Resized to 256×256</p>
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}

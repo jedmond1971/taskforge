@@ -1,18 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
+import sharp from "sharp";
 import { getPresignedDownloadUrl, putObject } from "@/lib/s3";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5 MB
 
 export async function PUT(request: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const contentType = request.headers.get("content-type") ?? "image/jpeg";
-  if (!contentType.startsWith("image/")) {
-    return NextResponse.json({ error: "Invalid content type" }, { status: 400 });
+  const contentLength = Number(request.headers.get("content-length"));
+  if (!contentLength || Number.isNaN(contentLength)) {
+    return NextResponse.json({ error: "Content-Length header required" }, { status: 411 });
+  }
+  if (contentLength > MAX_AVATAR_SIZE) {
+    return NextResponse.json({ error: "File exceeds 5 MB limit" }, { status: 413 });
   }
 
-  const buffer = Buffer.from(await request.arrayBuffer());
+  const rawBuffer = Buffer.from(await request.arrayBuffer());
+  if (rawBuffer.length > MAX_AVATAR_SIZE) {
+    return NextResponse.json({ error: "File exceeds 5 MB limit" }, { status: 413 });
+  }
+
+  // Decode and re-encode server-side rather than trusting the declared Content-Type:
+  // this both rejects anything that isn't a real raster image and strips embedded
+  // metadata (EXIF/GPS) as a side effect of re-encoding to a clean JPEG.
+  let buffer: Buffer;
+  try {
+    buffer = await sharp(rawBuffer)
+      .resize(256, 256, { fit: "cover" })
+      .jpeg({ quality: 90 })
+      .toBuffer();
+  } catch {
+    return NextResponse.json({ error: "Invalid or unsupported image file" }, { status: 400 });
+  }
+
   const key = `avatars/${session.user.id}.jpg`;
 
   await putObject(key, buffer, "image/jpeg");
