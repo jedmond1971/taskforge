@@ -21,7 +21,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^7.10.0",
     "@react-email/components": "^1.0.12",
     "@tiptap/extension-image": "^2.0.0",
     "@tiptap/extension-link": "^2.0.0",
