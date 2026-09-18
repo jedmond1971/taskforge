@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPresignedUploadUrl } from "@/lib/s3";
 import { MAX_ATTACHMENT_SIZE, isAllowedAttachmentMimeType, sanitizeFileName } from "@/lib/upload-validation";
+import { checkOrgStorageQuota } from "@/lib/storage-quota";
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     const issue = await prisma.issue.findUnique({
       where: { id: issueId },
-      select: { projectId: true },
+      select: { projectId: true, project: { select: { orgId: true } } },
     });
     if (!issue) {
       return NextResponse.json({ error: "Issue not found" }, { status: 404 });
@@ -46,6 +47,14 @@ export async function POST(request: NextRequest) {
     });
     if (!member || !["PROJECT_LEAD", "TEAM_MEMBER"].includes(member.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Fast-fail on the declared size so the client doesn't waste a presigned
+    // upload — confirm/route.ts re-checks against the real uploaded size,
+    // which is the authoritative enforcement point (SECH-91).
+    const quota = await checkOrgStorageQuota(issue.project.orgId, fileSize);
+    if (!quota.ok) {
+      return NextResponse.json({ error: "Organization storage quota exceeded" }, { status: 507 });
     }
 
     // The Attachment row is deliberately NOT created here (SECH-90) — the

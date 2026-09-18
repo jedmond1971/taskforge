@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { putObject, getPresignedDownloadUrl } from "@/lib/s3";
 import { MAX_ATTACHMENT_SIZE, isAllowedAttachmentMimeType, sanitizeFileName } from "@/lib/upload-validation";
+import { checkOrgStorageQuota } from "@/lib/storage-quota";
 
 export const maxDuration = 60;
 
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     const issue = await prisma.issue.findUnique({
       where: { id: issueId },
-      select: { projectId: true },
+      select: { projectId: true, project: { select: { orgId: true } } },
     });
     if (!issue) {
       return NextResponse.json({ error: "Issue not found" }, { status: 404 });
@@ -45,6 +46,11 @@ export async function POST(request: NextRequest) {
     });
     if (!member || !["PROJECT_LEAD", "TEAM_MEMBER"].includes(member.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const quota = await checkOrgStorageQuota(issue.project.orgId, file.size);
+    if (!quota.ok) {
+      return NextResponse.json({ error: "Organization storage quota exceeded" }, { status: 507 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());

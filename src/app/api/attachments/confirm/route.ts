@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPresignedDownloadUrl, headObjectSize, getObjectBuffer, deleteObject } from "@/lib/s3";
 import { MAX_ATTACHMENT_SIZE, isAllowedAttachmentMimeType } from "@/lib/upload-validation";
+import { checkOrgStorageQuota } from "@/lib/storage-quota";
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     const issue = await prisma.issue.findUnique({
       where: { id: issueId },
-      select: { projectId: true },
+      select: { projectId: true, project: { select: { orgId: true } } },
     });
     if (!issue) {
       return NextResponse.json({ error: "Issue not found" }, { status: 404 });
@@ -66,6 +67,14 @@ export async function POST(request: NextRequest) {
     if (realSize !== fileSize) {
       await deleteObject(fileKey).catch(() => {});
       return NextResponse.json({ error: "Uploaded file size does not match declared size" }, { status: 400 });
+    }
+
+    // Authoritative quota enforcement point (SECH-91) — uses the real,
+    // S3-verified size rather than the declared one presign fast-failed on.
+    const quota = await checkOrgStorageQuota(issue.project.orgId, realSize);
+    if (!quota.ok) {
+      await deleteObject(fileKey).catch(() => {});
+      return NextResponse.json({ error: "Organization storage quota exceeded" }, { status: 507 });
     }
 
     if (mimeType.startsWith("image/")) {

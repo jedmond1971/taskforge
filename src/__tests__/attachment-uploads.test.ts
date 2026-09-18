@@ -16,7 +16,8 @@ const {
   mockPrisma: {
     issue: { findUnique: vi.fn() },
     projectMember: { findUnique: vi.fn() },
-    attachment: { create: vi.fn() },
+    attachment: { create: vi.fn(), aggregate: vi.fn() },
+    docPage: { aggregate: vi.fn() },
     activityLog: { create: vi.fn().mockResolvedValue({}) },
   },
   mockAuthFn: vi.fn(),
@@ -75,11 +76,15 @@ beforeEach(() => {
   mockAuthFn.mockResolvedValue({ user: { id: "user-1" } });
   mockGetPresignedUploadUrl.mockResolvedValue("https://s3.example/upload");
   mockGetPresignedDownloadUrl.mockResolvedValue("https://s3.example/download");
-  mockPrisma.issue.findUnique.mockResolvedValue({ projectId: "proj-1" });
+  mockPrisma.issue.findUnique.mockResolvedValue({ projectId: "proj-1", project: { orgId: "org-1" } });
   mockPrisma.projectMember.findUnique.mockResolvedValue({ role: "TEAM_MEMBER" });
   mockPrisma.attachment.create.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
     Promise.resolve({ id: "att-1", createdAt: new Date(), uploader: { id: "user-1", name: "Alice" }, ...data })
   );
+  // Storage quota check (SECH-91) — default to well under quota so it doesn't
+  // interfere with tests that aren't specifically about the quota itself.
+  mockPrisma.attachment.aggregate.mockResolvedValue({ _sum: { fileSize: 0 } });
+  mockPrisma.docPage.aggregate.mockResolvedValue({ _sum: { fileSize: 0 } });
 });
 
 // ─── POST /api/attachments/presign ─────────────────────────────────────────────
@@ -126,6 +131,20 @@ describe("POST /api/attachments/presign", () => {
     );
     expect(res.status).toBe(403);
   });
+
+  it("rejects when the org is already over its storage quota (SECH-91)", async () => {
+    mockPrisma.attachment.aggregate.mockResolvedValue({ _sum: { fileSize: 5 * 1024 * 1024 * 1024 } });
+    const res = await presign(
+      jsonRequest("/api/attachments/presign", {
+        issueId: "issue-1",
+        fileName: "report.pdf",
+        fileSize: 1000,
+        mimeType: "application/pdf",
+      })
+    );
+    expect(res.status).toBe(507);
+    expect(mockGetPresignedUploadUrl).not.toHaveBeenCalled();
+  });
 });
 
 // ─── POST /api/attachments/confirm ─────────────────────────────────────────────
@@ -158,6 +177,15 @@ describe("POST /api/attachments/confirm", () => {
     mockHeadObjectSize.mockResolvedValue(999); // declared 1000
     const res = await confirm(jsonRequest("/api/attachments/confirm", validBody));
     expect(res.status).toBe(400);
+    expect(mockDeleteObject).toHaveBeenCalledWith(validBody.fileKey);
+    expect(mockPrisma.attachment.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects and deletes the object when the org is over its storage quota (SECH-91)", async () => {
+    mockHeadObjectSize.mockResolvedValue(1000);
+    mockPrisma.attachment.aggregate.mockResolvedValue({ _sum: { fileSize: 5 * 1024 * 1024 * 1024 } });
+    const res = await confirm(jsonRequest("/api/attachments/confirm", validBody));
+    expect(res.status).toBe(507);
     expect(mockDeleteObject).toHaveBeenCalledWith(validBody.fileKey);
     expect(mockPrisma.attachment.create).not.toHaveBeenCalled();
   });
@@ -234,6 +262,14 @@ describe("POST /api/attachments/upload", () => {
     const res = await directUpload(formDataRequest("/api/attachments/upload", pdf, { issueId: "issue-1" }));
     expect(res.status).toBe(200);
     expect(mockPutObject).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects when the org is already over its storage quota (SECH-91)", async () => {
+    mockPrisma.docPage.aggregate.mockResolvedValue({ _sum: { fileSize: 5 * 1024 * 1024 * 1024 } });
+    const pdf = new File([Buffer.from("%PDF-1.4 fake pdf bytes")], "doc.pdf", { type: "application/pdf" });
+    const res = await directUpload(formDataRequest("/api/attachments/upload", pdf, { issueId: "issue-1" }));
+    expect(res.status).toBe(507);
+    expect(mockPutObject).not.toHaveBeenCalled();
   });
 });
 

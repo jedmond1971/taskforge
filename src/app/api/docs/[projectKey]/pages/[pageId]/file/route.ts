@@ -5,6 +5,7 @@ import { putObject, getPresignedDownloadUrl, deleteObject, deleteObjectsWithPref
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { convertDocxToPreviewHtml } from "@/lib/docx-preview";
+import { checkOrgStorageQuota } from "@/lib/storage-quota";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -101,6 +102,13 @@ export async function POST(
     }
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json({ error: "File exceeds 50 MB limit" }, { status: 400 });
+    }
+
+    // Pass the old file's size as replacingBytes (SECH-91) so replacing a
+    // page's file isn't penalized for storage that's about to be freed.
+    const quota = await checkOrgStorageQuota(result.orgId, file.size, result.page.fileSize ?? 0);
+    if (!quota.ok) {
+      return NextResponse.json({ error: "Organization storage quota exceeded" }, { status: 507 });
     }
 
     const isReplace = !!result.page.fileKey;
