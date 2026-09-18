@@ -235,7 +235,8 @@ See `.context-docs/testing-notes.md` — hand-written Prisma mocks in `tenancy.t
 See `.context-docs/data-integrity.md` for full details. Key facts:
 
 - Issue key generation and kanban position writes are wrapped in `prisma.$transaction` with row-level locks — **true for the UI's `moveIssue`/`reorderIssues` actions, but not for the v1 API's `POST /api/v1/issues` or `PATCH /api/v1/issues/[key]`**, which do a plain non-transactional `count()`-based position write; this gap is the root cause of a known position-collision bug (JFR-122).
-- S3 objects are cleaned up on delete (issues, doc sections, project delete).
+- S3 objects are cleaned up on delete (issues, doc sections, project delete), and a daily GitHub Actions cron (`.github/workflows/cleanup-orphaned-attachments.yml`, this app's only scheduled job) deletes attachment objects orphaned by abandoned presigned uploads.
+- Org storage quota (flat 5 GB, not per-user, not tied to `Organization.plan`) is enforced at every attachment/doc-file upload path — see `src/lib/storage-quota.ts`.
 - Notification cap = 100; PageRevision cap = 50.
 - `SavedFilter` requires `projectId` — global `/search` page cannot save/load filters.
 - **`DocPage.position` DOES have a DB-level unique constraint** — a DEFERRABLE unique on `(sectionId, position)` plus a non-deferrable partial index for unsectioned pages (migration `20260601000000_position_uniqueness`). Any code writing multiple DocPage positions across separate requests (not one shared transaction) must renumber through a temporary offset first to avoid a 409 — see `persistListOrder` in `docs-sidebar-layout.tsx`.
@@ -270,7 +271,7 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 
 - .context-docs/sprints.md — all 10 Sprint workflow rules (workflowMode lock, board scoping, one-active-sprint DB constraint, sprintScopeId)
 - .context-docs/docs-invariants.md — all 13 Docs module rules (DocSpace, roles, revisions, file lifecycle, delete UI, status, recently-viewed, TOC extraction)
-- .context-docs/data-integrity.md — A2 audit invariants (key gen, kanban positions, S3 cleanup, caps)
+- .context-docs/data-integrity.md — A2 audit invariants (key gen, kanban positions, S3 cleanup, caps, storage quota, orphan-cleanup cron)
 - .context-docs/rich-text.md — TipTap packages, HTML storage, empty-state normalization
 - .context-docs/notifications.md — trigger points, known gaps, UI entry points, server actions
 - .context-docs/avatars.md — S3 upload, proxy route, session refresh
