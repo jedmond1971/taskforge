@@ -1,0 +1,18 @@
+name: Cleanup orphaned attachments
+
+on:
+  schedule:
+    - cron: "0 8 * * *" # daily at 08:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  cleanup:
+    name: Call cleanup endpoint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: POST /api/internal/cleanup-orphaned-attachments
+        run: |
+          curl -sf -X POST \
+            -H "X-Internal-Api-Key: ${{ secrets.V1_API_KEY }}" \
+            https://taskforge-production-099b.up.railway.app/api/internal/cleanup-orphaned-attachments

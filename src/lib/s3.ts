@@ -78,6 +78,38 @@ export async function headObjectSize(key: string): Promise<number | null> {
   }
 }
 
+export interface S3ObjectInfo {
+  key: string;
+  lastModified: Date;
+  size: number;
+}
+
+/** Lists every object under a prefix with its last-modified time and size (paginated). */
+export async function listObjects(prefix: string): Promise<S3ObjectInfo[]> {
+  const objects: S3ObjectInfo[] = [];
+  let continuationToken: string | undefined;
+  do {
+    const list = await s3.send(
+      new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: continuationToken })
+    );
+    for (const o of list.Contents ?? []) {
+      if (o.Key && o.LastModified) {
+        objects.push({ key: o.Key, lastModified: o.LastModified, size: o.Size ?? 0 });
+      }
+    }
+    continuationToken = list.IsTruncated ? list.NextContinuationToken : undefined;
+  } while (continuationToken);
+  return objects;
+}
+
+/** Deletes a batch of keys, chunked to S3's 1000-object-per-request limit. */
+export async function deleteObjects(keys: string[]): Promise<void> {
+  for (let i = 0; i < keys.length; i += 1000) {
+    const chunk = keys.slice(i, i + 1000).map((Key) => ({ Key }));
+    await s3.send(new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: chunk } }));
+  }
+}
+
 export async function getObjectBuffer(key: string): Promise<Buffer> {
   const result = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
   const stream = result.Body as NodeJS.ReadableStream;
