@@ -1,36 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import sharp from "sharp";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { putObject, getPresignedDownloadUrl } from "@/lib/s3";
+import { MAX_ATTACHMENT_SIZE, isAllowedAttachmentMimeType, sanitizeFileName } from "@/lib/upload-validation";
 
 export const maxDuration = 60;
-
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
-
-// Block only known executable/script types; everything else is allowed.
-const BLOCKED_MIME_TYPES = new Set([
-  "application/x-msdownload",
-  "application/x-executable",
-  "application/x-sh",
-  "application/x-bat",
-  "text/x-sh",
-  "application/x-msdos-program",
-]);
-
-const BLOCKED_EXTENSIONS = new Set([
-  ".exe", ".bat", ".cmd", ".sh", ".ps1", ".msi", ".dll", ".com", ".scr",
-]);
-
-function isAllowedFile(mimeType: string, fileName: string): boolean {
-  if (BLOCKED_MIME_TYPES.has(mimeType)) return false;
-  const ext = fileName.slice(fileName.lastIndexOf(".")).toLowerCase();
-  if (BLOCKED_EXTENSIONS.has(ext)) return false;
-  return true;
-}
-
-function sanitizeFileName(name: string): string {
-  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,11 +22,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing issueId or file" }, { status: 400 });
     }
 
-    if (!isAllowedFile(file.type, file.name)) {
+    if (!isAllowedAttachmentMimeType(file.type)) {
       return NextResponse.json({ error: "File type not allowed" }, { status: 400 });
     }
 
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > MAX_ATTACHMENT_SIZE) {
       return NextResponse.json({ error: "File exceeds 20 MB limit" }, { status: 400 });
     }
 
@@ -72,8 +47,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const fileKey = `attachments/${issueId}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
     const buffer = Buffer.from(await file.arrayBuffer());
+
+    // Confirm image attachments are real, decodable images rather than
+    // arbitrary bytes with a spoofed image/* Content-Type — same check as
+    // the avatar route (SECH-88), applied here since this path also
+    // receives the real bytes server-side.
+    if (file.type.startsWith("image/")) {
+      try {
+        await sharp(buffer).metadata();
+      } catch {
+        return NextResponse.json({ error: "Invalid or unsupported image file" }, { status: 400 });
+      }
+    }
+
+    const fileKey = `attachments/${issueId}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
     await putObject(fileKey, buffer, file.type);
 
     const attachment = await prisma.attachment.create({

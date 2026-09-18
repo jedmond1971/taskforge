@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import sharp from "sharp";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getPresignedDownloadUrl } from "@/lib/s3";
+import { getPresignedDownloadUrl, headObjectSize, getObjectBuffer, deleteObject } from "@/lib/s3";
+import { MAX_ATTACHMENT_SIZE, isAllowedAttachmentMimeType } from "@/lib/upload-validation";
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,35 +12,85 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json() as { attachmentId: string };
-    const { attachmentId } = body;
+    const body = await request.json() as {
+      issueId: string;
+      fileKey: string;
+      fileName: string;
+      fileSize: number;
+      mimeType: string;
+    };
+    const { issueId, fileKey, fileName, fileSize, mimeType } = body;
 
-    if (!attachmentId) {
-      return NextResponse.json({ error: "attachmentId required" }, { status: 400 });
+    if (!issueId || !fileKey || !fileName || !fileSize || !mimeType) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const attachment = await prisma.attachment.findUnique({
-      where: { id: attachmentId },
-      include: {
-        issue: { select: { projectId: true } },
-        uploader: { select: { id: true, name: true } },
-      },
+    // fileKey must actually belong to this issue's presign namespace — otherwise
+    // a caller could confirm an attachment record pointing at an unrelated S3
+    // object (e.g. another issue's file, or an object it never uploaded).
+    if (!fileKey.startsWith(`attachments/${issueId}/`)) {
+      return NextResponse.json({ error: "Invalid fileKey for this issue" }, { status: 400 });
+    }
+
+    if (!isAllowedAttachmentMimeType(mimeType)) {
+      return NextResponse.json({ error: "File type not allowed" }, { status: 400 });
+    }
+    if (fileSize > MAX_ATTACHMENT_SIZE) {
+      return NextResponse.json({ error: "File exceeds 20 MB limit" }, { status: 400 });
+    }
+
+    const issue = await prisma.issue.findUnique({
+      where: { id: issueId },
+      select: { projectId: true },
     });
-    if (!attachment) {
-      return NextResponse.json({ error: "Attachment not found" }, { status: 404 });
+    if (!issue) {
+      return NextResponse.json({ error: "Issue not found" }, { status: 404 });
     }
 
     const member = await prisma.projectMember.findUnique({
       where: {
-        userId_projectId: {
-          userId: session.user.id,
-          projectId: attachment.issue.projectId,
-        },
+        userId_projectId: { userId: session.user.id, projectId: issue.projectId },
       },
     });
-    if (!member) {
+    if (!member || !["PROJECT_LEAD", "TEAM_MEMBER"].includes(member.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    // The presigned PUT URL does not enforce the declared Content-Length at
+    // the S3 level (a known limitation of query-string-authenticated presigned
+    // requests), so the object must be re-inspected here before it's trusted.
+    const realSize = await headObjectSize(fileKey);
+    if (realSize === null) {
+      return NextResponse.json({ error: "Upload did not complete" }, { status: 409 });
+    }
+    if (realSize !== fileSize) {
+      await deleteObject(fileKey).catch(() => {});
+      return NextResponse.json({ error: "Uploaded file size does not match declared size" }, { status: 400 });
+    }
+
+    if (mimeType.startsWith("image/")) {
+      try {
+        const buffer = await getObjectBuffer(fileKey);
+        await sharp(buffer).metadata();
+      } catch {
+        await deleteObject(fileKey).catch(() => {});
+        return NextResponse.json({ error: "Invalid or unsupported image file" }, { status: 400 });
+      }
+    }
+
+    const attachment = await prisma.attachment.create({
+      data: {
+        issueId,
+        uploaderId: session.user.id,
+        fileName,
+        fileKey,
+        fileSize,
+        mimeType,
+      },
+      include: {
+        uploader: { select: { id: true, name: true } },
+      },
+    });
 
     await prisma.activityLog.create({
       data: {
@@ -53,14 +105,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       attachment: {
-        id: attachment.id,
-        issueId: attachment.issueId,
-        fileName: attachment.fileName,
-        fileKey: attachment.fileKey,
-        fileSize: attachment.fileSize,
-        mimeType: attachment.mimeType,
-        createdAt: attachment.createdAt,
-        uploader: attachment.uploader,
+        ...attachment,
         downloadUrl,
       },
     });

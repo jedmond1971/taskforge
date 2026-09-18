@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   DeleteObjectCommand,
   ListObjectsV2Command,
   DeleteObjectsCommand,
@@ -64,6 +65,17 @@ export async function deleteObjectsWithPrefix(prefix: string): Promise<void> {
     }
     continuationToken = list.IsTruncated ? list.NextContinuationToken : undefined;
   } while (continuationToken);
+}
+
+/** Returns the real, S3-reported size of an object, or null if it doesn't exist. */
+export async function headObjectSize(key: string): Promise<number | null> {
+  try {
+    const result = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return result.ContentLength ?? null;
+  } catch (error) {
+    if (error instanceof Error && error.name === "NotFound") return null;
+    throw error;
+  }
 }
 
 export async function getObjectBuffer(key: string): Promise<Buffer> {

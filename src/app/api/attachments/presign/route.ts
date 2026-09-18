@@ -2,31 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPresignedUploadUrl } from "@/lib/s3";
-
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
-
-const ALLOWED_MIME_TYPES = new Set([
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-  "text/csv",
-  "application/zip",
-  "application/x-zip-compressed",
-]);
-
-function isAllowedMimeType(mimeType: string): boolean {
-  if (mimeType.startsWith("image/")) return true;
-  return ALLOWED_MIME_TYPES.has(mimeType);
-}
-
-function sanitizeFileName(name: string): string {
-  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
-}
+import { MAX_ATTACHMENT_SIZE, isAllowedAttachmentMimeType, sanitizeFileName } from "@/lib/upload-validation";
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,11 +23,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    if (!isAllowedMimeType(mimeType)) {
+    if (!isAllowedAttachmentMimeType(mimeType)) {
       return NextResponse.json({ error: "File type not allowed" }, { status: 400 });
     }
 
-    if (fileSize > MAX_FILE_SIZE) {
+    if (fileSize > MAX_ATTACHMENT_SIZE) {
       return NextResponse.json({ error: "File exceeds 20 MB limit" }, { status: 400 });
     }
 
@@ -72,21 +48,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // The Attachment row is deliberately NOT created here (SECH-90) — the
+    // browser hasn't uploaded anything yet at this point, so a row created
+    // now would be visible to every project member via GET /api/attachments
+    // before the S3 object exists, and would never get cleaned up if the
+    // upload is abandoned. confirm/route.ts creates it only after verifying
+    // the real object in S3.
     const fileKey = `attachments/${issueId}/${crypto.randomUUID()}-${sanitizeFileName(fileName)}`;
     const uploadUrl = await getPresignedUploadUrl(fileKey, mimeType, fileSize);
 
-    const attachment = await prisma.attachment.create({
-      data: {
-        issueId,
-        uploaderId: session.user.id,
-        fileName,
-        fileKey,
-        fileSize,
-        mimeType,
-      },
-    });
-
-    return NextResponse.json({ uploadUrl, key: fileKey, attachmentId: attachment.id });
+    return NextResponse.json({ uploadUrl, key: fileKey });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

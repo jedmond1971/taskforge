@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import sharp from "sharp";
 import { auth } from "@/lib/auth";
 import { putObject, getPresignedDownloadUrl } from "@/lib/s3";
 
@@ -22,9 +23,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "File exceeds 10 MB limit" }, { status: 400 });
   }
 
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  // Decode-validate rather than trusting the declared Content-Type (SECH-90,
+  // consistent with the avatar route's SECH-88 fix). Unlike the avatar route,
+  // this does not re-encode: editor images can be animated GIF/WebP or need
+  // to preserve exact pixel data, so the original bytes are stored once
+  // confirmed to be a real, decodable image.
+  try {
+    await sharp(buffer).metadata();
+  } catch {
+    return NextResponse.json({ error: "Invalid or unsupported image file" }, { status: 400 });
+  }
+
   const ext = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")) : ".png";
   const key = `editor-images/${crypto.randomUUID()}${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
   await putObject(key, buffer, file.type);
 
   const url = `/api/editor-images?key=${encodeURIComponent(key)}`;
