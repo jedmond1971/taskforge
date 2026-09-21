@@ -32,3 +32,47 @@ jobs:
 
       - name: Test
         run: npm test
+
+  # SECH-85 / SECH-97: DB-backed cross-tenant authorization suite (src/integration).
+  # Kept out of `npm test` (hermetic) and run here against a throwaway Postgres.
+  integration:
+    name: Integration (cross-tenant)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: taskforge_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d taskforge_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Must be localhost: src/integration/setup.ts refuses to run against any other host.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taskforge_test
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      - name: Integration tests
+        run: npm run test:integration
