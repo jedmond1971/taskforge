@@ -55,6 +55,7 @@ const PUBLIC_ALLOWLIST: Record<string, string> = {
   "auth/register/route.ts": "registration is disabled; handler is an inert 403 stub",
   "oauth/register/route.ts": "RFC 7591 dynamic client registration is spec-required to be public",
   "oauth/token/route.ts": "OAuth token endpoint; self-authenticates via client credentials/PKCE, not a session",
+  "csp-report/route.ts": "SECH-84: browsers POST CSP violation reports without credentials; body-capped, per-IP rate-limited, logs scrubbed origin+path only, nothing persisted",
   "session-invalidated/route.ts": "SECH-86: landing point that clears the cookie of a dead session; it must be reachable by exactly the sessions every other guard rejects, and only signs out sessions that are absent/invalidated",
 };
 
