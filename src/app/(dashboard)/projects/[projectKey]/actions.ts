@@ -72,6 +72,24 @@ export async function createIssue(projectKey: string, formData: {
     if (!assigneeMember) throw new Error("Assignee is not a member of this project");
   }
 
+  // statusId / parentId come straight from the client: without this an editor could
+  // attach their issue to another project's status or parent (cross-tenant link, and
+  // the response below would echo the foreign status name).
+  if (formData.statusId) {
+    const status = await prisma.projectStatus.findFirst({
+      where: { id: formData.statusId, projectId },
+      select: { id: true },
+    });
+    if (!status) throw new Error("Invalid status");
+  }
+  if (formData.parentId) {
+    const parent = await prisma.issue.findFirst({
+      where: { id: formData.parentId, projectId },
+      select: { id: true },
+    });
+    if (!parent) throw new Error("Parent issue not found in this project");
+  }
+
   const sanitizedDescription = formData.description != null
     ? sanitizeTipTapHtml(formData.description)
     : null;
@@ -145,6 +163,17 @@ export async function createIssue(projectKey: string, formData: {
 }
 
 // --- UPDATE ISSUE ---
+const ISSUE_EDITABLE_FIELDS = [
+  "title",
+  "description",
+  "statusId",
+  "priority",
+  "type",
+  "assigneeId",
+  "labels",
+  "dueDate",
+] as const;
+
 export async function updateIssue(
   projectKey: string,
   issueId: string,
@@ -177,8 +206,24 @@ export async function updateIssue(
   });
   if (!existing) throw new Error("Issue not found");
 
+  if (updates.statusId !== undefined) {
+    const status = await prisma.projectStatus.findFirst({
+      where: { id: updates.statusId, projectId },
+      select: { id: true },
+    });
+    if (!status) throw new Error("Invalid status");
+  }
+
   if (typeof updates.description === "string") {
     updates.description = sanitizeTipTapHtml(updates.description);
+  }
+
+  // `updates` is client-controlled at runtime regardless of its TS type. Spreading it
+  // into the Prisma call would let an editor set projectId/reporterId/key/parentId/etc.
+  // (e.g. move the issue into another org's project), so copy only the editable fields.
+  const editableData: Record<string, unknown> = {};
+  for (const field of ISSUE_EDITABLE_FIELDS) {
+    if (field in updates && updates[field] !== undefined) editableData[field] = updates[field];
   }
 
   // Changing statusId without updating position would violate the unique constraint
@@ -197,7 +242,7 @@ export async function updateIssue(
     }
     return tx.issue.update({
       where: { id: issueId },
-      data: { ...updates, ...(newPosition !== undefined ? { position: newPosition, statusChangedAt: new Date() } : {}) },
+      data: { ...editableData, ...(newPosition !== undefined ? { position: newPosition, statusChangedAt: new Date() } : {}) },
       include: { projectStatus: { select: { id: true, name: true, category: true } } },
     });
   });
@@ -910,8 +955,8 @@ export async function moveIssue(
       const oldStatusName = existing.projectStatus.name;
       const statusChanged = oldStatusId !== newStatusId;
 
-      const newStatusRecord = await tx.projectStatus.findUnique({
-        where: { id: newStatusId },
+      const newStatusRecord = await tx.projectStatus.findFirst({
+        where: { id: newStatusId, projectId },
         select: { name: true },
       });
       if (!newStatusRecord) throw new Error("Target status not found");
@@ -1134,9 +1179,24 @@ export async function updateProject(
 ) {
   const { projectId } = await requireProjectRole(projectKey, canEditSettings);
 
+  // Only name/description are editable here. Passing `data` through would let a project
+  // lead set orgId (moving the project to another tenant), isPrivate, isClosed, key or
+  // workflowMode — each of which has its own admin-only or immutable rule.
+  const updates: { name?: string; description?: string | null } = {};
+  if (data.name !== undefined) {
+    if (typeof data.name !== "string") throw new Error("Invalid project name");
+    updates.name = data.name;
+  }
+  if (data.description !== undefined) {
+    if (data.description !== null && typeof data.description !== "string") {
+      throw new Error("Invalid project description");
+    }
+    updates.description = data.description;
+  }
+
   const updated = await prisma.project.update({
     where: { id: projectId },
-    data,
+    data: updates,
   });
 
   revalidatePath(`/projects/${projectKey}/settings`);

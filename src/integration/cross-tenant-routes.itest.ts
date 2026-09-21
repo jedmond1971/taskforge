@@ -1,0 +1,210 @@
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { NextRequest } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { createWorld, destroyWorld, type World } from "./fixtures";
+import { actAs, actAsNobody } from "./session";
+import * as docsRoot from "@/app/api/docs/[projectKey]/route";
+import * as docsPages from "@/app/api/docs/[projectKey]/pages/route";
+import * as docsPage from "@/app/api/docs/[projectKey]/pages/[pageId]/route";
+import * as docsSections from "@/app/api/docs/[projectKey]/sections/route";
+import * as docsSection from "@/app/api/docs/[projectKey]/sections/[sectionId]/route";
+import * as docsSearch from "@/app/api/docs/[projectKey]/search/route";
+import * as docsRevisions from "@/app/api/docs/[projectKey]/pages/[pageId]/revisions/route";
+import * as docsLinks from "@/app/api/docs/[projectKey]/pages/[pageId]/links/route";
+import * as docsFile from "@/app/api/docs/[projectKey]/pages/[pageId]/file/route";
+import * as docsImage from "@/app/api/docs/[projectKey]/pages/[pageId]/images/[imageKey]/route";
+import * as attachments from "@/app/api/attachments/route";
+import * as attachmentById from "@/app/api/attachments/[id]/route";
+import * as attachmentUrl from "@/app/api/attachments/[id]/url/route";
+import * as attachmentPresign from "@/app/api/attachments/presign/route";
+import * as attachmentConfirm from "@/app/api/attachments/confirm/route";
+import * as attachmentUpload from "@/app/api/attachments/upload/route";
+import * as issueRoute from "@/app/api/issues/[issueId]/route";
+import * as projectsRoute from "@/app/api/projects/route";
+import * as avatarRoute from "@/app/api/avatar/route";
+import * as editorImages from "@/app/api/editor-images/route";
+
+/**
+ * SECH-85: negative tests for the session-authenticated API routes (/api/docs, /api/attachments,
+ * /api/issues, /api/projects, ...). Handlers are invoked directly with a real database.
+ */
+
+let w: World;
+beforeAll(async () => { w = await createWorld(); });
+afterAll(async () => { await destroyWorld(w); });
+
+const url = (path: string) => `http://localhost${path}`;
+const json = (method: string, path: string, body?: unknown) =>
+  new NextRequest(url(path), { method, body: body === undefined ? undefined : JSON.stringify(body), headers: { "content-type": "application/json" } });
+const params = <T extends Record<string, string>>(p: T) => ({ params: Promise.resolve(p) });
+const status = async (p: Promise<Response>) => (await p).status;
+
+describe("private docs of another org are invisible and immutable", () => {
+  it("every /api/docs route answers 404 for a non-member and Org A's docs stay unchanged", async () => {
+    actAs(w.users.bMember);
+    const k = w.keyA, pg = w.A.page.id, sec = w.A.section.id;
+    const pp = params({ projectKey: k });
+    const attempts: Array<[string, () => Promise<Response>]> = [
+      ["GET docspace", () => docsRoot.GET(json("GET", `/api/docs/${k}`), pp)],
+      ["PATCH docspace (make public)", () => docsRoot.PATCH(json("PATCH", `/api/docs/${k}`, { isPublic: true }), pp)],
+      ["GET pages", () => docsPages.GET(json("GET", `/api/docs/${k}/pages`), pp)],
+      ["POST page", () => docsPages.POST(json("POST", `/api/docs/${k}/pages`, { title: "pwn", content: "<p>pwn</p>" }), pp)],
+      ["GET page", () => docsPage.GET(json("GET", "/x"), params({ projectKey: k, pageId: pg }))],
+      ["PATCH page", () => docsPage.PATCH(json("PATCH", "/x", { title: "pwn" }), params({ projectKey: k, pageId: pg }))],
+      ["DELETE page", () => docsPage.DELETE(json("DELETE", "/x"), params({ projectKey: k, pageId: pg }))],
+      ["GET sections", () => docsSections.GET(json("GET", "/x"), pp)],
+      ["POST section", () => docsSections.POST(json("POST", "/x", { title: "pwn" }), pp)],
+      ["PATCH section", () => docsSection.PATCH(json("PATCH", "/x", { title: "pwn" }), params({ projectKey: k, sectionId: sec }))],
+      ["DELETE section", () => docsSection.DELETE(json("DELETE", "/x"), params({ projectKey: k, sectionId: sec }))],
+      ["GET search", () => docsSearch.GET(json("GET", `/api/docs/${k}/search?q=secret`), pp)],
+      ["GET revisions", () => docsRevisions.GET(json("GET", "/x"), params({ projectKey: k, pageId: pg }))],
+      ["GET links", () => docsLinks.GET(json("GET", "/x"), params({ projectKey: k, pageId: pg }))],
+      ["GET file", () => docsFile.GET(json("GET", "/x"), params({ projectKey: k, pageId: pg }))],
+      ["GET image", () => docsImage.GET(json("GET", "/x"), params({ projectKey: k, pageId: pg, imageKey: "x" }))],
+    ];
+    for (const [name, attempt] of attempts) {
+      expect(await status(attempt()), name).toBe(404);
+    }
+    const page = await prisma.docPage.findUniqueOrThrow({ where: { id: pg } });
+    expect(page.title).toBe(`${k} secret page`);
+    expect(page.content).toBe("<p>secret</p>");
+    expect((await prisma.docSpace.findUniqueOrThrow({ where: { id: w.A.docSpace.id } })).isPublic).toBe(false);
+    expect(await prisma.docSection.count({ where: { docSpaceId: w.A.docSpace.id } })).toBe(1);
+    expect(await prisma.docPage.count({ where: { docSpaceId: w.A.docSpace.id } })).toBe(1);
+  });
+
+  it("a member of the project may not exceed their role in docs", async () => {
+    actAs(w.users.aViewer);
+    expect(await status(docsPage.PATCH(json("PATCH", "/x", { title: "viewer" }), params({ projectKey: w.keyA, pageId: w.A.page.id })))).toBe(403);
+    expect(await status(docsPages.POST(json("POST", "/x", { title: "viewer" }), params({ projectKey: w.keyA })))).toBe(403);
+    actAs(w.users.aMember); // TEAM_MEMBER: can edit, cannot delete or publish the space
+    expect(await status(docsPage.DELETE(json("DELETE", "/x"), params({ projectKey: w.keyA, pageId: w.A.page.id })))).toBe(403);
+    expect(await status(docsSection.DELETE(json("DELETE", "/x"), params({ projectKey: w.keyA, sectionId: w.A.section.id })))).toBe(403);
+    expect(await status(docsRoot.PATCH(json("PATCH", "/x", { isPublic: true }), params({ projectKey: w.keyA })))).toBe(403);
+    expect(await prisma.docPage.count({ where: { id: w.A.page.id } })).toBe(1);
+  });
+});
+
+describe("attachments and issues of another org", () => {
+  it("are 403 for a non-member and nothing is modified", async () => {
+    actAs(w.users.bMember);
+    const issueId = w.A.issue.id, attId = w.A.attachment.id;
+    const file = new File(["x"], "a.pdf", { type: "application/pdf" });
+    const form = new FormData();
+    form.set("issueId", issueId);
+    form.set("file", file);
+    const attempts: Array<[string, () => Promise<Response>]> = [
+      ["GET attachments", () => attachments.GET(json("GET", `/api/attachments?issueId=${issueId}`))],
+      ["GET attachment url", () => attachmentUrl.GET(json("GET", "/x"), params({ id: attId }))],
+      ["DELETE attachment", () => attachmentById.DELETE(json("DELETE", "/x"), params({ id: attId }))],
+      ["POST presign", () => attachmentPresign.POST(json("POST", "/x", { issueId, fileName: "a.pdf", fileSize: 1, mimeType: "application/pdf" }))],
+      ["POST confirm", () => attachmentConfirm.POST(json("POST", "/x", { issueId, fileKey: `attachments/${issueId}/x.pdf`, fileName: "a.pdf", fileSize: 1, mimeType: "application/pdf" }))],
+      ["POST upload", () => attachmentUpload.POST(new NextRequest(url("/api/attachments/upload"), { method: "POST", body: form }))],
+      ["PATCH issue", () => issueRoute.PATCH(json("PATCH", "/x", { title: "pwn" }), params({ issueId }))],
+      ["DELETE issue", () => issueRoute.DELETE(json("DELETE", "/x"), params({ issueId }))],
+    ];
+    for (const [name, attempt] of attempts) {
+      expect(await status(attempt()), name).toBe(403);
+    }
+    expect((await prisma.issue.findUniqueOrThrow({ where: { id: issueId } })).title).toBe(`${w.keyA} secret issue`);
+    expect(await prisma.attachment.count({ where: { issueId } })).toBe(1);
+  });
+
+  it("a VIEWER cannot upload or edit through the API either", async () => {
+    actAs(w.users.aViewer);
+    const issueId = w.A.issue.id;
+    expect(await status(attachmentPresign.POST(json("POST", "/x", { issueId, fileName: "a.pdf", fileSize: 1, mimeType: "application/pdf" })))).toBe(403);
+    expect(await status(issueRoute.PATCH(json("PATCH", "/x", { title: "viewer" }), params({ issueId })))).toBe(403);
+    expect(await status(issueRoute.DELETE(json("DELETE", "/x"), params({ issueId })))).toBe(403);
+  });
+});
+
+describe("POST /api/projects cannot create into another org", () => {
+  it("ignores a client-supplied orgId and uses the session's org", async () => {
+    actAs(w.users.bMember);
+    const key = `ITP${w.tag.toUpperCase().replace(/[^A-Z]/g, "X").slice(0, 3)}`;
+    const res = await projectsRoute.POST(json("POST", "/api/projects", { name: "mine", key, orgId: w.orgA.id }));
+    expect(res.status).toBe(201);
+    const { project } = await res.json();
+    expect(project.orgId).toBe(w.orgB.id);
+    await prisma.project.delete({ where: { id: project.id } });
+  });
+
+  it("refuses a session whose org membership no longer exists", async () => {
+    actAs({ ...w.users.bMember, orgId: w.orgA.id }); // stale/forged orgId on the session
+    const res = await projectsRoute.POST(json("POST", "/api/projects", { name: "x", key: `ITZ${w.tag.slice(0, 2).toUpperCase()}` }));
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("no session => 401 on every session-authenticated route", () => {
+  it("rejects anonymous callers", async () => {
+    actAsNobody();
+    const pp = params({ projectKey: w.keyB });
+    const pg = params({ projectKey: w.keyB, pageId: w.B.page.id });
+    const attempts: Array<[string, () => Promise<Response>]> = [
+      ["docs GET", () => docsRoot.GET(json("GET", "/x"), pp)],
+      ["docs pages POST", () => docsPages.POST(json("POST", "/x", { title: "a" }), pp)],
+      ["docs page PATCH", () => docsPage.PATCH(json("PATCH", "/x", { title: "a" }), pg)],
+      ["docs page DELETE", () => docsPage.DELETE(json("DELETE", "/x"), pg)],
+      ["docs search", () => docsSearch.GET(json("GET", "/x?q=a"), pp)],
+      ["attachments GET", () => attachments.GET(json("GET", `/api/attachments?issueId=${w.B.issue.id}`))],
+      ["attachments presign", () => attachmentPresign.POST(json("POST", "/x", {}))],
+      ["issues PATCH", () => issueRoute.PATCH(json("PATCH", "/x", {}), params({ issueId: w.B.issue.id }))],
+      ["projects POST", () => projectsRoute.POST(json("POST", "/x", {}))],
+      ["avatar GET", () => avatarRoute.GET(json("GET", "/api/avatar?key=avatars/x.jpg") as NextRequest)],
+      ["editor-images GET", () => editorImages.GET(json("GET", "/api/editor-images?key=editor-images/x.png") as NextRequest)],
+    ];
+    for (const [name, attempt] of attempts) {
+      expect(await status(attempt()), name).toBe(401);
+    }
+  });
+});
+
+describe("SECH-85 regressions: docs writes stay inside their own docspace and are sanitized", () => {
+  it("PATCH page rejects a sectionId from another docspace", async () => {
+    actAs(w.users.bMember);
+    const res = await docsPage.PATCH(
+      json("PATCH", "/x", { sectionId: w.A.section.id }),
+      params({ projectKey: w.keyB, pageId: w.B.page.id })
+    );
+    expect(res.status).toBe(400);
+    expect((await prisma.docPage.findUniqueOrThrow({ where: { id: w.B.page.id } })).sectionId).toBe(w.B.section.id);
+    expect(await prisma.docPage.count({ where: { sectionId: w.A.section.id } })).toBe(1); // only A's own page
+  });
+
+  it("PATCH page still accepts its own section and null", async () => {
+    actAs(w.users.bMember);
+    const pp = params({ projectKey: w.keyB, pageId: w.B.page.id });
+    expect((await docsPage.PATCH(json("PATCH", "/x", { sectionId: null }), pp)).status).toBe(200);
+    expect((await docsPage.PATCH(json("PATCH", "/x", { sectionId: w.B.section.id }), pp)).status).toBe(200);
+  });
+
+  it("POST page sanitizes TipTap HTML (stored XSS)", async () => {
+    actAs(w.users.bMember);
+    const res = await docsPages.POST(
+      json("POST", "/x", { title: "xss", content: '<p>hi</p><img src=x onerror="alert(1)"><script>alert(2)</script>' }),
+      params({ projectKey: w.keyB })
+    );
+    expect(res.status).toBe(201);
+    const { page } = await res.json();
+    const stored = await prisma.docPage.findUniqueOrThrow({ where: { id: page.id } });
+    expect(stored.content).toContain("<p>hi</p>");
+    expect(stored.content).not.toMatch(/onerror|<script|alert\(/i);
+  });
+
+  it("the docx image proxy refuses keys that escape the page's image prefix", async () => {
+    actAs(w.users.bMember);
+    const escape = `docs/${w.B.docSpace.id}/${w.B.page.id}/docx-images/../../${w.A.docSpace.id}/${w.A.page.id}/secret.png`;
+    const res = await docsImage.GET(
+      json("GET", "/x"),
+      params({ projectKey: w.keyB, pageId: w.B.page.id, imageKey: encodeURIComponent(escape) })
+    );
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("known gaps (documented, not yet enforced)", () => {
+  it.todo("session server actions do not block writes to a closed project (external API and MCP do)");
+  it.todo("a public docspace is readable by any authenticated user of any org (documented docs invariant)");
+});

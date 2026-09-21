@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { DocPageType } from "@prisma/client";
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
+import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 
 // GET /api/docs/[projectKey]/pages
 export async function GET(req: NextRequest, props: { params: Promise<{ projectKey: string }> }) {
@@ -84,7 +85,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ projectK
         sectionId: sectionId ?? null,
         title: title.trim(),
         type: pageType,
-        content: content ?? null,
+        // Same rule as every other write path: TipTap HTML is stored sanitized, because the
+        // viewer renders it without sanitizing (and public docspaces are readable cross-org).
+        content: content != null ? sanitizeTipTapHtml(content) : null,
         authorId: session.user.id,
         position: position ?? nextPosition,
       },

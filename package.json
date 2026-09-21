@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "db:seed": "npx prisma db seed",
     "db:migrate": "npx prisma migrate dev",
     "db:studio": "npx prisma studio"

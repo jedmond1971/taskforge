@@ -224,7 +224,7 @@ export async function adminDeleteUser(userId: string): Promise<ActionResult> {
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
 
   // Pre-flight: check ON DELETE RESTRICT relations before attempting the delete
-  const [orgs, reportedIssues, attachments, docPages, pageRevisions, issueDocLinks, issueLinks, orgInvites] =
+  const [orgs, reportedIssues, attachments, docPages, pageRevisions, issueDocLinks, issueLinks, orgInvites, apiKeys] =
     await Promise.all([
       prisma.organization.count({ where: { ownerId: userId } }),
       prisma.issue.count({ where: { reporterId: userId } }),
@@ -234,6 +234,8 @@ export async function adminDeleteUser(userId: string): Promise<ActionResult> {
       prisma.issueDocLink.count({ where: { createdById: userId } }),
       prisma.issueLink.count({ where: { createdById: userId } }),
       prisma.orgInvite.count({ where: { invitedById: userId } }),
+      // ApiKey.createdById is ON DELETE RESTRICT — without this the delete below dies on the FK.
+      prisma.apiKey.count({ where: { createdById: userId } }),
     ]);
 
   const blockers: string[] = [];
@@ -245,6 +247,7 @@ export async function adminDeleteUser(userId: string): Promise<ActionResult> {
   if (issueDocLinks > 0) blockers.push(`have created ${issueDocLinks} issue-doc ${issueDocLinks === 1 ? "link" : "links"}`);
   if (issueLinks > 0) blockers.push(`have created ${issueLinks} issue ${issueLinks === 1 ? "link" : "links"}`);
   if (orgInvites > 0) blockers.push(`have sent ${orgInvites} pending org ${orgInvites === 1 ? "invite" : "invites"}`);
+  if (apiKeys > 0) blockers.push(`have created ${apiKeys} org API ${apiKeys === 1 ? "key" : "keys"}`);
 
   if (blockers.length > 0) {
     const list =

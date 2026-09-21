@@ -62,9 +62,17 @@ export async function updateFilter(
   if (filter.isGlobal && session.user.role !== "ADMIN") throw new Error("Forbidden");
   if (updates.isGlobal === true && session.user.role !== "ADMIN") throw new Error("Forbidden");
 
+  // Copy only the editable fields: `updates` is client-controlled at runtime, and
+  // passing it through would let a user set userId (planting a filter in someone else's
+  // list) or projectId (moving it into another project).
+  const data: { name?: string; query?: string; isGlobal?: boolean } = {};
+  if (updates.name !== undefined) data.name = updates.name;
+  if (updates.query !== undefined) data.query = updates.query;
+  if (updates.isGlobal !== undefined) data.isGlobal = updates.isGlobal;
+
   const updated = await prisma.savedFilter.update({
     where: { id: filterId },
-    data: updates,
+    data,
   });
 
   revalidatePath("/search");

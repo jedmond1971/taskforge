@@ -212,7 +212,7 @@ describe("SECH-86: every dashboard page and layout is invalidation-aware", () =>
 describe("SECH-86: the raw, invalidation-blind session accessor stays contained", () => {
   it("authUnchecked() is only used by src/lib/auth.ts and the session-invalidated route", () => {
     const users = walk(SRC, (n) => /\.(ts|tsx)$/.test(n))
-      .filter((f) => !rel(f).includes("__tests__") && fs.readFileSync(f, "utf8").includes("authUnchecked"))
+      .filter((f) => !/__tests__|^integration\//.test(rel(f)) && fs.readFileSync(f, "utf8").includes("authUnchecked"))
       .map(rel)
       .sort();
     expect(users).toEqual(["app/api/session-invalidated/route.ts", "lib/auth.ts"]);

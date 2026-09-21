@@ -79,6 +79,9 @@ export async function getOrgProjectsForGroups(orgId: string) {
 export async function searchOrgMembersForGroup(orgId: string, groupId: string, query: string) {
   await requireOrgRole(orgId, canManageGroups);
 
+  const group = await prisma.group.findFirst({ where: { id: groupId, orgId }, select: { id: true } });
+  if (!group) return [];
+
   const existingMembers = await prisma.groupMember.findMany({
     where: { groupId },
     select: { userId: true },

@@ -76,6 +76,16 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
+    // sectionId is client-supplied: it must be a section of THIS page's docspace (or null),
+    // otherwise a page could be moved into another project's/org's doc tree.
+    if (typeof sectionId === "string") {
+      const section = await prisma.docSection.findFirst({
+        where: { id: sectionId, docSpaceId: result.page.docSpaceId },
+        select: { id: true },
+      });
+      if (!section) return NextResponse.json({ error: "Section not found" }, { status: 400 });
+    }
+
     const data: Record<string, unknown> = {};
     if (title !== undefined) data.title = title.trim();
     if (content !== undefined) data.content = sanitizeTipTapHtml(content);

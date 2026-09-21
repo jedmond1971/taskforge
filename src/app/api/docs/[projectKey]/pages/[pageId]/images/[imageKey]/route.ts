@@ -27,7 +27,7 @@ export async function GET(
 
     const key = decodeURIComponent(params.imageKey);
     const expectedPrefix = `docs/${page.docSpaceId}/${page.id}/docx-images/`;
-    if (!key.startsWith(expectedPrefix)) {
+    if (!key.startsWith(expectedPrefix) || key.includes("..")) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 

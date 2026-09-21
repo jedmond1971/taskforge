@@ -226,6 +226,8 @@ See `.context-docs/middleware-patterns.md` for all 8 patterns. Key facts:
 
 ## Testing
 
+**Before touching auth, `permissions.ts`, server actions or API routes, also run `npm run test:integration`** (DB-backed cross-tenant suite, needs the local Docker DB; not in CI yet — see `.context-docs/testing-notes.md`). Every route handler and server action must have a row in `.context-docs/authz-matrix.md` (`authz-matrix.test.ts` enforces it).
+
 See `.context-docs/testing-notes.md` — hand-written Prisma mocks in `tenancy.test.ts` (and other test files) must be updated when adding models/methods to admin actions; behavior assertions there also assume the throw-based error pattern, not the `{ success, error }` pattern from Server Action pitfalls above.
 
 ---
@@ -257,6 +259,8 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 
 ## Security constraints
 
+- **Never pass client-supplied objects straight into a Prisma `data:` (mass assignment) — copy an explicit field whitelist.** Server Action arguments and JSON bodies are attacker-controlled at runtime whatever their TypeScript type says; `data: { ...updates }` / `data: input` let a low-privilege editor set `projectId`, `orgId`, `userId`, `isPrivate`… (SECH-85 fixed this in `updateIssue`, `updateProject`, `updateFilter`). Likewise any client-supplied id (`statusId`, `parentId`, `sectionId`, `orgId`…) must be verified to belong to the caller's project/org (`findFirst({ where: { id, projectId } })`) — a guard on `projectKey` says nothing about the ids passed alongside it. Full route/action inventory: `.context-docs/authz-matrix.md`.
+
 - **AI Chat is Jamie-exclusive, never for a buyer/other entity** — gated behind `AI_CHAT_ENABLED` (`src/lib/ai/feature-flag.ts`), checked server-side in both `/api/ai/*` routes (404 when off, not 403 — a disabled instance shouldn't reveal the routes exist) and in the issue detail page before rendering `AiChatPanel`. Defaults to unset/`false`; only Jamie's own deployment sets it `true`. If the product is ever sold or transferred, the buyer's environment must not have this var set.
 - **Security headers + CSP are set in `next.config.mjs` `headers()` (SECH-84)** — nosniff, Referrer-Policy, Permissions-Policy, `X-Frame-Options: SAMEORIGIN` are enforced; HSTS is production-builds-only; the CSP ships as **`Content-Security-Policy-Report-Only`** (violations POST to `/api/csp-report`, logged as `[csp-report]` with query strings scrubbed) — it is NOT yet enforcing. Every allowed source in `buildCsp()` has a documented reason and `security-headers.test.ts` pins the exact lists, so **adding a new external image/frame/connect source means editing both**. Only external origin today: `https://*.storageapi.dev` (Railway bucket; `img-src` + `frame-src` for the PDF preview iframe) — all browser uploads/fetches are same-origin. Moving to enforcing = rename the header key after reviewing prod `[csp-report]` logs; `script-src` still needs `'unsafe-inline'` (Next's hydration scripts) until a per-request nonce is wired through middleware. Local verification: `curl -sI localhost:3000/login`, and `new Image().src = "https://example.com/x.png"` in the console should log a `[csp-report]` line.
 - **v1 API requires shared secret** — every request to `/api/v1/...` must include `X-Internal-Api-Key: <V1_API_KEY>`. The guard is in `src/lib/v1-auth.ts` (constant-time comparison). Set `V1_API_KEY` in Railway environment variables and in local `.env`. Never commit the actual value.
@@ -284,7 +288,8 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 - .context-docs/migrations.md — non-interactive-TTY workaround, Board/Column dead code
 - .context-docs/local-dev-tooling.md — Railway CLI/GraphQL API, seeded-user org nuance, Playwright, icon assets, psql/execSync quoting
 - .context-docs/middleware-patterns.md — path-in-layout, breadcrumb titles, invite exemption, JWT orgId, router cache
-- .context-docs/testing-notes.md — tenancy.test.ts Prisma mock maintenance
+- .context-docs/testing-notes.md — tenancy.test.ts Prisma mock maintenance; DB-backed cross-tenant integration suite (`npm run test:integration`)
+- .context-docs/authz-matrix.md — every route handler and server action: auth mechanism, tenant scope, minimum role; audit findings (SECH-85)
 - .context-docs/external-api.md — external v1 API auth guard, org isolation, helpers
 - .context-docs/mcp.md — MCP OAuth authorization server + Streamable HTTP server (JFR-100 B1/B2)
 - .context-docs/ai-chat.md — AI Chat panel (JFR-111/112): production-only testing, MCP SDK content-block shapes, internal token minting
