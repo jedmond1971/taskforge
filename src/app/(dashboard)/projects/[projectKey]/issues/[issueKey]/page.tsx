@@ -1,5 +1,5 @@
-import { auth } from "@/lib/auth";
-import { redirect, notFound } from "next/navigation";
+import { requireUser } from "@/lib/auth";
+import { notFound } from "next/navigation";
 import {
   getIssue,
   getProjectMembers,
@@ -21,8 +21,7 @@ interface PageProps {
 
 export default async function IssueDetailPage(props: PageProps) {
   const params = await props.params;
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await requireUser();
 
   const [issue, members, statuses] = await Promise.all([
     getIssue(params.projectKey, params.issueKey),

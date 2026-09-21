@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -78,8 +78,7 @@ async function getBoardData(projectKey: string, userId: string) {
 
 export default async function BoardPage(props: { params: Promise<{ projectKey: string }> }) {
   const params = await props.params;
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await requireUser();
 
   const project = await getBoardData(params.projectKey, session.user.id);
   if (!project) redirect("/projects");

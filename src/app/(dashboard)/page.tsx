@@ -1,6 +1,5 @@
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -85,8 +84,7 @@ const priorityConfig = {
 } as const;
 
 export default async function DashboardPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await requireUser();
 
   const [projects, assignedIssues, upcomingDueDates, recentActivity] = await Promise.all([
     getUserProjects(session.user.id),

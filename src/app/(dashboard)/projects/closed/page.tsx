@@ -1,6 +1,5 @@
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, GitBranch } from "lucide-react";
@@ -35,8 +34,7 @@ async function getClosedProjects(userId: string, isAdmin: boolean) {
 }
 
 export default async function ClosedProjectsPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await requireUser();
 
   const isAdmin = session.user.role === "ADMIN";
   const projects = await getClosedProjects(session.user.id, isAdmin);

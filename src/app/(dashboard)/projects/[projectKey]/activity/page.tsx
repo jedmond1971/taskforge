@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
@@ -26,8 +26,7 @@ async function getProjectActivity(projectKey: string, userId: string) {
 
 export default async function ActivityPage(props: { params: Promise<{ projectKey: string }> }) {
   const params = await props.params;
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await requireUser();
 
   const entries = await getProjectActivity(params.projectKey, session.user.id);
   if (!entries) redirect("/projects");

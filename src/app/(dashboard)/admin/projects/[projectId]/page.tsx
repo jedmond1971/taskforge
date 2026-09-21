@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireUser } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,7 @@ export default async function AdminProjectDetailPage(
     params: Promise<{ projectId: string }>;
   }
 ) {
+  await requireUser();
   const params = await props.params;
   const project = await getAdminProjectDetail(params.projectId);
   if (!project) notFound();

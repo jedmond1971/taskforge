@@ -1,6 +1,6 @@
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { DocPageEditor } from "@/components/docs/doc-page-editor";
 import { DocDocumentView } from "@/components/docs/doc-document-view";
 import { SetPageTitle } from "@/components/layout/PageTitleContext";
@@ -61,8 +61,7 @@ export default async function DocPagePage(
   }
 ) {
   const params = await props.params;
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await requireUser();
 
   const data = await getPageData(params.projectKey, params.pageId, session.user.id);
   if (!data) notFound();

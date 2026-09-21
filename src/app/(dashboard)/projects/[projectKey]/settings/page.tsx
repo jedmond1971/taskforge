@@ -1,6 +1,6 @@
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { ProjectSettings } from "./ProjectSettings";
 import { canManageCustomFields, canManageMembers, getUserGrants } from "@/lib/permissions";
 
@@ -11,8 +11,7 @@ export default async function SettingsPage(
   }
 ) {
   const params = await props.params;
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await requireUser();
 
   // Fetch project without a membership filter so org admins who aren't project
   // members can still reach the Custom Fields tab.

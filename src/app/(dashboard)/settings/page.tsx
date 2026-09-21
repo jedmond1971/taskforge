@@ -1,13 +1,11 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 import { AvatarUpload } from "@/components/settings/AvatarUpload";
 
 
 export default async function SettingsPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await requireUser();
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },

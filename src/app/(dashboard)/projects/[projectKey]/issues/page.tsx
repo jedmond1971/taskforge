@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { requireUser } from "@/lib/auth";
 import { IssuePriority, IssueType } from "@prisma/client";
 import {
   getIssues,
@@ -36,8 +35,7 @@ function isValidType(v: string): v is IssueType {
 export default async function IssuesPage(props: PageProps) {
   const searchParams = await props.searchParams;
   const params = await props.params;
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  await requireUser();
 
   const [allStatuses, members] = await Promise.all([
     getProjectStatuses(params.projectKey),

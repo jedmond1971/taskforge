@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
@@ -59,8 +59,7 @@ export default async function DocsLayout(
     children
   } = props;
 
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await requireUser();
 
   const data = await getDocsSidebarData(params.projectKey, session.user.id);
   if (!data) redirect("/projects");

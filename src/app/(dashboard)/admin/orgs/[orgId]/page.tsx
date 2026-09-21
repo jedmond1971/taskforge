@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireUser } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ export default async function AdminOrgDetailPage(
     params: Promise<{ orgId: string }>;
   }
 ) {
+  await requireUser();
   const params = await props.params;
   const org = await getAdminOrgDetail(params.orgId);
   if (!org) notFound();

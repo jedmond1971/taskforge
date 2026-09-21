@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
@@ -29,8 +29,7 @@ export default async function ProjectLayout(
     children
   } = props;
 
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await requireUser();
 
   const pathname = (await headers()).get("x-pathname") ?? "";
   const isSettingsPath = /\/projects\/[^/]+\/settings(\/|$)/i.test(pathname);

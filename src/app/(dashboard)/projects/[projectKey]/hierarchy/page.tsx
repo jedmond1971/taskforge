@@ -1,5 +1,4 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { requireUser } from "@/lib/auth";
 import { getIssuesHierarchy } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { HierarchyView } from "@/components/issues/HierarchyView";
 
@@ -10,8 +9,7 @@ interface PageProps {
 
 export default async function HierarchyPage(props: PageProps) {
   const params = await props.params;
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  await requireUser();
 
   const issues = await getIssuesHierarchy(params.projectKey);
 

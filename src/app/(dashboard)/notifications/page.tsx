@@ -1,9 +1,11 @@
 import { BellOff } from "lucide-react";
+import { requireUser } from "@/lib/auth";
 import { getNotifications } from "./actions";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 
 
 export default async function NotificationsPage() {
+  await requireUser();
   const notifications = await getNotifications();
 
   return (

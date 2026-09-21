@@ -1,11 +1,12 @@
-import NextAuth from "next-auth";
+import NextAuth, { type Session } from "next-auth";
+import { redirect } from "next/navigation";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { authConfig } from "./auth.config";
 import { checkRateLimit, recordFailure, getClientIp, logAuthFailure, LOGIN_RATE_LIMIT } from "./rate-limit";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+const nextAuth = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
@@ -120,11 +121,39 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 });
 
+export const { handlers, signIn, signOut } = nextAuth;
+
+type SessionWithFlag = Session & { invalidated?: boolean };
+
+/** Where invalidated sessions are sent so their cookie gets cleared (see requireUser). */
+export const INVALIDATED_SESSION_PATH = "/api/session-invalidated";
+
+/**
+ * The raw NextAuth session, INCLUDING sessions whose sessionVersion no longer
+ * matches the DB (`invalidated: true`). Only for code that must tell "no
+ * session" apart from "dead session" — everything else should use auth(),
+ * getCurrentUser() or requireUser().
+ */
+export async function authUnchecked(): Promise<SessionWithFlag | null> {
+  return (await nextAuth.auth()) as SessionWithFlag | null;
+}
+
+/**
+ * Fail-closed session accessor: returns null for a missing OR invalidated
+ * session (SECH-86). Every `const session = await auth(); if (!session?.user)`
+ * call site — API routes, Server Actions, permissions.ts — therefore rejects
+ * a session killed by a password change / role change / admin reset without
+ * each one having to remember to check `invalidated`.
+ */
+export async function auth(): Promise<Session | null> {
+  const session = await authUnchecked();
+  if (!session?.user || session.invalidated) return null;
+  return session;
+}
+
 export async function getCurrentUser() {
   const session = await auth();
-  if (!session?.user) return null;
-  if ((session as { invalidated?: boolean }).invalidated) return null;
-  return session.user;
+  return session?.user ?? null;
 }
 
 export async function requireAuth() {
@@ -133,4 +162,18 @@ export async function requireAuth() {
     throw new Error("Unauthorized");
   }
   return user;
+}
+
+/**
+ * Session guard for Server Component pages and layouts. No session → /login.
+ * Invalidated session → INVALIDATED_SESSION_PATH, NOT /login: middleware (Edge,
+ * no Prisma) can't see `invalidated`, so it still treats the stale JWT as
+ * logged in and would bounce /login straight back to / — an infinite redirect
+ * loop. The route handler there clears the cookie first.
+ */
+export async function requireUser(): Promise<Session> {
+  const session = await authUnchecked();
+  if (!session?.user) redirect("/login");
+  if (session.invalidated) redirect(INVALIDATED_SESSION_PATH);
+  return session;
 }

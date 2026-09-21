@@ -1,6 +1,5 @@
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, FileText, ChevronRight, Lock } from "lucide-react";
 
@@ -27,8 +26,7 @@ async function getProjectsWithDocs(userId: string) {
 }
 
 export default async function DocsPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await requireUser();
 
   const projects = await getProjectsWithDocs(session.user.id);
   const openProjects = projects.filter((p) => !p.isClosed);

@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { canManageApiKeys } from "@/lib/permissions";
@@ -8,8 +8,7 @@ import { StorageUsageSettings } from "./StorageUsageSettings";
 
 
 export default async function OrgSettingsPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await requireUser();
 
   const orgId = session.user.orgId;
   if (!orgId) redirect("/");

@@ -1,11 +1,9 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { requireUser } from "@/lib/auth";
 import { SearchPageClient } from "./SearchPageClient";
 
 
 export default async function SearchPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await requireUser();
 
   // Saved filters are now project-scoped. The global search page has no project
   // context, so filters are unavailable here. Filter save/load is accessible
