@@ -127,6 +127,16 @@ describe("external API (org-scoped X-Api-Key)", () => {
 });
 
 describe("internal v1 API (shared secret)", () => {
+  // CI has no .env, and the guard (correctly) answers 500 when no secret is configured, so the
+  // suite supplies its own instead of depending on the ambient environment.
+  const originalSecret = process.env.V1_API_KEY;
+  const secret = originalSecret ?? "itest-v1-secret";
+  beforeAll(() => { process.env.V1_API_KEY = secret; });
+  afterAll(() => {
+    if (originalSecret === undefined) delete process.env.V1_API_KEY;
+    else process.env.V1_API_KEY = originalSecret;
+  });
+
   const ip = () => `10.99.${w.tag.length}.${Math.floor(Math.random() * 200) + 1}`;
   const v1 = (key: string | null) =>
     new NextRequest("http://localhost/api/v1/projects", {
@@ -144,8 +154,18 @@ describe("internal v1 API (shared secret)", () => {
     expect((await v1Projects.GET(v1(w.tokens.a))).status).toBe(401);
   });
 
-  it.skipIf(!process.env.V1_API_KEY)("accepts the configured secret", async () => {
-    expect((await v1Projects.GET(v1(process.env.V1_API_KEY!))).status).toBe(200);
+  it("accepts the configured secret", async () => {
+    expect((await v1Projects.GET(v1(secret))).status).toBe(200);
+  });
+
+  it("fails closed (500, never open) when no secret is configured", async () => {
+    delete process.env.V1_API_KEY;
+    try {
+      expect((await v1Projects.GET(v1("anything"))).status).toBe(500);
+      expect((await v1Projects.GET(v1(null))).status).toBe(500);
+    } finally {
+      process.env.V1_API_KEY = secret;
+    }
   });
 });
 
