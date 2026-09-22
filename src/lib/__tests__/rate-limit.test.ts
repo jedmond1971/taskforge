@@ -14,7 +14,15 @@ const { mockPrisma } = vi.hoisted(() => {
 
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 
-import { checkRateLimit, recordFailure, getClientIp } from "@/lib/rate-limit";
+import {
+  checkRateLimit,
+  recordFailure,
+  getClientIp,
+  checkLoginRateLimit,
+  recordLoginFailure,
+  LOGIN_RATE_LIMIT,
+  ACCOUNT_LOGIN_RATE_LIMIT,
+} from "@/lib/rate-limit";
 
 const CONFIG = { maxAttempts: 5, windowMs: 15 * 60 * 1000 };
 
@@ -96,12 +104,42 @@ describe("recordFailure", () => {
 });
 
 describe("getClientIp", () => {
-  it("reads the first IP from x-forwarded-for", () => {
+  it("reads the single IP the edge sets in x-forwarded-for", () => {
     const request = new Request("https://example.com", {
-      headers: { "x-forwarded-for": "203.0.113.5, 10.0.0.1" },
+      headers: { "x-forwarded-for": "203.0.113.5" },
     });
 
     expect(getClientIp(request)).toBe("203.0.113.5");
+  });
+
+  // SECH-108: if a proxy appends to a client-supplied XFF, only the last hop is trustworthy.
+  it("uses the rightmost hop, so a spoofed leftmost value cannot change the key", () => {
+    const real = "198.51.100.20";
+    const keys = ["1.1.1.1", "8.8.8.8", "203.0.113.99"].map((spoof) =>
+      getClientIp(
+        new Request("https://example.com", {
+          headers: { "x-forwarded-for": `${spoof}, ${real}` },
+        })
+      )
+    );
+
+    expect(new Set(keys)).toEqual(new Set([real]));
+  });
+
+  it("ignores empty hops and whitespace", () => {
+    const request = new Request("https://example.com", {
+      headers: { "x-forwarded-for": " 1.2.3.4 ,  , 198.51.100.20 , " },
+    });
+
+    expect(getClientIp(request)).toBe("198.51.100.20");
+  });
+
+  it("prefers x-forwarded-for over a client-supplied x-real-ip", () => {
+    const request = new Request("https://example.com", {
+      headers: { "x-forwarded-for": "198.51.100.20", "x-real-ip": "6.6.6.6" },
+    });
+
+    expect(getClientIp(request)).toBe("198.51.100.20");
   });
 
   it("falls back to x-real-ip when x-forwarded-for is absent", () => {
@@ -116,5 +154,48 @@ describe("getClientIp", () => {
     const request = new Request("https://example.com");
 
     expect(getClientIp(request)).toBe("unknown");
+  });
+});
+
+describe("login rate limit (ip+email and account-only)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPrisma.rateLimitAttempt.findFirst.mockResolvedValue({ createdAt: new Date() });
+  });
+
+  function failuresByKey(counts: Record<string, number>) {
+    mockPrisma.rateLimitAttempt.count.mockImplementation(
+      async ({ where }: { where: { key: string } }) => counts[where.key] ?? 0
+    );
+  }
+
+  it("allows when both buckets are under their limits", async () => {
+    failuresByKey({});
+    expect((await checkLoginRateLimit("1.2.3.4", "a@x.dev")).allowed).toBe(true);
+  });
+
+  it("blocks on the ip+email bucket", async () => {
+    failuresByKey({ "login:1.2.3.4:a@x.dev": LOGIN_RATE_LIMIT.maxAttempts });
+    expect((await checkLoginRateLimit("1.2.3.4", "a@x.dev")).allowed).toBe(false);
+  });
+
+  // SECH-108: a distributed attacker gets a fresh ip+email bucket per IP, so the
+  // account-only bucket must still stop them.
+  it("blocks a fresh IP once the account-only bucket is full", async () => {
+    failuresByKey({ "login-account:a@x.dev": ACCOUNT_LOGIN_RATE_LIMIT.maxAttempts });
+    const result = await checkLoginRateLimit("203.0.113.250", "a@x.dev");
+    expect(result.allowed).toBe(false);
+    expect(result.retryAfterSeconds).toBeGreaterThan(0);
+  });
+
+  it("does not let one account's failures block another account", async () => {
+    failuresByKey({ "login-account:a@x.dev": ACCOUNT_LOGIN_RATE_LIMIT.maxAttempts });
+    expect((await checkLoginRateLimit("1.2.3.4", "b@x.dev")).allowed).toBe(true);
+  });
+
+  it("records a failure against both buckets", async () => {
+    await recordLoginFailure("1.2.3.4", "a@x.dev");
+    const keys = mockPrisma.rateLimitAttempt.create.mock.calls.map((c) => c[0].data.key);
+    expect(keys).toEqual(["login:1.2.3.4:a@x.dev", "login-account:a@x.dev"]);
   });
 });

@@ -10,22 +10,74 @@ export const LOGIN_RATE_LIMIT: RateLimitConfig = {
   windowMs: 15 * 60 * 1000,
 };
 
+/**
+ * Per-account ceiling that ignores IP (SECH-108). The ip+email limit above stops one
+ * client hammering one account; this one stops a distributed attacker rotating through
+ * many real IPs against the same account. Deliberately looser than LOGIN_RATE_LIMIT
+ * because it is also a lockout lever: anyone who knows an email can hold that account's
+ * logins closed for up to one window by failing 20 times.
+ */
+export const ACCOUNT_LOGIN_RATE_LIMIT: RateLimitConfig = {
+  maxAttempts: 20,
+  windowMs: 15 * 60 * 1000,
+};
+
 export const V1_API_RATE_LIMIT: RateLimitConfig = {
   maxAttempts: 10,
   windowMs: 15 * 60 * 1000,
 };
 
+/**
+ * Client IP for rate-limit keys (SECH-108). Uses the RIGHTMOST X-Forwarded-For entry —
+ * the hop appended by the nearest proxy (Railway's edge), which a client cannot forge.
+ * The leftmost entry is whatever the client sent if a proxy appends rather than replaces.
+ *
+ * Railway behaviour, verified against production 2026-09-22 (.context-docs/rate-limiting.md):
+ * the edge currently overwrites XFF with the real client IP, so leftmost == rightmost today
+ * and a spoofed XFF did not escape the v1 limiter. But Railway appended to client-supplied
+ * XFF in 2024 and its staff guidance has changed since; rightmost is correct under both.
+ * If a CDN/second proxy is ever put in front, this must be revisited (it would return the
+ * CDN's IP and throttle all users behind one edge node together).
+ */
 export function getClientIp(request: Request): string {
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) {
-    const first = forwardedFor.split(",")[0]?.trim();
-    if (first) return first;
+    const hops = forwardedFor.split(",").map((h) => h.trim()).filter(Boolean);
+    const last = hops[hops.length - 1];
+    if (last) return last;
   }
 
   const realIp = request.headers.get("x-real-ip");
   if (realIp) return realIp.trim();
 
   return "unknown";
+}
+
+function loginRateLimitKeys(ip: string, email: string) {
+  return { pair: `login:${ip}:${email}`, account: `login-account:${email}` };
+}
+
+/** Both login limits (ip+email and account-only) must allow the attempt. */
+export async function checkLoginRateLimit(
+  ip: string,
+  email: string
+): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
+  const keys = loginRateLimitKeys(ip, email);
+  const [pair, account] = await Promise.all([
+    checkRateLimit(keys.pair, LOGIN_RATE_LIMIT),
+    checkRateLimit(keys.account, ACCOUNT_LOGIN_RATE_LIMIT),
+  ]);
+  if (pair.allowed && account.allowed) return { allowed: true, retryAfterSeconds: 0 };
+  return {
+    allowed: false,
+    retryAfterSeconds: Math.max(pair.retryAfterSeconds, account.retryAfterSeconds),
+  };
+}
+
+export async function recordLoginFailure(ip: string, email: string): Promise<void> {
+  const keys = loginRateLimitKeys(ip, email);
+  await recordFailure(keys.pair, LOGIN_RATE_LIMIT.windowMs);
+  await recordFailure(keys.account, ACCOUNT_LOGIN_RATE_LIMIT.windowMs);
 }
 
 export async function checkRateLimit(

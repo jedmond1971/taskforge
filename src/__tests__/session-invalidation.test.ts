@@ -40,11 +40,10 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: h.prisma }));
 vi.mock("@/lib/rate-limit", () => ({
-  checkRateLimit: vi.fn(),
-  recordFailure: vi.fn(),
+  checkLoginRateLimit: vi.fn(),
+  recordLoginFailure: vi.fn(),
   getClientIp: vi.fn(),
   logAuthFailure: vi.fn(),
-  LOGIN_RATE_LIMIT: { windowMs: 1 },
 }));
 
 import { auth, getCurrentUser, requireUser, INVALIDATED_SESSION_PATH } from "@/lib/auth";
