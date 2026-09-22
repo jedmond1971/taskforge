@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { getPresignedUploadUrl } from "@/lib/s3";
 import { MAX_ATTACHMENT_SIZE, isAllowedAttachmentMimeType, sanitizeFileName } from "@/lib/upload-validation";
 import { checkOrgStorageQuota } from "@/lib/storage-quota";
@@ -45,7 +46,13 @@ export async function POST(request: NextRequest) {
         userId_projectId: { userId: session.user.id, projectId: issue.projectId },
       },
     });
-    if (!member || !["PROJECT_LEAD", "TEAM_MEMBER"].includes(member.role)) {
+    if (!member) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    // canEditIssues (not a hard-coded role list) so an ISSUE_EDIT group grant
+    // applies to attachments like it does everywhere else (SECH-96).
+    const grants = await getUserGrants(session.user.id, issue.project.orgId, issue.projectId);
+    if (!canEditIssues(member.role, grants)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

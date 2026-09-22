@@ -14,6 +14,12 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
     projectMember: {
       findUnique: vi.fn(),
     },
+    project: {
+      findUnique: vi.fn(),
+    },
+    groupPermission: {
+      findMany: vi.fn(),
+    },
   };
   const mockAuthFn = vi.fn();
   return { mockPrisma, mockAuthFn };
@@ -39,7 +45,11 @@ describe("saveFilter — global flag permission", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPrisma.savedFilter.create.mockResolvedValue({ id: "f1" });
-    mockPrisma.projectMember.findUnique.mockResolvedValue({ id: "pm-1" });
+    mockPrisma.projectMember.findUnique.mockResolvedValue({ id: "pm-1", role: "TEAM_MEMBER" });
+    mockPrisma.project.findUnique.mockResolvedValue({
+      id: PROJECT_ID, key: "PRJ", orgId: "org-1", isPrivate: false, isClosed: false,
+    });
+    mockPrisma.groupPermission.findMany.mockResolvedValue([]);
   });
 
   it("allows ADMIN to create a global filter", async () => {

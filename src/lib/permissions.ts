@@ -74,18 +74,39 @@ export function canComment(role: ProjectRole): boolean {
 export async function requireProjectRole(
   projectKey: string,
   check: (role: ProjectRole, grants: Set<Permission>) => boolean
-): Promise<{
+): Promise<ProjectRoleContext> {
+  return resolveProjectRole({ key: projectKey.toUpperCase() }, check);
+}
+
+/**
+ * Same as requireProjectRole, for callers that only hold the project's cuid
+ * (e.g. saved filters). Kept as one code path so private/closed-project and
+ * membership enforcement can't drift between the two (SECH-96).
+ */
+export async function requireProjectRoleById(
+  projectId: string,
+  check: (role: ProjectRole, grants: Set<Permission>) => boolean
+): Promise<ProjectRoleContext> {
+  return resolveProjectRole({ id: projectId }, check);
+}
+
+type ProjectRoleContext = {
   userId: string;
   projectId: string;
   projectKey: string;
   orgId: string;
   role: ProjectRole;
-}> {
+};
+
+async function resolveProjectRole(
+  where: { key: string } | { id: string },
+  check: (role: ProjectRole, grants: Set<Permission>) => boolean
+): Promise<ProjectRoleContext> {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
 
   const project = await prisma.project.findUnique({
-    where: { key: projectKey.toUpperCase() },
+    where,
     select: { id: true, key: true, orgId: true, isPrivate: true, isClosed: true },
   });
   if (!project) throw new Error("Project not found");

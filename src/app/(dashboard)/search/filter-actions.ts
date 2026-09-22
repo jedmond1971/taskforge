@@ -2,22 +2,16 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireProjectRoleById } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 
 export async function getMyFilters(projectId: string) {
-  const session = await auth();
-  if (!session?.user) throw new Error("Unauthorized");
-
-  // Verify the user is a member of this project before returning its filters
-  const member = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId: session.user.id, projectId } },
-  });
-  if (!member) return [];
+  const { userId } = await requireProjectRoleById(projectId, () => true);
 
   return prisma.savedFilter.findMany({
     where: {
       projectId,
-      OR: [{ userId: session.user.id }, { isGlobal: true }],
+      OR: [{ userId }, { isGlobal: true }],
     },
     orderBy: { createdAt: "desc" },
     include: { user: { select: { id: true, name: true } } },
@@ -34,10 +28,7 @@ export async function saveFilter(
   if (!session?.user) throw new Error("Unauthorized");
   if (isGlobal && session.user.role !== "ADMIN") throw new Error("Forbidden");
 
-  const member = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId: session.user.id, projectId } },
-  });
-  if (!member) throw new Error("Not a member of this project");
+  await requireProjectRoleById(projectId, () => true);
 
   const filter = await prisma.savedFilter.create({
     data: { name, query, userId: session.user.id, projectId, isGlobal },

@@ -674,7 +674,8 @@ export async function getIssue(projectKey: string, issueKey: string) {
 
 // --- DOC LINK MANAGEMENT ---
 export async function linkDocPage(projectKey: string, issueId: string, pageId: string) {
-  const { userId, projectId } = await requireProjectMember(projectKey);
+  // Link writes need edit rights, matching the MCP link tools (SECH-96).
+  const { userId, projectId } = await requireProjectRole(projectKey, canEditIssues);
 
   // Verify issue belongs to this project
   const issue = await prisma.issue.findFirst({
@@ -706,7 +707,7 @@ export async function linkDocPage(projectKey: string, issueId: string, pageId: s
 }
 
 export async function unlinkDocPage(projectKey: string, issueId: string, pageId: string) {
-  const { projectId } = await requireProjectMember(projectKey);
+  const { projectId } = await requireProjectRole(projectKey, canEditIssues);
 
   const issue = await prisma.issue.findFirst({
     where: { id: issueId, projectId },
@@ -752,7 +753,7 @@ export async function linkIssue(
   targetIssueId: string,
   linkType: IssueLinkType
 ) {
-  const { userId, projectId } = await requireProjectMember(projectKey);
+  const { userId, projectId } = await requireProjectRole(projectKey, canEditIssues);
 
   // Verify both issues belong to this project
   const [source, target] = await Promise.all([
@@ -769,7 +770,7 @@ export async function linkIssue(
 }
 
 export async function unlinkIssue(projectKey: string, linkId: string) {
-  const { projectId } = await requireProjectMember(projectKey);
+  const { projectId } = await requireProjectRole(projectKey, canEditIssues);
 
   // Verify the link belongs to this project via the source issue
   const link = await prisma.issueLink.findFirst({
@@ -1338,19 +1339,29 @@ export async function searchUsers(query: string, projectKey: string) {
 export async function createUserAndAddToProject(
   projectKey: string,
   data: { name: string; email: string; password: string; role: ProjectMemberRole }
-) {
+): Promise<{ success: true } | { success: false; error: string }> {
   const { projectId, orgId } = await requireProjectRole(projectKey, canManageMembers);
 
+  // Login looks users up by trimmed, lowercased email, so a mixed-case address
+  // stored verbatim here could never sign in. Same name/password policy as
+  // invite acceptance (SECH-96). Validation failures are returned rather than
+  // thrown so the message survives production's Server Action error redaction.
+  const name = data.name.trim();
+  const email = data.email.trim().toLowerCase();
+  if (!name) return { success: false, error: "Name is required." };
+  if (!email) return { success: false, error: "Email is required." };
+  if (data.password.length < 8) return { success: false, error: "Password must be at least 8 characters." };
+
   const existingUser = await prisma.user.findUnique({
-    where: { email: data.email },
+    where: { email },
   });
-  if (existingUser) throw new Error("A user with this email already exists");
+  if (existingUser) return { success: false, error: "A user with this email already exists" };
 
   const passwordHash = await bcrypt.hash(data.password, 12);
 
   await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
-      data: { name: data.name, email: data.email, passwordHash },
+      data: { name, email, passwordHash },
     });
 
     await tx.orgMember.create({

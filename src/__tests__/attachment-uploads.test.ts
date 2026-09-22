@@ -16,6 +16,7 @@ const {
   mockPrisma: {
     issue: { findUnique: vi.fn() },
     projectMember: { findUnique: vi.fn() },
+    groupPermission: { findMany: vi.fn() },
     attachment: { create: vi.fn(), aggregate: vi.fn() },
     docPage: { aggregate: vi.fn() },
     activityLog: { create: vi.fn().mockResolvedValue({}) },
@@ -78,6 +79,7 @@ beforeEach(() => {
   mockGetPresignedDownloadUrl.mockResolvedValue("https://s3.example/download");
   mockPrisma.issue.findUnique.mockResolvedValue({ projectId: "proj-1", project: { orgId: "org-1" } });
   mockPrisma.projectMember.findUnique.mockResolvedValue({ role: "TEAM_MEMBER" });
+  mockPrisma.groupPermission.findMany.mockResolvedValue([]);
   mockPrisma.attachment.create.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
     Promise.resolve({ id: "att-1", createdAt: new Date(), uploader: { id: "user-1", name: "Alice" }, ...data })
   );
@@ -130,6 +132,33 @@ describe("POST /api/attachments/presign", () => {
       })
     );
     expect(res.status).toBe(403);
+  });
+
+  it("rejects a VIEWER without an ISSUE_EDIT grant", async () => {
+    mockPrisma.projectMember.findUnique.mockResolvedValue({ role: "VIEWER" });
+    const res = await presign(
+      jsonRequest("/api/attachments/presign", {
+        issueId: "issue-1",
+        fileName: "report.pdf",
+        fileSize: 1000,
+        mimeType: "application/pdf",
+      })
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("lets a VIEWER with an ISSUE_EDIT group grant through, like every other edit path (SECH-96)", async () => {
+    mockPrisma.projectMember.findUnique.mockResolvedValue({ role: "VIEWER" });
+    mockPrisma.groupPermission.findMany.mockResolvedValue([{ permission: "ISSUE_EDIT" }]);
+    const res = await presign(
+      jsonRequest("/api/attachments/presign", {
+        issueId: "issue-1",
+        fileName: "report.pdf",
+        fileSize: 1000,
+        mimeType: "application/pdf",
+      })
+    );
+    expect(res.status).toBe(200);
   });
 
   it("rejects when the org is already over its storage quota (SECH-91)", async () => {

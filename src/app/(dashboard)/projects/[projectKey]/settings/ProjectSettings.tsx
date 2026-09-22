@@ -539,12 +539,16 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
     }
     setCreating(true);
     try {
-      await createUserAndAddToProject(projectKey, {
+      const result = await createUserAndAddToProject(projectKey, {
         name: newName.trim(),
         email: newEmail.trim(),
         password: newPassword,
         role: createRole,
       });
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
       toast.success(`${newName.trim()} created and added to project`);
       setNewName("");
       setNewEmail("");

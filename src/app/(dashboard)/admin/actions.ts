@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
@@ -15,14 +15,6 @@ import { revokeOAuthTokensForUser, revokeApiKeysForUser } from "@/lib/credential
 // so Next.js production mode cannot redact the message.
 type ActionResult = { success: true } | { success: false; error: string };
 type InviteResult = { success: true; emailError?: string } | { success: false; error: string };
-
-async function requireAdmin() {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") {
-    throw new Error("Forbidden: Admin access required");
-  }
-  return { userId: user.id };
-}
 
 // Get all users with project count
 export async function getAdminUsers(search?: string) {

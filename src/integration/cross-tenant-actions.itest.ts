@@ -198,6 +198,33 @@ describe("role enforcement inside a tenant", () => {
     expect((await prisma.issue.findUnique({ where: { id: w.A.issue.id } }))?.title).toBe(`${w.keyA} secret issue`);
   });
 
+  it("a VIEWER cannot create or delete issue links or doc links (SECH-96)", async () => {
+    // Throwaway pair so the test doesn't depend on links other tests left behind.
+    const [src, dst] = await Promise.all([91, 92].map((n) =>
+      prisma.issue.create({
+        data: { key: `${w.keyA}-${n}`, projectId: w.A.project.id, title: `link ${n}`, statusId: w.A.statuses.todo.id, reporterId: w.users.aOwner.id, position: n },
+      })
+    ));
+    try {
+      const existing = await prisma.issueLink.create({
+        data: { sourceIssueId: src.id, targetIssueId: dst.id, linkType: "RELATES_TO", createdById: w.users.aOwner.id },
+      });
+      await prisma.issueDocLink.create({ data: { issueId: src.id, pageId: w.A.page.id, createdById: w.users.aOwner.id } });
+
+      actAs(w.users.aViewer);
+      await denied(issueActions.linkIssue(w.keyA, dst.id, src.id, "BLOCKS"));
+      await denied(issueActions.unlinkIssue(w.keyA, existing.id));
+      await denied(issueActions.linkDocPage(w.keyA, dst.id, w.A.page.id));
+      await denied(issueActions.unlinkDocPage(w.keyA, src.id, w.A.page.id));
+
+      const ids = [src.id, dst.id];
+      expect(await prisma.issueLink.count({ where: { sourceIssueId: { in: ids } } })).toBe(1);
+      expect(await prisma.issueDocLink.count({ where: { issueId: { in: ids } } })).toBe(1);
+    } finally {
+      await prisma.issue.deleteMany({ where: { id: { in: [src.id, dst.id] } } });
+    }
+  });
+
   it("a TEAM_MEMBER cannot manage the project, its members, or its board", async () => {
     actAs(w.users.aMember);
     await denied(issueActions.updateProject(w.keyA, { name: "pwn" }));

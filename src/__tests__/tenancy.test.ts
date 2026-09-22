@@ -245,7 +245,7 @@ describe("createUserAndAddToProject", () => {
     const result = await createUserAndAddToProject("PRJ", {
       name: "Carol",
       email: "carol@org.com",
-      password: "pass",
+      password: "password123",
       role: "TEAM_MEMBER",
     });
 
@@ -264,14 +264,43 @@ describe("createUserAndAddToProject", () => {
   it("rejects if email already exists", async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: "existing" });
 
-    await expect(
-      createUserAndAddToProject("PRJ", {
-        name: "Carol",
-        email: "taken@org.com",
-        password: "pass",
-        role: "TEAM_MEMBER",
-      })
-    ).rejects.toThrow("already exists");
+    const result = await createUserAndAddToProject("PRJ", {
+      name: "Carol",
+      email: "taken@org.com",
+      password: "password123",
+      role: "TEAM_MEMBER",
+    });
+    expect(result).toEqual({ success: false, error: expect.stringContaining("already exists") });
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("stores the email trimmed and lowercased so the user can log in (SECH-96)", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+    mockPrisma.user.create.mockResolvedValue({ id: "new-user" });
+    mockPrisma.orgMember.create.mockResolvedValue({});
+    mockPrisma.projectMember.create.mockResolvedValue({});
+
+    await createUserAndAddToProject("PRJ", {
+      name: "  Carol  ",
+      email: "  Carol@Org.COM ",
+      password: "password123",
+      role: "TEAM_MEMBER",
+    });
+
+    expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({ where: { email: "carol@org.com" } });
+    expect(mockPrisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ name: "Carol", email: "carol@org.com" }) })
+    );
+  });
+
+  it("rejects passwords shorter than 8 characters (SECH-96)", async () => {
+    const result = await createUserAndAddToProject("PRJ", {
+      name: "Carol",
+      email: "carol@org.com",
+      password: "short",
+      role: "TEAM_MEMBER",
+    });
+    expect(result).toEqual({ success: false, error: expect.stringContaining("8 characters") });
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 });
