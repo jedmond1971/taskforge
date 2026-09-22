@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DocPageType } from "@prisma/client";
-import { resolveDocCtx } from "@/app/api/docs/_helpers";
+import { resolveDocCtx, isDocsWriteLocked } from "@/app/api/docs/_helpers";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 
@@ -49,6 +49,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ projectK
 
     if (!ctx.role) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (isDocsWriteLocked(ctx.isClosed, session.user.role === "ADMIN")) {
+      return NextResponse.json({ error: "This project is closed" }, { status: 403 });
     }
     const grants = await getUserGrants(session.user.id, ctx.orgId, ctx.projectId);
     if (!canEditIssues(ctx.role, grants)) {

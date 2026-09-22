@@ -7,7 +7,7 @@ import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 import { PRIORITY_MAP, formatIssue, resolveStatusForProject } from "@/app/api/v1/_helpers";
 import { normalizeBody, TYPE_MAP, ISSUE_INCLUDE } from "@/app/api/external/v1/_helpers";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
-import { upsertDocSpaceSafe } from "@/app/api/docs/_helpers";
+import { upsertDocSpaceSafe, isDocsWriteLocked } from "@/app/api/docs/_helpers";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
 import { notificationService } from "@/lib/notifications";
 import { parse, validate, executeQuery, ParseError } from "@/lib/query";
@@ -57,7 +57,7 @@ async function requireProjectMembership(projectKey: string, ctx: OAuthTokenConte
 async function requireDocContext(projectKey: string, ctx: OAuthTokenContext) {
   const project = await prisma.project.findFirst({
     where: { key: projectKey.toUpperCase(), orgId: ctx.orgId },
-    select: { id: true },
+    select: { id: true, isClosed: true },
   });
   if (!project) return null;
 
@@ -74,7 +74,7 @@ async function requireDocContext(projectKey: string, ctx: OAuthTokenContext) {
     select: { id: true },
   });
 
-  return { docSpaceId: docSpace.id, role: member.role, projectId: project.id };
+  return { docSpaceId: docSpace.id, role: member.role, projectId: project.id, isClosed: project.isClosed };
 }
 
 // Looks up an issue scoped to the token's org via its project (same org-isolation
@@ -285,6 +285,7 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
 
       const docCtx = await requireDocContext(projectKey, ctx);
       if (!docCtx) return errorResult(`Project not found or docs not accessible: ${projectKey}`);
+      if (isDocsWriteLocked(docCtx.isClosed, false)) return errorResult("This project is closed");
       const docGrants = await getUserGrants(ctx.userId, ctx.orgId, docCtx.projectId);
       if (!canEditIssues(docCtx.role, docGrants)) return errorResult("Forbidden: requires team member role or higher");
 

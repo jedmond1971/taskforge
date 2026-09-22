@@ -86,7 +86,7 @@ export async function requireProjectRole(
 
   const project = await prisma.project.findUnique({
     where: { key: projectKey.toUpperCase() },
-    select: { id: true, key: true, orgId: true, isPrivate: true },
+    select: { id: true, key: true, orgId: true, isPrivate: true, isClosed: true },
   });
   if (!project) throw new Error("Project not found");
 
@@ -97,6 +97,13 @@ export async function requireProjectRole(
       select: { id: true },
     });
     if (!privacyCheck) throw new Error("You do not have access to this project.");
+  }
+
+  // Closed projects reject writes at the session layer too (the external API
+  // and MCP already filter isClosed — SECH-93). Admins bypass, mirroring the
+  // closed-project UI gate in [projectKey]/layout.tsx.
+  if (project.isClosed && session.user.role !== "ADMIN") {
+    throw new Error("This project is closed");
   }
 
   const membership = await prisma.projectMember.findUnique({

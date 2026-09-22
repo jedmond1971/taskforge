@@ -25,7 +25,7 @@ beforeAll(async () => { w = await createWorld(); });
 afterAll(async () => { await destroyWorld(w); });
 
 const DENIED =
-  /not a project member|not an organization member|forbidden|unauthorized|not found|do not have access|invalid status|failed to move|not in this project|not a member|does not belong/i;
+  /not a project member|not an organization member|forbidden|unauthorized|not found|do not have access|invalid status|failed to move|not in this project|not a member|does not belong|this project is closed/i;
 const denied = (p: Promise<unknown>) => expect(p).rejects.toThrow(DENIED);
 const failedResult = async (p: Promise<unknown>) => expect(await p).toMatchObject({ success: false });
 
@@ -363,5 +363,40 @@ describe("SECH-85 regressions: a legitimate editor cannot escape their project",
   it("searchOrgMembersForGroup returns nothing for a group of another org", async () => {
     actAs(w.users.bOwner);
     expect(await groupActions.searchOrgMembersForGroup(w.orgB.id, w.groupA.id, "")).toEqual([]);
+  });
+});
+
+// SECH-93: the external API and MCP already filter isClosed:false; the session-authenticated
+// actions did not. Docs are covered separately in cross-tenant-routes.itest.ts — they stay
+// readable on a closed project (closed-project invariant #3), only writes are blocked.
+describe("SECH-93: closed projects write-lock session actions (platform admin bypasses)", () => {
+  it("rejects issue/comment/project writes from a project member while closed, but not from an admin", async () => {
+    await prisma.project.update({ where: { id: w.A.project.id }, data: { isClosed: true } });
+    try {
+      actAs(w.users.aMember); // TEAM_MEMBER of A
+      await denied(issueActions.createIssue(w.keyA, { title: "pwn" }));
+      await denied(issueActions.updateIssue(w.keyA, w.A.issue.id, { title: "pwn" }));
+      await denied(issueActions.moveIssue(w.keyA, w.A.issue.id, w.A.statuses.done.id, 0));
+      await denied(issueActions.addComment(w.keyA, w.A.issue.id, "<p>pwn</p>"));
+
+      actAs(w.users.aOwner); // PROJECT_LEAD of A
+      await denied(issueActions.updateProject(w.keyA, { name: "pwn" }));
+      await denied(issueActions.deleteIssue(w.keyA, w.A.issue2.id));
+
+      // Reads still work while closed — only writes are locked.
+      actAs(w.users.aMember);
+      expect((await issueActions.getIssue(w.keyA, w.A.issue.key))?.title).toBe(`${w.keyA} secret issue`);
+
+      // Platform admin bypasses the write-lock, mirroring the closed-project UI gate.
+      actAs(w.users.aAdmin);
+      const created = await issueActions.createIssue(w.keyA, { title: "admin edit while closed" });
+      expect(created.issue.title).toBe("admin edit while closed");
+      await prisma.issue.delete({ where: { id: created.issue.id } });
+
+      const issue = await prisma.issue.findUniqueOrThrow({ where: { id: w.A.issue.id } });
+      expect(issue.title).toBe(`${w.keyA} secret issue`);
+    } finally {
+      await prisma.project.update({ where: { id: w.A.project.id }, data: { isClosed: false } });
+    }
   });
 });

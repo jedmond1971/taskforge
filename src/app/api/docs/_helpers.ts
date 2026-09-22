@@ -34,6 +34,7 @@ export type DocCtx = {
   /** null when the user is a non-member accessing a public docspace (read-only) */
   role: ProjectMemberRole | null;
   isPublic: boolean;
+  isClosed: boolean;
 };
 
 /**
@@ -49,7 +50,7 @@ export async function resolveDocCtx(
 ): Promise<DocCtx | null> {
   const project = await prisma.project.findFirst({
     where: { key: projectKey.toUpperCase() },
-    select: { id: true, orgId: true },
+    select: { id: true, orgId: true, isClosed: true },
   });
   if (!project) return null;
 
@@ -64,7 +65,14 @@ export async function resolveDocCtx(
       select: { id: true, isPublic: true },
     });
     if (!docSpace?.isPublic) return null;
-    return { projectId: project.id, orgId: project.orgId, docSpaceId: docSpace.id, isPublic: true, role: null };
+    return {
+      projectId: project.id,
+      orgId: project.orgId,
+      docSpaceId: docSpace.id,
+      isPublic: true,
+      role: null,
+      isClosed: project.isClosed,
+    };
   }
 
   const docSpace = await upsertDocSpaceSafe({
@@ -80,5 +88,16 @@ export async function resolveDocCtx(
     docSpaceId: docSpace.id,
     isPublic: docSpace.isPublic,
     role: member.role,
+    isClosed: project.isClosed,
   };
+}
+
+/**
+ * Docs remain readable on a closed project (closed-project invariant #3) but
+ * not writable, mirroring the read-only UI gate in the docs page components
+ * (`readOnly = isClosed || !canEditIssues`). Admins bypass, same as the
+ * session-layer write-lock in requireProjectRole (SECH-93).
+ */
+export function isDocsWriteLocked(isClosed: boolean, isPlatformAdmin: boolean): boolean {
+  return isClosed && !isPlatformAdmin;
 }

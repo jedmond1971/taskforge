@@ -204,7 +204,55 @@ describe("SECH-85 regressions: docs writes stay inside their own docspace and ar
   });
 });
 
+describe("SECH-93: closed projects write-lock doc routes (platform admin bypasses)", () => {
+  it("blocks TEAM_MEMBER and PROJECT_LEAD doc writes while closed, but reads and admin writes still work", async () => {
+    await prisma.project.update({ where: { id: w.A.project.id }, data: { isClosed: true } });
+    try {
+      const pp = params({ projectKey: w.keyA });
+      const pg = params({ projectKey: w.keyA, pageId: w.A.page.id });
+      const sec = params({ projectKey: w.keyA, sectionId: w.A.section.id });
+
+      actAs(w.users.aMember); // TEAM_MEMBER: can normally edit pages/sections
+      const memberAttempts: Array<[string, () => Promise<Response>]> = [
+        ["POST page", () => docsPages.POST(json("POST", "/x", { title: "pwn" }), pp)],
+        ["PATCH page", () => docsPage.PATCH(json("PATCH", "/x", { title: "pwn" }), pg)],
+        ["POST section", () => docsSections.POST(json("POST", "/x", { title: "pwn" }), pp)],
+        ["PATCH section", () => docsSection.PATCH(json("PATCH", "/x", { title: "pwn" }), sec)],
+      ];
+      for (const [name, attempt] of memberAttempts) {
+        expect(await status(attempt()), name).toBe(403);
+      }
+
+      actAs(w.users.aOwner); // PROJECT_LEAD: can normally delete/publish
+      const leadAttempts: Array<[string, () => Promise<Response>]> = [
+        ["DELETE page", () => docsPage.DELETE(json("DELETE", "/x"), pg)],
+        ["DELETE section", () => docsSection.DELETE(json("DELETE", "/x"), sec)],
+        ["PATCH docspace", () => docsRoot.PATCH(json("PATCH", "/x", { isPublic: true }), pp)],
+      ];
+      for (const [name, attempt] of leadAttempts) {
+        expect(await status(attempt()), name).toBe(403);
+      }
+
+      // Docs remain readable while closed (closed-project invariant #3) — only writes are locked.
+      actAs(w.users.aMember);
+      expect((await docsRoot.GET(json("GET", "/x"), pp)).status).toBe(200);
+      expect((await docsPage.GET(json("GET", "/x"), pg)).status).toBe(200);
+
+      // Platform admin bypasses the write-lock, mirroring the closed-project UI gate.
+      actAs(w.users.aAdmin);
+      const created = await docsPages.POST(json("POST", "/x", { title: "admin edit while closed" }), pp);
+      expect(created.status).toBe(201);
+      const { page: newPage } = await created.json();
+      await prisma.docPage.delete({ where: { id: newPage.id } });
+
+      const page = await prisma.docPage.findUniqueOrThrow({ where: { id: w.A.page.id } });
+      expect(page.title).toBe(`${w.keyA} secret page`);
+    } finally {
+      await prisma.project.update({ where: { id: w.A.project.id }, data: { isClosed: false } });
+    }
+  });
+});
+
 describe("known gaps (documented, not yet enforced)", () => {
-  it.todo("session server actions do not block writes to a closed project (external API and MCP do)");
   it.todo("a public docspace is readable by any authenticated user of any org (documented docs invariant)");
 });

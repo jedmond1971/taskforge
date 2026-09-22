@@ -20,23 +20,12 @@ import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 import { deleteObject, deleteObjectsWithPrefix } from "@/lib/s3";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
 
-// Helper: verify user is a project member, returns { userId, projectId }
+// Helper: verify user is a project member, returns { userId, projectId }.
+// Delegates to requireProjectRole (any role passes) so closed-project and
+// private-project enforcement live in one place (SECH-93).
 async function requireProjectMember(projectKey: string) {
-  const session = await auth();
-  if (!session?.user) throw new Error("Unauthorized");
-
-  const project = await prisma.project.findUnique({
-    where: { key: projectKey.toUpperCase() },
-    select: { id: true, key: true },
-  });
-  if (!project) throw new Error("Project not found");
-
-  const membership = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId: session.user.id, projectId: project.id } },
-  });
-  if (!membership) throw new Error("Not a project member");
-
-  return { userId: session.user.id, projectId: project.id, projectKey: project.key };
+  const { userId, projectId, projectKey: key } = await requireProjectRole(projectKey, () => true);
+  return { userId, projectId, projectKey: key };
 }
 
 // Helper: record an activity log entry

@@ -81,8 +81,9 @@ async function makeOAuthToken(userId: string, orgId: string, clientId: string, o
  */
 export async function createWorld() {
   const tag = rand();
-  const [aOwner, aMember, aViewer, bOwner, bMember] = await Promise.all([
+  const [aOwner, aMember, aViewer, aAdmin, bOwner, bMember] = await Promise.all([
     makeUser(tag, "a-owner"), makeUser(tag, "a-member"), makeUser(tag, "a-viewer"),
+    makeUser(tag, "a-admin", "ADMIN"),
     makeUser(tag, "b-owner"), makeUser(tag, "b-member"),
   ]);
 
@@ -90,14 +91,14 @@ export async function createWorld() {
   const orgB = await prisma.organization.create({ data: { name: `ItestB ${tag}`, slug: `itest-b-${tag}`, ownerId: bOwner.id } });
 
   const orgMembers: Array<[string, string, OrgRole]> = [
-    [orgA.id, aOwner.id, "OWNER"], [orgA.id, aMember.id, "MEMBER"], [orgA.id, aViewer.id, "MEMBER"],
+    [orgA.id, aOwner.id, "OWNER"], [orgA.id, aMember.id, "MEMBER"], [orgA.id, aViewer.id, "MEMBER"], [orgA.id, aAdmin.id, "MEMBER"],
     [orgB.id, bOwner.id, "OWNER"], [orgB.id, bMember.id, "MEMBER"],
   ];
   for (const [orgId, userId, role] of orgMembers) await prisma.orgMember.create({ data: { orgId, userId, role } });
 
   const keyA = `ITA${letters()}`;
   const keyB = `ITB${letters()}`;
-  const A = await makeProject(orgA.id, keyA, [[aOwner.id, "PROJECT_LEAD"], [aMember.id, "TEAM_MEMBER"], [aViewer.id, "VIEWER"]], aOwner.id);
+  const A = await makeProject(orgA.id, keyA, [[aOwner.id, "PROJECT_LEAD"], [aMember.id, "TEAM_MEMBER"], [aViewer.id, "VIEWER"], [aAdmin.id, "TEAM_MEMBER"]], aOwner.id);
   const B = await makeProject(orgB.id, keyB, [[bOwner.id, "PROJECT_LEAD"], [bMember.id, "TEAM_MEMBER"]], bOwner.id);
 
   const groupA = await prisma.group.create({ data: { orgId: orgA.id, name: `group-a-${tag}` } });
@@ -129,6 +130,7 @@ export async function createWorld() {
     tokens, client,
     users: {
       aOwner: asUser(aOwner, orgA.id), aMember: asUser(aMember, orgA.id), aViewer: asUser(aViewer, orgA.id),
+      aAdmin: asUser(aAdmin, orgA.id),
       bOwner: asUser(bOwner, orgB.id), bMember: asUser(bMember, orgB.id),
     },
   };

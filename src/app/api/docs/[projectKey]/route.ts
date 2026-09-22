@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { resolveDocCtx, upsertDocSpaceSafe } from "@/app/api/docs/_helpers";
+import { resolveDocCtx, upsertDocSpaceSafe, isDocsWriteLocked } from "@/app/api/docs/_helpers";
 
 // GET /api/docs/[projectKey] — fetch (or lazily create) the docspace with sections and pages
 export async function GET(_req: NextRequest, props: { params: Promise<{ projectKey: string }> }) {
@@ -52,11 +52,14 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ project
         userId: session.user.id,
         project: { key: params.projectKey.toUpperCase() },
       },
-      select: { role: true, project: { select: { id: true } } },
+      select: { role: true, project: { select: { id: true, isClosed: true } } },
     });
     if (!member) return NextResponse.json({ error: "Project not found" }, { status: 404 });
     if (member.role !== "PROJECT_LEAD") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (isDocsWriteLocked(member.project.isClosed, session.user.role === "ADMIN")) {
+      return NextResponse.json({ error: "This project is closed" }, { status: 403 });
     }
 
     const body = await req.json() as { isPublic?: unknown };

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteObject, deleteObjectsWithPrefix } from "@/lib/s3";
-import { resolveDocCtx } from "@/app/api/docs/_helpers";
+import { resolveDocCtx, isDocsWriteLocked } from "@/app/api/docs/_helpers";
 import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 
 async function resolveSection(projectKey: string, sectionId: string, userId: string) {
@@ -14,7 +14,7 @@ async function resolveSection(projectKey: string, sectionId: string, userId: str
   });
   if (!section) return null;
 
-  return { section, role: ctx.role, projectId: ctx.projectId, orgId: ctx.orgId };
+  return { section, role: ctx.role, isClosed: ctx.isClosed, projectId: ctx.projectId, orgId: ctx.orgId };
 }
 
 // PATCH /api/docs/[projectKey]/sections/[sectionId] — requires TEAM_MEMBER or PROJECT_LEAD
@@ -32,6 +32,9 @@ export async function PATCH(
 
     if (!result.role) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (isDocsWriteLocked(result.isClosed, session.user.role === "ADMIN")) {
+      return NextResponse.json({ error: "This project is closed" }, { status: 403 });
     }
     const grants = await getUserGrants(session.user.id, result.orgId, result.projectId);
     if (!canEditIssues(result.role, grants)) {
@@ -80,6 +83,9 @@ export async function DELETE(
 
     if (!result.role) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (isDocsWriteLocked(result.isClosed, session.user.role === "ADMIN")) {
+      return NextResponse.json({ error: "This project is closed" }, { status: 403 });
     }
     const grants = await getUserGrants(session.user.id, result.orgId, result.projectId);
     if (!canManageProject(result.role, grants)) {
