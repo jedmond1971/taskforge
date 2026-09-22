@@ -91,6 +91,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Canary: a random token-shaped string generated at runtime (never committed) must be
+      # detected, so a broken image/ruleset can't make the real scan below pass silently.
+      - name: Gitleaks self-test
+        run: |
+          mkdir -p /tmp/canary
+          echo "token = \"ghp_$(head -c 200 /dev/urandom | tr -dc 'A-Za-z0-9' | head -c 36)\"" > /tmp/canary/leak.txt
+          if docker run --rm -v /tmp/canary:/scan ghcr.io/gitleaks/gitleaks:v8.30.1 dir /scan --no-banner --redact; then
+            echo "::error::gitleaks did not detect the canary secret"; exit 1
+          fi
+          echo "canary detected as expected"
+
       - name: Gitleaks
         run: |
           docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.30.1 \
