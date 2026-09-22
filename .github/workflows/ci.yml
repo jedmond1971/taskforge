@@ -76,3 +76,32 @@ jobs:
 
       - name: Integration tests
         run: npm run test:integration
+
+  # SECH-112: gitleaks over the full history of every fetched ref (all branches + tags),
+  # not just the pushed commit range, so a secret committed on any branch is caught.
+  # Findings are redacted in logs and in the report artifact (public repo).
+  # Triaged false positives belong in .gitleaks.toml, each with a reason.
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            git /repo --log-opts="--all" --config /repo/.gitleaks.toml \
+            --redact --no-banner --verbose \
+            --report-format json --report-path /repo/gitleaks-report.json
+
+      - name: Upload redacted report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+          if-no-files-found: ignore

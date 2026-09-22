@@ -1,0 +1,7 @@
+# gitleaks config for the CI "Secret scan" job (SECH-112).
+# Extends the built-in ruleset. Every allowlist entry must say why it is safe;
+# never allowlist a live credential — rotate it instead (.context-docs/secret-scanning.md).
+title = "JedForge gitleaks config"
+
+[extend]
+useDefault = true
