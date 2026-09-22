@@ -41,7 +41,10 @@ export async function GET(request: NextRequest) {
     const withUrls = await Promise.all(
       attachments.map(async (a) => ({
         ...a,
-        downloadUrl: await getPresignedDownloadUrl(a.fileKey),
+        downloadUrl: await getPresignedDownloadUrl(a.fileKey, {
+          contentType: a.mimeType,
+          fileName: a.fileName,
+        }),
       }))
     );
 

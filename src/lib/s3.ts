@@ -8,6 +8,7 @@ import {
   DeleteObjectsCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { downloadHeaders } from "./download-headers";
 
 const s3 = new S3Client({
   endpoint: process.env.RAILWAY_BUCKET_ENDPOINT!,
@@ -34,8 +35,20 @@ export async function getPresignedUploadUrl(
   return getSignedUrl(s3, command, { expiresIn: 15 * 60 });
 }
 
-export async function getPresignedDownloadUrl(key: string): Promise<string> {
-  const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+/**
+ * `contentType` is what the app believes the object is; only inline-safe types
+ * (raster images, PDF) are served inline, everything else downloads as
+ * application/octet-stream (SECH-125, see download-headers.ts).
+ */
+export async function getPresignedDownloadUrl(
+  key: string,
+  opts: { contentType?: string; fileName?: string } = {}
+): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    ...downloadHeaders(opts.contentType, opts.fileName ?? key.split("/").pop() ?? "download"),
+  });
   return getSignedUrl(s3, command, { expiresIn: 60 * 60 });
 }
 

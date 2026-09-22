@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import sharp from "sharp";
 import { auth } from "@/lib/auth";
 import { putObject, getPresignedDownloadUrl } from "@/lib/s3";
+import { isAllowedImageMimeType, sniffRasterFormat, validateRasterImage } from "@/lib/upload-validation";
+
+const FORMAT_EXT = { png: ".png", jpeg: ".jpg", gif: ".gif", webp: ".webp" } as const;
+const EXT_TYPE: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+};
 
 const MAX_SIZE = 10 * 1024 * 1024;
 
@@ -16,8 +25,8 @@ export async function POST(request: NextRequest) {
   if (!file) {
     return NextResponse.json({ error: "Missing file" }, { status: 400 });
   }
-  if (!file.type.startsWith("image/")) {
-    return NextResponse.json({ error: "Not an image" }, { status: 400 });
+  if (!isAllowedImageMimeType(file.type)) {
+    return NextResponse.json({ error: "Unsupported image type" }, { status: 400 });
   }
   if (file.size > MAX_SIZE) {
     return NextResponse.json({ error: "File exceeds 10 MB limit" }, { status: 400 });
@@ -26,18 +35,16 @@ export async function POST(request: NextRequest) {
   const buffer = Buffer.from(await file.arrayBuffer());
 
   // Decode-validate rather than trusting the declared Content-Type (SECH-90,
-  // consistent with the avatar route's SECH-88 fix). Unlike the avatar route,
-  // this does not re-encode: editor images can be animated GIF/WebP or need
-  // to preserve exact pixel data, so the original bytes are stored once
-  // confirmed to be a real, decodable image.
-  try {
-    await sharp(buffer).metadata();
-  } catch {
+  // consistent with the avatar route's SECH-88 fix), and raster-only — never
+  // SVG (SECH-125). Unlike the avatar route this does not re-encode: editor
+  // images can be animated GIF/WebP, so the original bytes are stored once
+  // confirmed to be a real image of the declared type.
+  if (!(await validateRasterImage(buffer, file.type))) {
     return NextResponse.json({ error: "Invalid or unsupported image file" }, { status: 400 });
   }
 
-  const ext = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")) : ".png";
-  const key = `editor-images/${crypto.randomUUID()}${ext}`;
+  // Extension from the verified format, not the client's file name.
+  const key = `editor-images/${crypto.randomUUID()}${FORMAT_EXT[sniffRasterFormat(buffer)!]}`;
   await putObject(key, buffer, file.type);
 
   const url = `/api/editor-images?key=${encodeURIComponent(key)}`;
@@ -55,7 +62,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid key" }, { status: 400 });
   }
   try {
-    const url = await getPresignedDownloadUrl(key);
+    // Pre-SECH-125 keys used the client's extension; anything that isn't a
+    // known raster extension is served as a download, never inline.
+    const ext = key.includes(".") ? key.slice(key.lastIndexOf(".")).toLowerCase() : "";
+    const url = await getPresignedDownloadUrl(key, { contentType: EXT_TYPE[ext] });
     return NextResponse.redirect(url, {
       headers: { "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400" },
     });

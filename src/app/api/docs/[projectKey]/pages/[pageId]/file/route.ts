@@ -64,7 +64,14 @@ export async function GET(
       }
     }
 
-    const url = await getPresignedDownloadUrl(result.page.fileKey);
+    // PDF previews inline (iframe); .doc/.docx always download (SECH-125).
+    const ext = result.page.fileKey.includes(".")
+      ? result.page.fileKey.slice(result.page.fileKey.lastIndexOf("."))
+      : "";
+    const url = await getPresignedDownloadUrl(result.page.fileKey, {
+      contentType: result.page.mimeType ?? undefined,
+      fileName: result.page.title.endsWith(ext) ? result.page.title : `${result.page.title}${ext}`,
+    });
     return NextResponse.json({ url, mimeType: result.page.mimeType, fileName: result.page.title, html });
   } catch (error) {
     console.error("GET /api/docs/.../file error:", error);
