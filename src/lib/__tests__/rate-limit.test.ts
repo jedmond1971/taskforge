@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const { mockPrisma } = vi.hoisted(() => {
   const mockPrisma = {
@@ -22,6 +22,9 @@ import {
   recordLoginFailure,
   LOGIN_RATE_LIMIT,
   ACCOUNT_LOGIN_RATE_LIMIT,
+  consumeRateLimit,
+  clientIpFromHeaders,
+  tooManyAttemptsMessage,
 } from "@/lib/rate-limit";
 
 const CONFIG = { maxAttempts: 5, windowMs: 15 * 60 * 1000 };
@@ -199,5 +202,52 @@ describe("login rate limit (ip+email and account-only)", () => {
     await recordLoginFailure("1.2.3.4", "a@x.dev");
     const keys = mockPrisma.rateLimitAttempt.create.mock.calls.map((c) => c[0].data.key);
     expect(keys).toEqual(["login:1.2.3.4:a@x.dev", "login-account:a@x.dev"]);
+  });
+});
+
+describe("consumeRateLimit (attempt-counted, SECH-107)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPrisma.rateLimitAttempt.findFirst.mockResolvedValue({ createdAt: new Date() });
+  });
+
+  it("records the attempt when allowed", async () => {
+    mockPrisma.rateLimitAttempt.count.mockResolvedValue(CONFIG.maxAttempts - 1);
+    expect((await consumeRateLimit("k", CONFIG)).allowed).toBe(true);
+    expect(mockPrisma.rateLimitAttempt.create).toHaveBeenCalledWith({ data: { key: "k" } });
+  });
+
+  it("does not record a throttled attempt", async () => {
+    mockPrisma.rateLimitAttempt.count.mockResolvedValue(CONFIG.maxAttempts);
+    expect((await consumeRateLimit("k", CONFIG)).allowed).toBe(false);
+    expect(mockPrisma.rateLimitAttempt.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("RATE_LIMIT_MODE=monitor", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("allows (and logs) what would otherwise be blocked, without leaking the key", async () => {
+    vi.clearAllMocks();
+    mockPrisma.rateLimitAttempt.count.mockResolvedValue(CONFIG.maxAttempts);
+    vi.stubEnv("RATE_LIMIT_MODE", "monitor");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect((await checkRateLimit("login:1.2.3.4:user@example.com", CONFIG)).allowed).toBe(true);
+    const logged = JSON.stringify(warn.mock.calls);
+    expect(logged).toContain('"scope":"login"');
+    expect(logged).not.toContain("user@example.com");
+    expect(logged).not.toContain("1.2.3.4");
+    warn.mockRestore();
+  });
+});
+
+describe("clientIpFromHeaders / tooManyAttemptsMessage", () => {
+  it("reads the same leftmost hop as getClientIp", () => {
+    expect(clientIpFromHeaders(new Headers({ "x-forwarded-for": "198.51.100.20, 100.64.0.7" }))).toBe("198.51.100.20");
+  });
+
+  it("rounds the wait up to whole minutes", () => {
+    expect(tooManyAttemptsMessage(30)).toBe("Too many attempts. Try again in 1 minute.");
+    expect(tooManyAttemptsMessage(61)).toBe("Too many attempts. Try again in 2 minutes.");
   });
 });

@@ -7,6 +7,7 @@ import { validateAuthorizeRequest } from "@/lib/oauth/validate-authorize-request
 import { parseRequestedScope } from "@/lib/oauth/scopes";
 import { generateAuthorizationCode, hashOAuthSecret } from "@/lib/oauth/tokens";
 import { AUTHORIZATION_CODE_TTL_MS } from "@/lib/oauth/config";
+import { consumeRateLimit, LIMITS } from "@/lib/rate-limit";
 
 function appendRedirectParams(redirectUri: string, params: Record<string, string | null>): string {
   const url = new URL(redirectUri);
@@ -55,6 +56,18 @@ export async function approveAuthorization(formData: FormData) {
 
   if (!result.ok && result.redirectable) {
     redirect(appendRedirectParams(result.redirectUri, { error: result.error, state: result.state }));
+  }
+
+  // Each approval mints an authorization code: attempt-counted per user (SECH-107).
+  const limit = await consumeRateLimit(`oauth-approve:${session.user.id}`, LIMITS.oauthApprovePerUser);
+  if (!limit.allowed) {
+    redirect(
+      appendRedirectParams(result.redirectUri, {
+        error: "temporarily_unavailable",
+        error_description: "Too many authorization attempts. Try again later.",
+        state: result.state,
+      })
+    );
   }
 
   const requestedOrgId = String(formData.get("orgId") ?? "") || session.user.orgId;

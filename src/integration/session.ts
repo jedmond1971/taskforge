@@ -15,3 +15,15 @@ export function actAsNobody() {
 export function currentSession() {
   return current;
 }
+
+// Client IP seen by Server Actions via next/headers (mocked in setup.ts). Route
+// handlers take theirs from the Request's own x-forwarded-for instead.
+let clientIp = "203.0.113.200";
+
+export function setClientIp(ip: string) {
+  clientIp = ip;
+}
+
+export function currentClientIp() {
+  return clientIp;
+}

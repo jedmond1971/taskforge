@@ -2,11 +2,22 @@ import { NextResponse } from "next/server";
 import { OAuthClientMetadataSchema } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { prisma } from "@/lib/prisma";
 import { generateOAuthClientSecret, hashOAuthSecret } from "@/lib/oauth/tokens";
+import { consumeRateLimit, getClientIp, LIMITS } from "@/lib/rate-limit";
 
 // RFC 7591 Dynamic Client Registration. Claude.ai's MCP connector calls this
 // automatically before starting the authorization flow — no manual client
 // setup is expected.
 export async function POST(request: Request) {
+  // Unauthenticated and each call creates a row: attempt-counted per IP (SECH-107).
+  // Generous because Claude.ai registers from Anthropic's shared egress IPs.
+  const limit = await consumeRateLimit(`oauth-register:${getClientIp(request)}`, LIMITS.oauthRegisterPerIp);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "temporarily_unavailable", error_description: "Too many client registrations. Try again later." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();

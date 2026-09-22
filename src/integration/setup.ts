@@ -1,4 +1,4 @@
-import { vi } from "vitest";
+import { vi, beforeEach } from "vitest";
 
 // Safety: these tests create and delete rows. Never let them near a shared/prod database.
 const host = (() => {
@@ -32,6 +32,24 @@ vi.mock("@/lib/auth", async () => {
     signOut: vi.fn(),
     INVALIDATED_SESSION_PATH: "/api/session-invalidated",
   };
+});
+
+// Server Actions read the client IP via next/headers (SECH-107 rate limits).
+vi.mock("next/headers", async () => {
+  const s = await import("./session");
+  return {
+    headers: async () => new Headers({ "x-forwarded-for": s.currentClientIp() }),
+    cookies: async () => ({ get: () => undefined, getAll: () => [], has: () => false }),
+  };
+});
+
+// Rate-limit rows live 15-60 min; clear them so reruns and earlier tests can't
+// throttle later ones. Safe because files run sequentially (fileParallelism: false).
+beforeEach(async () => {
+  const { prisma } = await import("@/lib/prisma");
+  await prisma.rateLimitAttempt.deleteMany();
+  const s = await import("./session");
+  s.setClientIp("203.0.113.200");
 });
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));

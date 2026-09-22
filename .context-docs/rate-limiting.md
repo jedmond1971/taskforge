@@ -1,13 +1,43 @@
-# Rate limiting (SECH-82, SECH-108)
+# Rate limiting (SECH-82, SECH-107, SECH-108)
 
-Durable limiter in `src/lib/rate-limit.ts`. It counts failures in the Postgres `RateLimitAttempt` table, so limits survive restarts and are shared across instances. Only failures are recorded, never successes.
+Durable limiter in `src/lib/rate-limit.ts`, backed by the Postgres `RateLimitAttempt` table, so limits survive restarts and are shared across instances. There are two counting modes:
 
-| Surface | Key(s) | Limit |
-|---|---|---|
-| Credentials login (`auth.ts` → `checkLoginRateLimit` / `recordLoginFailure`) | `login:<ip>:<email>` **and** `login-account:<email>` | 5 / 15 min per ip+email; 20 / 15 min per account (any IP) |
-| Internal v1 API (`v1-auth.ts`) | `v1api:<ip>` | 10 failures / 15 min → 429 + `Retry-After` |
-| `/api/csp-report` | in-memory per-IP sampler (log-noise control only, not security) | — |
-| External org API (`external-api-auth.ts`) | **still in-memory** per API key, 100/min. Resets on restart; moving it to the durable store is SECH-107 | — |
+- **Failures** (`checkRateLimit` before the operation, `recordFailure` only when it fails). Used where legitimate use rarely fails: guessing, bad tokens, wrong passwords.
+- **Attempts** (`consumeRateLimit`). Every allowed call is recorded. Used where each call creates something (OAuth clients, auth codes, API keys) or is itself the cost (external API). A throttled call isn't recorded.
+
+Named limits live in `LIMITS` in `rate-limit.ts`. **Any new sensitive endpoint should pick one of these modes and add a `LIMITS` entry**, rather than rolling its own limiter.
+
+| Surface | Key(s) | Mode | Limit | Throttled response |
+|---|---|---|---|---|
+| Credentials login (`auth.ts` → `checkLoginRateLimit` / `recordLoginFailure`) | `login:<ip>:<email>` **and** `login-account:<email>` | failures | 5 / 15 min per ip+email; 20 / 15 min per account (any IP) | generic "invalid email or password" |
+| Internal v1 API (`v1-auth.ts`) | `v1api:<ip>` | failures | 10 / 15 min | 429 + `Retry-After` |
+| `POST /api/oauth/register` | `oauth-register:<ip>` | attempts | 20 / hour (generous: Claude.ai registers from Anthropic's shared egress IPs) | 429 `temporarily_unavailable` + `Retry-After` |
+| `POST /api/oauth/token` | `oauth-token:<ip>:<client_id>` **and** `oauth-token-ip:<ip>` | failures (any ≥400 response) | 20 / 15 min per ip+client; 50 / 15 min per IP (so rotating `client_id` can't dodge it) | 429 `temporarily_unavailable` + `Retry-After` |
+| `approveAuthorization` (consent screen; mints codes) | `oauth-approve:<userId>` | attempts | 20 / 15 min | redirect to the client with `error=temporarily_unavailable` |
+| `acceptInviteNewUser` (public) | `invite-ip:<ip>` (bad, expired or used token) **and** `invite-token:<sha256(token)[:32]>` | failures / attempts | 10 / 15 min per IP; 10 / 15 min per token (also caps bcrypt work) | "Too many attempts. Try again in N minutes." |
+| `acceptInviteExistingUser` | `invite-user:<userId>` | attempts | 10 / 15 min | same message |
+| `changePassword` | `pw-change:<userId>` (wrong current password) | failures | 5 / 15 min. Stops a hijacked session brute-forcing its way to an account takeover | same message |
+| `createApiKey` | `apikey-create:<userId>:<orgId>` | attempts | 10 / hour | same message |
+| External org API (`external-api-auth.ts`) | `extapi:<apiKeyId>` **and** `extapi-auth-ip:<ip>` (missing, unknown or revoked key) | attempts / failures | 100 / min per key; 20 / 15 min bad keys per IP | 429 + `Retry-After` |
+| `/api/csp-report` | in-memory per-IP sampler (log-noise control only, not security) | — | — | 204 |
+
+Raw invite tokens never go into a limiter key (they're bearer secrets); the key uses a truncated sha256.
+
+## Monitor-only switch (rollback lever)
+
+Setting `RATE_LIMIT_MODE=monitor` on the Railway service makes **every** limiter above (login and v1 included) keep counting but never block. A would-be block logs `[security] rate limit would block (monitor mode)` with only the key's scope prefix (no emails, IPs or tokens). Use it if a limit harms legitimate traffic, then fix the threshold and unset it. Unset is the default, and means enforce.
+
+## Failure policy when the store is down
+
+The limiter's store is the application's own Postgres database. If the store is unreachable, every one of these endpoints is already failing on its own queries, so the limiter adds no separate fail-open path: the request errors (fail-closed) exactly as it would without the limiter. The only non-database limiter is the csp-report sampler.
+
+## Housekeeping
+
+`recordFailure` deletes expired rows for the key it writes. On about 1% of writes it also prunes every row older than 24 hours, since keys that never recur (one-off IPs and tokens) would otherwise accumulate. No window is longer than an hour.
+
+## Testing
+
+`src/integration/rate-limits.itest.ts` drives each endpoint to its limit, asserts nothing is created while throttled, and recovers by ageing the rows. `setup.ts` clears `RateLimitAttempt` before every test and mocks `next/headers` so Server Actions see an IP; set it with `setClientIp()` from `./session`.
 
 The account-only login bucket is also a lockout lever: anyone who knows an email can close that account's logins for up to 15 minutes by failing 20 times. It is loosened deliberately for that reason, and the user still sees the generic "invalid email or password".
 
