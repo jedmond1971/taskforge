@@ -1,0 +1,12 @@
+# TEMPORARY (SECH-108 verification) — never merged. Proves the v1 rate-limit bucket is
+# per-client: this runner's IP must get 401 while the developer machine's IP is throttled.
+name: ip-probe
+on: pull_request
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for i in 1 2 3; do
+            curl -s -o /dev/null -w "runner request $i: %{http_code}\n" "https://taskforge-production-099b.up.railway.app/api/v1/projects?probe=$i"
+          done
