@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { revokeOAuthTokensForUser } from "@/lib/credential-revocation";
+import { checkRateLimit, recordFailure, tooManyAttemptsMessage, LIMITS } from "@/lib/rate-limit";
 
 type ActionResult = { success: true } | { success: false; error: string };
 
@@ -21,8 +22,17 @@ export async function changePassword(
 
   if (!user) return { success: false, error: "User not found" };
 
+  // A hijacked session must not be able to brute-force the current password into
+  // a full takeover: wrong-password failures are counted per user (SECH-107).
+  const limitKey = `pw-change:${session.user.id}`;
+  const limit = await checkRateLimit(limitKey, LIMITS.changePasswordFailuresPerUser);
+  if (!limit.allowed) return { success: false, error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
+
   const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
-  if (!isValid) return { success: false, error: "Current password is incorrect" };
+  if (!isValid) {
+    await recordFailure(limitKey, LIMITS.changePasswordFailuresPerUser.windowMs);
+    return { success: false, error: "Current password is incorrect" };
+  }
 
   if (newPassword.length < 8)
     return { success: false, error: "New password must be at least 8 characters" };

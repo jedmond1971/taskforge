@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireOrgRole, canManageApiKeys } from "@/lib/permissions";
 import { generateApiKey, hashApiKey } from "@/lib/api-keys";
+import { consumeRateLimit, tooManyAttemptsMessage, LIMITS } from "@/lib/rate-limit";
 
 export type ApiKeyRow = {
   id: string;
@@ -51,6 +52,10 @@ export async function createApiKey(
   const trimmed = name.trim();
   if (!trimmed) return { success: false, error: "Name is required" };
   if (trimmed.length > 100) return { success: false, error: "Name must be 100 characters or fewer" };
+
+  // Each call mints a long-lived credential: attempt-counted per user+org (SECH-107).
+  const limit = await consumeRateLimit(`apikey-create:${userId}:${orgId}`, LIMITS.apiKeyCreatePerUserOrg);
+  if (!limit.allowed) return { success: false, error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
 
   const plaintext = generateApiKey();
   const keyPrefix = plaintext.slice(0, 8);

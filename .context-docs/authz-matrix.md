@@ -51,8 +51,8 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | `api/internal/cleanup-orphaned-attachments/route.ts` | POST | internal v1 secret (`X-Internal-Api-Key`) | global (storage housekeeping) | shared secret | called by the daily GitHub Actions cron |
 | `api/issues/[issueId]/route.ts` | PATCH, DELETE | session (`auth()`, fail-closed on invalidated) | issue -> project membership | `canEditIssues` (+grants) | PATCH field whitelist; assignee must be a project member |
 | `api/mcp/route.ts` | GET, POST, DELETE | OAuth bearer (`requireOAuthToken`) | token's `orgId`; every tool re-resolves project/issue scoped to that org + requires `ProjectMember` | per-tool scope; writes need `canEditIssues` | closed projects excluded (docs exempt); stateless transport per request |
-| `api/oauth/register/route.ts` | POST | public (RFC 7591 dynamic client registration) | n/a | n/a | spec-required to be public |
-| `api/oauth/token/route.ts` | POST | public; self-authenticates via PKCE / client credentials / refresh token | code/token bound to one org + user | n/a | PKCE S256 only; codes single-use; refresh tokens rotate, claimed with a conditional update so concurrent replays mint at most one pair (SECH-97 fix) |
+| `api/oauth/register/route.ts` | POST | public (RFC 7591 dynamic client registration) | n/a | n/a | spec-required to be public; attempt rate limit per IP (SECH-107) |
+| `api/oauth/token/route.ts` | POST | public; self-authenticates via PKCE / client credentials / refresh token | code/token bound to one org + user | n/a | PKCE S256 only; codes single-use; refresh tokens rotate, claimed with a conditional update so concurrent replays mint at most one pair (SECH-97 fix); failure rate limit per ip+client and per IP (SECH-107) |
 | `api/projects/route.ts` | POST | session (`auth()`, fail-closed on invalidated) | `session.user.orgId` + `OrgMember` re-check; client `orgId` ignored | any org member | creator becomes PROJECT_LEAD; project keys are globally unique |
 | `api/session-invalidated/route.ts` | GET | public by design (SECH-86) | n/a | n/a | clears the cookie of an absent/invalidated session, redirects a valid one to `/` |
 | `api/v1/issues/[key]/comments/[commentId]/route.ts` | PATCH, DELETE | internal v1 secret (`X-Internal-Api-Key`) | none — superuser by design | shared secret | constant-time compare, DB-backed failure rate limit; explicit field handling |
@@ -70,15 +70,15 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 
 | Action | Guard | Tenant scope | Minimum role |
 |---|---|---|---|
-| `acceptInviteNewUser` | public — possession of the invite token | invite email/org/role from the invite; existing account blocked | invitee |
-| `acceptInviteExistingUser` | `auth()` + session email must equal the invite email | invite row by `token` | invitee |
+| `acceptInviteNewUser` | public — possession of the invite token | invite email/org/role from the invite; existing account blocked | invitee (rate-limited per IP and per token, SECH-107) |
+| `acceptInviteExistingUser` | `auth()` + session email must equal the invite email | invite row by `token` | invitee (rate-limited per user, SECH-107) |
 
 ### `(auth)/oauth/authorize/actions.ts`
 
 | Action | Guard | Tenant scope | Minimum role |
 |---|---|---|---|
 | `denyAuthorization` | none (redirect only) | redirects only to a registered `redirect_uri` | n/a |
-| `approveAuthorization` | `auth()` | `validateAuthorizeRequest`; caller must be an `OrgMember` of the chosen org | any org member |
+| `approveAuthorization` | `auth()` | `validateAuthorizeRequest`; caller must be an `OrgMember` of the chosen org | any org member (rate-limited per user, SECH-107) |
 
 ### `(dashboard)/admin/actions.ts`
 
@@ -123,7 +123,7 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 
 | Action | Guard | Tenant scope | Minimum role |
 |---|---|---|---|
-| `listApiKeys` | `requireOrgRole(orgId, canManageApiKeys)` | client `orgId` verified against `OrgMember`; ids scoped `{id, orgId}` | org OWNER/ADMIN or `ORG_MANAGE_API_KEYS` grant |
+| `listApiKeys` | `requireOrgRole(orgId, canManageApiKeys)` | client `orgId` verified against `OrgMember`; ids scoped `{id, orgId}` | org OWNER/ADMIN or `ORG_MANAGE_API_KEYS` grant (rate-limited per user+org, SECH-107) |
 | `createApiKey` | `requireOrgRole(orgId, canManageApiKeys)` | client `orgId` verified against `OrgMember`; ids scoped `{id, orgId}` | org OWNER/ADMIN or `ORG_MANAGE_API_KEYS` grant |
 | `revokeApiKey` | `requireOrgRole(orgId, canManageApiKeys)` | client `orgId` verified against `OrgMember`; ids scoped `{id, orgId}` | org OWNER/ADMIN or `ORG_MANAGE_API_KEYS` grant |
 
@@ -249,7 +249,7 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 
 | Action | Guard | Tenant scope | Minimum role |
 |---|---|---|---|
-| `changePassword` | `auth()` | own user only | any authenticated user; bumps `sessionVersion` |
+| `changePassword` | `auth()` | own user only | any authenticated user; bumps `sessionVersion`; wrong-password failures rate-limited per user (SECH-107) |
 
 ## Findings from the SECH-85 audit
 

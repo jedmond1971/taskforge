@@ -41,13 +41,18 @@ export const V1_API_RATE_LIMIT: RateLimitConfig = {
  * post-deploy re-verify recipe in rate-limiting.md detects the change.
  */
 export function getClientIp(request: Request): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
+  return clientIpFromHeaders(request.headers);
+}
+
+/** Same as getClientIp, for Server Actions (`await headers()` from next/headers). */
+export function clientIpFromHeaders(headers: Headers): string {
+  const forwardedFor = headers.get("x-forwarded-for");
   if (forwardedFor) {
     const first = forwardedFor.split(",")[0]?.trim();
     if (first) return first;
   }
 
-  const realIp = request.headers.get("x-real-ip");
+  const realIp = headers.get("x-real-ip");
   if (realIp) return realIp.trim();
 
   return "unknown";
@@ -94,6 +99,16 @@ export async function checkRateLimit(
     return { allowed: true, retryAfterSeconds: 0 };
   }
 
+  // Rollback lever (plan SH-010): RATE_LIMIT_MODE=monitor keeps measuring and
+  // logging but never blocks, for every limiter (login, v1, SECH-107 endpoints).
+  if (process.env.RATE_LIMIT_MODE === "monitor") {
+    console.warn("[security] rate limit would block (monitor mode)", {
+      scope: key.split(":")[0],
+      timestamp: new Date().toISOString(),
+    });
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
+
   const oldest = await prisma.rateLimitAttempt.findFirst({
     where: { key, createdAt: { gte: windowStart } },
     orderBy: { createdAt: "asc" },
@@ -111,6 +126,57 @@ export async function recordFailure(key: string, windowMs: number): Promise<void
   await prisma.rateLimitAttempt.deleteMany({
     where: { key, createdAt: { lt: new Date(Date.now() - windowMs) } },
   });
+  // Keys that never recur (one-off IPs, tokens) are otherwise never cleaned up.
+  // No window here is longer than a day, so anything older is dead weight.
+  if (Math.random() < 0.01) {
+    try {
+      await prisma.rateLimitAttempt.deleteMany({
+        where: { createdAt: { lt: new Date(Date.now() - STALE_ROW_MS) } },
+      });
+    } catch {
+      // best-effort housekeeping; never fail the caller over it
+    }
+  }
+}
+
+const STALE_ROW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Attempt-counted limit (SECH-107): every call counts, not just failures — for
+ * endpoints where each call creates something (OAuth clients, codes, API keys) or
+ * where the call itself is the cost (external API). Checks first, then records, so
+ * exactly `maxAttempts` calls succeed per window. A throttled call is not recorded.
+ */
+export async function consumeRateLimit(
+  key: string,
+  config: RateLimitConfig
+): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
+  const result = await checkRateLimit(key, config);
+  if (result.allowed) await recordFailure(key, config.windowMs);
+  return result;
+}
+
+const MINUTE = 60 * 1000;
+
+/** SECH-107 limits. Rationale per entry in .context-docs/rate-limiting.md. */
+export const LIMITS = {
+  oauthRegisterPerIp: { maxAttempts: 20, windowMs: 60 * MINUTE },
+  oauthTokenFailuresPerClientIp: { maxAttempts: 20, windowMs: 15 * MINUTE },
+  oauthTokenFailuresPerIp: { maxAttempts: 50, windowMs: 15 * MINUTE },
+  oauthApprovePerUser: { maxAttempts: 20, windowMs: 15 * MINUTE },
+  inviteFailuresPerIp: { maxAttempts: 10, windowMs: 15 * MINUTE },
+  inviteAttemptsPerToken: { maxAttempts: 10, windowMs: 15 * MINUTE },
+  inviteExistingUserPerUser: { maxAttempts: 10, windowMs: 15 * MINUTE },
+  changePasswordFailuresPerUser: { maxAttempts: 5, windowMs: 15 * MINUTE },
+  apiKeyCreatePerUserOrg: { maxAttempts: 10, windowMs: 60 * MINUTE },
+  externalApiPerKey: { maxAttempts: 100, windowMs: 1 * MINUTE },
+  externalApiAuthFailuresPerIp: { maxAttempts: 20, windowMs: 15 * MINUTE },
+} satisfies Record<string, RateLimitConfig>;
+
+/** User-facing message for throttled Server Actions (no enumeration detail). */
+export function tooManyAttemptsMessage(retryAfterSeconds: number): string {
+  const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));
+  return `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`;
 }
 
 export function logAuthFailure(meta: {

@@ -7,6 +7,7 @@ import {
   verifyPkceS256,
 } from "@/lib/oauth/tokens";
 import { ACCESS_TOKEN_TTL_MS, REFRESH_TOKEN_TTL_MS } from "@/lib/oauth/config";
+import { checkRateLimit, recordFailure, getClientIp, LIMITS } from "@/lib/rate-limit";
 
 function tokenError(error: string, description: string, status = 400) {
   return NextResponse.json({ error, error_description: description }, { status });
@@ -83,6 +84,30 @@ export async function POST(request: Request) {
     return tokenError("invalid_request", "Request body must be application/x-www-form-urlencoded");
   }
 
+  // SECH-107: failure-counted, per IP+client_id and per IP alone (so rotating
+  // client_id doesn't reset the budget). Legitimate token flows almost never fail.
+  const ip = getClientIp(request);
+  const buckets = [
+    { key: `oauth-token:${ip}:${body.client_id || "-"}`, config: LIMITS.oauthTokenFailuresPerClientIp },
+    { key: `oauth-token-ip:${ip}`, config: LIMITS.oauthTokenFailuresPerIp },
+  ];
+  const checks = await Promise.all(buckets.map((b) => checkRateLimit(b.key, b.config)));
+  const blocked = checks.find((c) => !c.allowed);
+  if (blocked) {
+    return NextResponse.json(
+      { error: "temporarily_unavailable", error_description: "Too many failed token requests. Try again later." },
+      { status: 429, headers: { "Retry-After": String(blocked.retryAfterSeconds) } }
+    );
+  }
+
+  const response = await handleGrant(request, body);
+  if (response.status >= 400) {
+    await Promise.all(buckets.map((b) => recordFailure(b.key, b.config.windowMs)));
+  }
+  return response;
+}
+
+async function handleGrant(request: Request, body: Record<string, string>): Promise<Response> {
   const grantType = body.grant_type;
   const clientId = body.client_id;
   if (!clientId) return tokenError("invalid_client", "client_id is required");
