@@ -31,7 +31,10 @@ export async function GET(_request: NextRequest, props: { params: Promise<{ id: 
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const url = await getPresignedDownloadUrl(attachment.fileKey);
+    const url = await getPresignedDownloadUrl(attachment.fileKey, {
+      contentType: attachment.mimeType,
+      fileName: attachment.fileName,
+    });
     return NextResponse.json({ url });
   } catch (error) {
     console.error(error);

@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import sharp from "sharp";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { putObject, getPresignedDownloadUrl } from "@/lib/s3";
-import { MAX_ATTACHMENT_SIZE, isAllowedAttachmentMimeType, sanitizeFileName } from "@/lib/upload-validation";
+import {
+  MAX_ATTACHMENT_SIZE,
+  isAllowedAttachmentMimeType,
+  isAllowedImageMimeType,
+  sanitizeFileName,
+  validateRasterImage,
+} from "@/lib/upload-validation";
 import { checkOrgStorageQuota } from "@/lib/storage-quota";
 
 export const maxDuration = 60;
@@ -62,16 +67,10 @@ export async function POST(request: NextRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Confirm image attachments are real, decodable images rather than
-    // arbitrary bytes with a spoofed image/* Content-Type — same check as
-    // the avatar route (SECH-88), applied here since this path also
-    // receives the real bytes server-side.
-    if (file.type.startsWith("image/")) {
-      try {
-        await sharp(buffer).metadata();
-      } catch {
-        return NextResponse.json({ error: "Invalid or unsupported image file" }, { status: 400 });
-      }
+    // Image attachments must be real PNG/JPEG/GIF/WebP whose bytes match the
+    // declared type — never SVG or spoofed bytes (SECH-88/90, SECH-125).
+    if (isAllowedImageMimeType(file.type) && !(await validateRasterImage(buffer, file.type))) {
+      return NextResponse.json({ error: "Invalid or unsupported image file" }, { status: 400 });
     }
 
     const fileKey = `attachments/${issueId}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
@@ -98,7 +97,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const downloadUrl = await getPresignedDownloadUrl(fileKey);
+    const downloadUrl = await getPresignedDownloadUrl(fileKey, {
+      contentType: attachment.mimeType,
+      fileName: attachment.fileName,
+    });
 
     return NextResponse.json({
       attachment: { ...attachment, downloadUrl },

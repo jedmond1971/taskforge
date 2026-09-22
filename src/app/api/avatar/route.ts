@@ -3,6 +3,7 @@ import sharp from "sharp";
 import { getPresignedDownloadUrl, putObject } from "@/lib/s3";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sniffRasterFormat } from "@/lib/upload-validation";
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5 MB
 
@@ -26,6 +27,12 @@ export async function PUT(request: NextRequest) {
   // Decode and re-encode server-side rather than trusting the declared Content-Type:
   // this both rejects anything that isn't a real raster image and strips embedded
   // metadata (EXIF/GPS) as a side effect of re-encoding to a clean JPEG.
+  // Magic-byte gate first so non-raster input (e.g. SVG) never reaches sharp's
+  // decoders; the re-encode below then only ever sees PNG/JPEG/GIF/WebP (SECH-125).
+  if (!sniffRasterFormat(rawBuffer)) {
+    return NextResponse.json({ error: "Invalid or unsupported image file" }, { status: 400 });
+  }
+
   let buffer: Buffer;
   try {
     buffer = await sharp(rawBuffer)
@@ -56,7 +63,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid key" }, { status: 400 });
   }
   try {
-    const url = await getPresignedDownloadUrl(key);
+    // Avatars are always re-encoded to JPEG on upload.
+    const url = await getPresignedDownloadUrl(key, { contentType: "image/jpeg" });
     return NextResponse.redirect(url, {
       headers: { "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400" },
     });

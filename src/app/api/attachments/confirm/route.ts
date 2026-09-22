@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import sharp from "sharp";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { getPresignedDownloadUrl, headObjectSize, getObjectBuffer, deleteObject } from "@/lib/s3";
-import { MAX_ATTACHMENT_SIZE, isAllowedAttachmentMimeType } from "@/lib/upload-validation";
+import {
+  MAX_ATTACHMENT_SIZE,
+  isAllowedAttachmentMimeType,
+  isAllowedImageMimeType,
+  validateRasterImage,
+} from "@/lib/upload-validation";
 import { checkOrgStorageQuota } from "@/lib/storage-quota";
 
 export async function POST(request: NextRequest) {
@@ -84,11 +88,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Organization storage quota exceeded" }, { status: 507 });
     }
 
-    if (mimeType.startsWith("image/")) {
-      try {
-        const buffer = await getObjectBuffer(fileKey);
-        await sharp(buffer).metadata();
-      } catch {
+    // Real PNG/JPEG/GIF/WebP matching the declared type only — never SVG (SECH-125).
+    if (isAllowedImageMimeType(mimeType)) {
+      const valid = await getObjectBuffer(fileKey)
+        .then((buffer) => validateRasterImage(buffer, mimeType))
+        .catch(() => false);
+      if (!valid) {
         await deleteObject(fileKey).catch(() => {});
         return NextResponse.json({ error: "Invalid or unsupported image file" }, { status: 400 });
       }
@@ -117,7 +122,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const downloadUrl = await getPresignedDownloadUrl(attachment.fileKey);
+    const downloadUrl = await getPresignedDownloadUrl(attachment.fileKey, {
+      contentType: attachment.mimeType,
+      fileName: attachment.fileName,
+    });
 
     return NextResponse.json({
       attachment: {
