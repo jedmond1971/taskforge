@@ -31,7 +31,7 @@ Railway's docs and staff answers contradict each other (2024: "use rightmost, we
 Send 11 keyless requests to `/api/v1/projects`. The 11th must be 429, and a follow-up with a different spoofed `X-Forwarded-For` must also be 429. Three failure modes:
 - **All 401:** the key rotates per request, so the limiter is dead.
 - **The spoofed request gets 401:** leftmost has become spoofable.
-- **Some other machine is also throttled** (e.g. a `WebFetch` from Anthropic's servers): the key is a shared proxy IP.
+- **Some other machine is also throttled:** the key is a shared proxy IP. A genuinely different source IP is needed for this check. Claude Code's `WebFetch` runs from the same machine and shares the bucket, so it proves nothing. What worked on 2026-09-22: a throwaway draft PR adding a one-step `on: pull_request` workflow that curls the endpoint from a GitHub runner, then closing it unmerged with `--delete-branch`. The runner got 401 while the dev machine got 429 at the same moment, so the bucket is per-client.
 
 The test locks the tester's IP out of the v1 API for up to 15 minutes, which also blocks Claude Code's v1 calls from that machine. The JedForge MCP connector still works.
 
