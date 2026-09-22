@@ -17,17 +17,20 @@
 
 **`[...new Set()]` spread fails TypeScript (TS2802)** — The project's TypeScript target does not support iterating Sets via spread. Use `Array.from(new Set(...))` instead.
 
-### After pushing
-Monitor CI to completion before closing the session:
+### Shipping: PR flow — `main` is protected (SECH-102, 2026-09-22)
+**Direct pushes to `main` are rejected** (`GH006`). Branch protection requires the `Verify` and `Integration (cross-tenant)` checks with admins included, so it applies to Claude Code's `jedmond1971` pushes too. Commit on a branch, then run `git push -u origin HEAD`, `gh pr create --base main --fill`, `gh pr checks --watch`, and `gh pr merge --squash --delete-branch`. When `main` has moved, `gh pr update-branch` first. **Never lift protection (break-glass) without Jamie's explicit approval in the session.** The full recipe, the break-glass procedure, and how to add a newly required check live in `.context-docs/release-controls.md`.
+
+### After merging
+Railway deploys the merge commit on `main`, so monitor that CI run to completion before closing the session:
 ```bash
-until gh run list --repo jedmond1971/taskforge --limit 1 2>&1 | grep -qE "completed|failure|success"; do sleep 5; done
-gh run list --repo jedmond1971/taskforge --limit 1
+until gh run list --repo jedmond1971/taskforge --branch main --limit 1 2>&1 | grep -qE "completed|failure|success"; do sleep 5; done
+gh run list --repo jedmond1971/taskforge --branch main --limit 1
 ```
-If CI fails, fix and push before ending the session. Do not leave main in a broken state.
+If CI fails, fix it through a new PR before ending the session. Do not leave main in a broken state.
 
 **Railway deploy lag:** CI passing does not mean the production deployment is live. Railway takes an additional ~2–3 minutes after CI success to build and swap the deployment. New API routes will 404 until the deploy completes. If you need to verify a new endpoint is live, poll with `until curl -s -o /dev/null -w "%{http_code}" <url> | grep -q "200"; do sleep 15; done`.
 
-**Railway auto-deploy-on-push was re-enabled** (status as of 2026-08-11) after being turned off following an incident on 2026-08-05 — pushes to `main` go live automatically again, so the normal "After pushing" workflow above applies. If a push ever doesn't seem to reach production after the normal CI+build lag, confirm the auto-deploy toggle hasn't been turned off again before assuming a code bug. To manually deploy a specific commit via the Railway GraphQL API (see `.context-docs/local-dev-tooling.md` for auth/IDs): call `serviceInstanceDeploy(serviceId, environmentId, commitSha)` **with an explicit `commitSha`** (full 40-char SHA, `git rev-parse <ref>`) — calling it with no `commitSha`/`latestCommit` arg silently redeploys whatever commit Railway last deployed, not the actual latest commit on the branch. Poll the `deployments(...)` query afterward and match on `meta.commitHash` to confirm the right commit is actually building.
+**Railway auto-deploy-on-push was re-enabled** (status as of 2026-08-11) after being turned off following an incident on 2026-08-05 — merges to `main` go live automatically again, so the normal "After merging" workflow above applies. If a push ever doesn't seem to reach production after the normal CI+build lag, confirm the auto-deploy toggle hasn't been turned off again before assuming a code bug. To manually deploy a specific commit via the Railway GraphQL API (see `.context-docs/local-dev-tooling.md` for auth/IDs): call `serviceInstanceDeploy(serviceId, environmentId, commitSha)` **with an explicit `commitSha`** (full 40-char SHA, `git rev-parse <ref>`) — calling it with no `commitSha`/`latestCommit` arg silently redeploys whatever commit Railway last deployed, not the actual latest commit on the branch. Poll the `deployments(...)` query afterward and match on `meta.commitHash` to confirm the right commit is actually building.
 
 ### End-of-session CLAUDE.md update
 Before closing every session, review what was discovered and update this file. Add only durable facts that will matter in future sessions — environment quirks, schema discoveries, tooling workarounds, corrected URLs. Do not add summaries of completed work.
@@ -280,6 +283,7 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 
 ## Reference docs (load when relevant)
 
+- .context-docs/release-controls.md — branch protection on main, PR ship flow, adding required checks, break-glass (SECH-102)
 - .context-docs/sprints.md — all 10 Sprint workflow rules (workflowMode lock, board scoping, one-active-sprint DB constraint, sprintScopeId)
 - .context-docs/docs-invariants.md — all 13 Docs module rules (DocSpace, roles, revisions, file lifecycle, delete UI, status, recently-viewed, TOC extraction)
 - .context-docs/data-integrity.md — A2 audit invariants (key gen, kanban positions, S3 cleanup, caps, storage quota, orphan-cleanup cron)
