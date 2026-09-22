@@ -11,19 +11,28 @@ Durable limiter in `src/lib/rate-limit.ts`. It counts failures in the Postgres `
 
 The account-only login bucket is also a lockout lever: anyone who knows an email can close that account's logins for up to 15 minutes by failing 20 times. It is loosened deliberately for that reason, and the user still sees the generic "invalid email or password".
 
-## Client IP: `getClientIp()` takes the **rightmost** `X-Forwarded-For` hop
-
-The rightmost hop is the one the nearest proxy (Railway's edge) appended, and a client can't forge it. The leftmost hop is whatever the client sent whenever a proxy appends instead of replacing.
+## Client IP: `getClientIp()` takes the **leftmost** `X-Forwarded-For` hop
 
 ### Railway edge behaviour, verified against production 2026-09-22
 
-Railway's documentation and staff answers contradict each other. In 2024 staff said to use the rightmost XFF value because the edge appended. In June 2026 they said the edge strips XFF. A July 2026 user saw neither. So this was tested empirically, using the v1 limiter as the oracle, with keyless requests and no secrets:
+The XFF header that reaches the app is `<real client IP>, <Railway-internal proxy hop>`:
+- **The edge discards any client-supplied XFF** and writes the real client IP first, so the leftmost hop is not spoofable.
+- **It then appends an internal proxy hop that changes on every request.**
 
-1. 11 requests with `X-Forwarded-For: 203.0.113.77` returned 401 ×10, then 429.
-2. The same request with `203.0.113.78`, with no XFF, and via `www.jedforge.com` with a spoofed XFF, a spoofed `X-Real-IP`, and both: **all 429**.
+Railway's docs and staff answers contradict each other (2024: "use rightmost, we append"; June 2026: "we strip… an additional hop may occur during internal forwarding"), so this was established empirically. The v1 limiter was the oracle, using keyless requests and no secrets:
 
-So on both the `*.up.railway.app` domain and `www.jedforge.com` (direct to the Railway edge, `server: railway-hikari`, no Cloudflare), the edge **overwrites** XFF with the real client IP, and a spoofed header does not open a fresh bucket. Leftmost equals rightmost today; rightmost stays correct if Railway reverts to appending.
+1. **Leftmost keying (original code):** 11 requests with `X-Forwarded-For: 203.0.113.77` returned 401 ×10, then 429. After that, a different spoofed XFF, no XFF, and (via `www.jedforge.com`) a spoofed XFF and/or `X-Real-IP` all returned 429. One stable bucket, keyed on the real client IP, that spoofing couldn't escape.
+2. **Rightmost keying (f795573, briefly deployed, then reverted):** 11+ consecutive failures from one machine all returned 401 and never 429. **Every request landed in a fresh bucket**, which disables the ip-based limits. Never key on the rightmost hop here.
 
-To re-verify, run the same steps. They lock the tester's own IP out of the v1 API for up to 15 minutes, which also blocks Claude Code's v1 calls from that machine (the JedForge MCP connector still works).
+`www.jedforge.com` goes directly to the Railway edge (`server: railway-hikari`, no Cloudflare).
 
-**If a CDN or any second proxy is ever put in front of the app, revisit this.** The rightmost hop would become the CDN's IP, and every user behind one edge node would share a bucket. Take the IP from the CDN's own client-IP header, restricted to the CDN's published ranges.
+### Re-verify after any proxy, CDN or domain change
+
+Send 11 keyless requests to `/api/v1/projects`. The 11th must be 429, and a follow-up with a different spoofed `X-Forwarded-For` must also be 429. Three failure modes:
+- **All 401:** the key rotates per request, so the limiter is dead.
+- **The spoofed request gets 401:** leftmost has become spoofable.
+- **Some other machine is also throttled** (e.g. a `WebFetch` from Anthropic's servers): the key is a shared proxy IP.
+
+The test locks the tester's IP out of the v1 API for up to 15 minutes, which also blocks Claude Code's v1 calls from that machine. The JedForge MCP connector still works.
+
+If Railway ever starts appending to a client-supplied XFF, leftmost becomes spoofable. The IP-independent `login-account:` bucket still caps login guessing at 20 per 15 minutes per account. If a CDN is ever put in front, take the IP from the CDN's client-IP header, restricted to its published ranges.

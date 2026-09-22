@@ -284,7 +284,7 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 
 ## Reference docs (load when relevant)
 
-- .context-docs/rate-limiting.md — durable limiter keys/limits, rightmost-XFF client IP, Railway edge XFF behaviour verified in prod + re-verify recipe (SECH-82/108)
+- .context-docs/rate-limiting.md — durable limiter keys/limits, leftmost-XFF client IP (Railway appends a per-request internal hop — rightmost silently disables limits), prod-verified behaviour + re-verify recipe (SECH-82/108)
 - .context-docs/secret-scanning.md — gitleaks CI job (full history, self-test canary, allowlist rules), exact-value history search, 2026-09-22 baseline incl. the historical committed `.env` (SECH-112)
 - .context-docs/release-controls.md — branch protection on main, PR ship flow, adding required checks, break-glass (SECH-102)
 - .context-docs/sprints.md — all 10 Sprint workflow rules (workflowMode lock, board scoping, one-active-sprint DB constraint, sprintScopeId)
