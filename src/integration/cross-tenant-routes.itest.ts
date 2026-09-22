@@ -253,6 +253,36 @@ describe("SECH-93: closed projects write-lock doc routes (platform admin bypasse
   });
 });
 
-describe("known gaps (documented, not yet enforced)", () => {
-  it.todo("a public docspace is readable by any authenticated user of any org (documented docs invariant)");
+describe("public docspaces are public to the owning org only (SECH-95)", () => {
+  it("a same-org non-member can read a public docspace; another org's user cannot", async () => {
+    const pp = params({ projectKey: w.keyA });
+    const pg = params({ projectKey: w.keyA, pageId: w.A.page.id });
+    const outsider = await prisma.user.create({
+      data: { name: "org-a non-member", email: `${w.tag}-a-nonmember@itest.local`, passwordHash: "x" },
+    });
+    await prisma.orgMember.create({ data: { orgId: w.orgA.id, userId: outsider.id, role: "MEMBER" } });
+    await prisma.docSpace.update({ where: { id: w.A.docSpace.id }, data: { isPublic: true } });
+    try {
+      actAs({ id: outsider.id, name: outsider.name, email: outsider.email, role: outsider.role, orgId: w.orgA.id });
+      expect(await status(docsRoot.GET(json("GET", "/x"), pp))).toBe(200);
+      expect(await status(docsPage.GET(json("GET", "/x"), pg))).toBe(200);
+      // Still read-only for them.
+      expect(await status(docsPages.POST(json("POST", "/x", { title: "non-member write" }), pp))).toBe(403);
+
+      actAs(w.users.bMember);
+      for (const [label, call] of [
+        ["GET docspace", () => docsRoot.GET(json("GET", "/x"), pp)],
+        ["GET pages", () => docsPages.GET(json("GET", "/x"), pp)],
+        ["GET page", () => docsPage.GET(json("GET", "/x"), pg)],
+        ["GET revisions", () => docsRevisions.GET(json("GET", "/x"), pg)],
+        ["GET search", () => docsSearch.GET(json("GET", "/x?q=secret"), pp)],
+      ] as const) {
+        expect([403, 404], label).toContain(await status(call()));
+      }
+    } finally {
+      await prisma.docSpace.update({ where: { id: w.A.docSpace.id }, data: { isPublic: false } });
+      await prisma.orgMember.deleteMany({ where: { userId: outsider.id } });
+      await prisma.user.delete({ where: { id: outsider.id } });
+    }
+  });
 });

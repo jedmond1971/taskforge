@@ -37,7 +37,7 @@ export function DocVisibilityToggle({ projectKey, initialIsPublic }: DocVisibili
       <button
         onClick={handleToggle}
         disabled={saving}
-        title={isPublic ? "Public — all JedForge users can view" : "Private — project members only"}
+        title={isPublic ? "Public — everyone in this organization can view" : "Private — project members only"}
         className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border transition-colors disabled:opacity-50 ${
           isPublic
             ? "border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900"

@@ -6,6 +6,7 @@ const { mockPrisma, mockAuthFn, mockDeleteObject, mockDeleteObjectsWithPrefix } 
   const mockPrisma = {
     project: { findFirst: vi.fn() },
     projectMember: { findFirst: vi.fn(), findUnique: vi.fn() },
+    orgMember: { findUnique: vi.fn() },
     docSpace: { findUnique: vi.fn(), upsert: vi.fn() },
     docPage: {
       findMany: vi.fn(),
@@ -102,6 +103,7 @@ function setupPublicNonMember() {
   mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1", orgId: "org-1" });
   mockPrisma.projectMember.findUnique.mockResolvedValue(null);
   mockPrisma.docSpace.findUnique.mockResolvedValue({ id: "ds-1", isPublic: true });
+  mockPrisma.orgMember.findUnique.mockResolvedValue({ id: "om-1" });
 }
 
 // ─── resolveDocCtx ─────────────────────────────────────────────────────────────
@@ -143,13 +145,21 @@ describe("resolveDocCtx", () => {
     expect(await resolveDocCtx("PRJ", "outsider")).toBeNull();
   });
 
-  it("returns role=null for a non-member on a public docspace", async () => {
-    mockPrisma.project.findFirst.mockResolvedValue({ id: "proj-1", orgId: "org-1" });
-    mockPrisma.projectMember.findUnique.mockResolvedValue(null);
-    mockPrisma.docSpace.findUnique.mockResolvedValue({ id: "ds-1", isPublic: true });
+  it("returns role=null for a same-org non-member on a public docspace", async () => {
+    setupPublicNonMember();
 
     const ctx = await resolveDocCtx("PRJ", "outsider");
     expect(ctx).toEqual({ projectId: "proj-1", orgId: "org-1", docSpaceId: "ds-1", isPublic: true, role: null });
+    expect(mockPrisma.orgMember.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { orgId_userId: { orgId: "org-1", userId: "outsider" } } })
+    );
+  });
+
+  it("returns null for a user outside the owning org, even on a public docspace (SECH-95)", async () => {
+    setupPublicNonMember();
+    mockPrisma.orgMember.findUnique.mockResolvedValue(null);
+
+    expect(await resolveDocCtx("PRJ", "other-tenant")).toBeNull();
   });
 });
 

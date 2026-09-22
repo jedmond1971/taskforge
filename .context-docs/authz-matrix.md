@@ -24,10 +24,10 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | `api/ai/conversations/route.ts` | GET | session (`auth()`, fail-closed on invalidated) + `AI_CHAT_ENABLED` flag | issue -> project (`requireProjectRole`) | project member | only the caller's own conversation |
 | `api/attachments/[id]/route.ts` | DELETE | session (`auth()`, fail-closed on invalidated) | attachment -> issue -> project membership | uploader (must still be a member) or PROJECT_LEAD | deletes S3 object + row |
 | `api/attachments/[id]/url/route.ts` | GET | session (`auth()`, fail-closed on invalidated) | attachment -> issue -> project membership | any project member |  |
-| `api/attachments/confirm/route.ts` | POST | session (`auth()`, fail-closed on invalidated) | issue -> project membership; `fileKey` must start `attachments/{issueId}/` | PROJECT_LEAD or TEAM_MEMBER (hard-coded, ignores group grants — SECH-96) | size re-checked via HEAD, org quota, image validated |
-| `api/attachments/presign/route.ts` | POST | session (`auth()`, fail-closed on invalidated) | issue -> project membership; key generated server-side | PROJECT_LEAD or TEAM_MEMBER (hard-coded — SECH-96) | MIME allowlist, size cap, org quota |
+| `api/attachments/confirm/route.ts` | POST | session (`auth()`, fail-closed on invalidated) | issue -> project membership; `fileKey` must start `attachments/{issueId}/` | `canEditIssues(role, grants)` — ISSUE_EDIT grant applies (SECH-96) | size re-checked via HEAD, org quota, image validated |
+| `api/attachments/presign/route.ts` | POST | session (`auth()`, fail-closed on invalidated) | issue -> project membership; key generated server-side | `canEditIssues(role, grants)` — ISSUE_EDIT grant applies (SECH-96) | MIME allowlist, size cap, org quota |
 | `api/attachments/route.ts` | GET | session (`auth()`, fail-closed on invalidated) | issue -> project membership | any project member | returns presigned download URLs for that issue only |
-| `api/attachments/upload/route.ts` | POST | session (`auth()`, fail-closed on invalidated) | issue -> project membership | PROJECT_LEAD or TEAM_MEMBER (hard-coded — SECH-96) | MIME allowlist, size cap, org quota, sharp image validation |
+| `api/attachments/upload/route.ts` | POST | session (`auth()`, fail-closed on invalidated) | issue -> project membership | `canEditIssues(role, grants)` — ISSUE_EDIT grant applies (SECH-96) | MIME allowlist, size cap, org quota, sharp image validation |
 | `api/auth/[...nextauth]/route.ts` | GET, POST | public (NextAuth handlers) | n/a | n/a | login is rate-limited per ip+email |
 | `api/auth/register/route.ts` | POST | public (inert stub) | n/a | n/a | registration disabled; always 403 |
 | `api/avatar/route.ts` | GET, PUT | session (`auth()`, fail-closed on invalidated) | GET: any `avatars/` key (not tenant-scoped, accepted); PUT: caller's own userId key | any authenticated user | PUT re-encodes to 256px JPEG via sharp |
@@ -38,7 +38,7 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | `api/docs/[projectKey]/pages/[pageId]/revisions/route.ts` | GET | session (`auth()`, fail-closed on invalidated) | project membership by key -> docspace -> page | any project member | read-only |
 | `api/docs/[projectKey]/pages/[pageId]/route.ts` | GET, PATCH, DELETE | session (`auth()`, fail-closed on invalidated) | `resolveDocCtx`; page looked up by `{id, docSpaceId}` | GET: member / public; PATCH: `canEditIssues`; DELETE: `canManageProject` | PATCH `sectionId` verified against the page's docspace (SECH-85 fix); content sanitized + revision snapshot (cap 50) |
 | `api/docs/[projectKey]/pages/route.ts` | GET, POST | session (`auth()`, fail-closed on invalidated) | `resolveDocCtx` (docspace of that project) | GET: member / public; POST: `canEditIssues` (+grants) | POST sanitizes content (SECH-85 fix); `sectionId` verified to be in this docspace |
-| `api/docs/[projectKey]/route.ts` | GET, PATCH | session (`auth()`, fail-closed on invalidated) | project via `resolveDocCtx` (member, or public docspace); PATCH looks up membership by key | GET: member, or any authed user if `isPublic` (SECH-95); PATCH: PROJECT_LEAD | PATCH toggles `isPublic` |
+| `api/docs/[projectKey]/route.ts` | GET, PATCH | session (`auth()`, fail-closed on invalidated) | project via `resolveDocCtx` (member, or public docspace); PATCH looks up membership by key | GET: member, or an `OrgMember` of the owning org if `isPublic` (SECH-95); PATCH: PROJECT_LEAD | PATCH toggles `isPublic` |
 | `api/docs/[projectKey]/search/route.ts` | GET | session (`auth()`, fail-closed on invalidated) | `resolveDocCtx`; query scoped to that docspace | member / public | max 20 results |
 | `api/docs/[projectKey]/sections/[sectionId]/route.ts` | PATCH, DELETE | session (`auth()`, fail-closed on invalidated) | `resolveDocCtx`; section by `{id, docSpaceId}` | PATCH: `canEditIssues`; DELETE: `canManageProject` | DELETE also removes S3 files of DOCUMENT pages |
 | `api/docs/[projectKey]/sections/route.ts` | GET, POST | session (`auth()`, fail-closed on invalidated) | `resolveDocCtx` | GET: member / public; POST: `canEditIssues` |  |
@@ -84,31 +84,31 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 
 | Action | Guard | Tenant scope | Minimum role |
 |---|---|---|---|
-| `getAdminUsers` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `adminCreateUser` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `adminUpdateUser` | local `requireAdmin()` | target user id | platform ADMIN; role change bumps `sessionVersion` |
-| `adminResetUserPassword` | local `requireAdmin()` | target user id | platform ADMIN; bumps `sessionVersion` |
-| `adminAddUserToProject` | local `requireAdmin()` | upserts `OrgMember` first (tenancy invariant 8) | platform ADMIN |
-| `adminGetProjectsForSelect` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `adminDeleteUser` | local `requireAdmin()` | target user id | platform ADMIN; pre-flights every ON DELETE RESTRICT relation (owned orgs, issues reported, attachments, doc pages/revisions, links, invites, API keys) and refuses with a message |
-| `getAdminProjects` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `getAdminProjectDetail` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `getAdminOrgs` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `getAdminOrgMembers` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `getAdminOrgDetail` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `adminCreateOrg` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `adminAddOrgMember` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `adminRemoveOrgMember` | local `requireAdmin()` | org id + user id | platform ADMIN; blocked while the user has ProjectMember rows in that org |
-| `adminDeleteOrg` | local `requireAdmin()` | org id | platform ADMIN; blocked if the org has projects |
-| `adminDeleteProject` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `closeProject` | local `requireAdmin()` | project id | platform ADMIN |
-| `reopenProject` | local `requireAdmin()` | project id | platform ADMIN |
-| `getAdminInvites` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `adminGetOrgsForSelect` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `adminCreateInvite` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `adminResendInvite` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `adminRevokeInvite` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
-| `getAdminAuditLog` | local `requireAdmin()` (`getCurrentUser` + `UserRole.ADMIN`) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `getAdminUsers` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `adminCreateUser` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `adminUpdateUser` | `requireAdmin()` (permissions.ts) | target user id | platform ADMIN; role change bumps `sessionVersion` |
+| `adminResetUserPassword` | `requireAdmin()` (permissions.ts) | target user id | platform ADMIN; bumps `sessionVersion` |
+| `adminAddUserToProject` | `requireAdmin()` (permissions.ts) | upserts `OrgMember` first (tenancy invariant 8) | platform ADMIN |
+| `adminGetProjectsForSelect` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `adminDeleteUser` | `requireAdmin()` (permissions.ts) | target user id | platform ADMIN; pre-flights every ON DELETE RESTRICT relation (owned orgs, issues reported, attachments, doc pages/revisions, links, invites, API keys) and refuses with a message |
+| `getAdminProjects` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `getAdminProjectDetail` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `getAdminOrgs` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `getAdminOrgMembers` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `getAdminOrgDetail` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `adminCreateOrg` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `adminAddOrgMember` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `adminRemoveOrgMember` | `requireAdmin()` (permissions.ts) | org id + user id | platform ADMIN; blocked while the user has ProjectMember rows in that org |
+| `adminDeleteOrg` | `requireAdmin()` (permissions.ts) | org id | platform ADMIN; blocked if the org has projects |
+| `adminDeleteProject` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `closeProject` | `requireAdmin()` (permissions.ts) | project id | platform ADMIN |
+| `reopenProject` | `requireAdmin()` (permissions.ts) | project id | platform ADMIN |
+| `getAdminInvites` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `adminGetOrgsForSelect` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `adminCreateInvite` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `adminResendInvite` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `adminRevokeInvite` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `getAdminAuditLog` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
 
 ### `(dashboard)/notifications/actions.ts`
 
@@ -152,11 +152,11 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | `deleteIssue` | `requireProjectRole(canEditIssues)` | issue by `{id, projectId}` | TEAM_MEMBER+ |
 | `getIssues` | `auth()` + inline `ProjectMember` check | project by key -> membership | any member |
 | `getIssue` | `auth()` + inline `ProjectMember` check | project by key -> membership; issue by `{key, projectId}` | any member |
-| `linkDocPage` | file-local `requireProjectMember` (membership only) | issue by `{id, projectId}`; page by `{id, docSpaceId}` | any member incl. VIEWER (SECH-96) |
-| `unlinkDocPage` | file-local `requireProjectMember` (membership only) | issue by `{id, projectId}` | any member incl. VIEWER (SECH-96) |
+| `linkDocPage` | `requireProjectRole(canEditIssues)` | issue by `{id, projectId}`; page by `{id, docSpaceId}` | TEAM_MEMBER+ / grant (SECH-96) |
+| `unlinkDocPage` | `requireProjectRole(canEditIssues)` | issue by `{id, projectId}` | TEAM_MEMBER+ / grant (SECH-96) |
 | `searchIssuesForLinking` | file-local `requireProjectMember` (membership only) | issues scoped to project | any member |
-| `linkIssue` | file-local `requireProjectMember` (membership only) | both issues by `{id, projectId}` | any member incl. VIEWER (SECH-96) |
-| `unlinkIssue` | file-local `requireProjectMember` (membership only) | link by `{id, sourceIssue.projectId}` | any member incl. VIEWER (SECH-96) |
+| `linkIssue` | `requireProjectRole(canEditIssues)` | both issues by `{id, projectId}` | TEAM_MEMBER+ / grant (SECH-96) |
+| `unlinkIssue` | `requireProjectRole(canEditIssues)` | link by `{id, sourceIssue.projectId}` | TEAM_MEMBER+ / grant (SECH-96) |
 | `searchIssuesForParent` | file-local `requireProjectMember` (membership only) | issues scoped to project | any member |
 | `setIssueParent` | `requireProjectRole(canEditIssues)` | issue and parent both by `{id, projectId}`; cycle check | TEAM_MEMBER+ |
 | `getProjectStatuses` | `auth()` + inline `ProjectMember` check | project by key -> membership | any member (NB: board-actions.ts has a same-named lead-only variant) |
@@ -172,7 +172,7 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | `removeProjectMember` | `requireProjectRole(canManageMembers)` | membership by `{id, projectId}`; leads protected | PROJECT_LEAD / grant |
 | `changeMemberRole` | `requireProjectRole(canManageMembers)` | membership by `{id, projectId}`; leads protected | PROJECT_LEAD / grant (a grantee can promote themselves — by design, SECH-96) |
 | `searchUsers` | `requireProjectRole(canManageMembers)` | only users in the project's org, excluding current members | PROJECT_LEAD / grant |
-| `createUserAndAddToProject` | `requireProjectRole(canManageMembers)` | creates `User` + `OrgMember` + `ProjectMember` in one transaction (invariant 4) | PROJECT_LEAD / grant (no email normalisation / password policy — SECH-96) |
+| `createUserAndAddToProject` | `requireProjectRole(canManageMembers)` | creates `User` + `OrgMember` + `ProjectMember` in one transaction (invariant 4) | PROJECT_LEAD / grant; email trimmed + lowercased, password ≥ 8 chars, validation failures returned as `{ success: false, error }` (SECH-96) |
 | `setProjectPrivacy` | `requireAdmin()` (permissions.ts) | project by key | platform ADMIN |
 | `getIssuesHierarchy` | `auth()` + inline `ProjectMember` check | project by key -> membership | any member |
 
@@ -240,8 +240,8 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 
 | Action | Guard | Tenant scope | Minimum role |
 |---|---|---|---|
-| `getMyFilters` | `auth()` | `projectId` membership checked; update/delete require ownership (`userId`); only whitelisted fields written on update (SECH-85 fix) | owner; `isGlobal` needs platform ADMIN |
-| `saveFilter` | `auth()` | `projectId` membership checked; update/delete require ownership (`userId`); only whitelisted fields written on update (SECH-85 fix) | owner; `isGlobal` needs platform ADMIN |
+| `getMyFilters` | `requireProjectRoleById` (any role) | `projectId` membership checked; update/delete require ownership (`userId`); only whitelisted fields written on update (SECH-85 fix) | owner; `isGlobal` needs platform ADMIN |
+| `saveFilter` | `auth()` + `requireProjectRoleById` (any role) | `projectId` membership checked; update/delete require ownership (`userId`); only whitelisted fields written on update (SECH-85 fix) | owner; `isGlobal` needs platform ADMIN |
 | `updateFilter` | `auth()` | `projectId` membership checked; update/delete require ownership (`userId`); only whitelisted fields written on update (SECH-85 fix) | owner; `isGlobal` needs platform ADMIN |
 | `deleteFilter` | `auth()` | `projectId` membership checked; update/delete require ownership (`userId`); only whitelisted fields written on update (SECH-85 fix) | owner; `isGlobal` needs platform ADMIN |
 
@@ -266,8 +266,8 @@ Open (tracked, not changed unilaterally):
 
 - SECH-93 — closed projects are only a page-level redirect; session actions/routes still accept writes (external API and MCP already block them).
 - SECH-94 — OAuth tokens and org API keys are not revoked when the owning user's password/role/membership changes.
-- SECH-95 — public docspaces are readable by any authenticated user of any org; `editor-images` / `avatar` keys are unguessable but not tenant-checked.
-- SECH-96 — RBAC inconsistencies (VIEWER can link issues/docs, attachment routes ignore group grants, duplicate `requireAdmin`, no email/password normalisation in `createUserAndAddToProject`).
+- SECH-95 — ~~public docspaces are readable by any authenticated user of any org~~ fixed 2026-09-22: `isPublic` is scoped to the owning org (`resolveDocCtx` requires an `OrgMember` row). Still an accepted risk: `editor-images` / `avatar` keys are unguessable but not tenant-checked.
+- SECH-96 — fixed 2026-09-22: link/unlink actions require `canEditIssues`; attachment routes use grant-aware `canEditIssues`; admin actions use the shared `requireAdmin`; `filter-actions` use `requireProjectRoleById`; `createUserAndAddToProject` normalises email and enforces an 8-char password.
 - SECH-97 — run the integration suite in CI and extend coverage. SECH-98 — external security review before paid launch.
 
 Also worth knowing: the external API and MCP keep working for an org key/token whose creator left the org until revoked (SECH-94), and `POST /api/projects` reveals whether a project key exists in *any* org (keys are globally unique).

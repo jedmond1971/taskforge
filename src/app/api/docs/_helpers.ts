@@ -41,8 +41,11 @@ export type DocCtx = {
  * Resolves a project's docspace context for a given user.
  *
  * - Members: returns their role + upserts the docspace.
- * - Non-members on a public docspace: returns role=null.
- * - Non-members on a private docspace: returns null (access denied).
+ * - Non-members in the project's organization, on a public docspace: returns role=null.
+ * - Anyone else (private docspace, or a user outside the owning org): returns null.
+ *
+ * "Public" means public to the owning organization, never across tenants
+ * (SECH-95): each org experiences JedForge as its own instance.
  */
 export async function resolveDocCtx(
   projectKey: string,
@@ -65,6 +68,11 @@ export async function resolveDocCtx(
       select: { id: true, isPublic: true },
     });
     if (!docSpace?.isPublic) return null;
+    const orgMember = await prisma.orgMember.findUnique({
+      where: { orgId_userId: { orgId: project.orgId, userId } },
+      select: { id: true },
+    });
+    if (!orgMember) return null;
     return {
       projectId: project.id,
       orgId: project.orgId,
