@@ -112,23 +112,25 @@ describe("getClientIp", () => {
     expect(getClientIp(request)).toBe("203.0.113.5");
   });
 
-  // SECH-108: if a proxy appends to a client-supplied XFF, only the last hop is trustworthy.
-  it("uses the rightmost hop, so a spoofed leftmost value cannot change the key", () => {
-    const real = "198.51.100.20";
-    const keys = ["1.1.1.1", "8.8.8.8", "203.0.113.99"].map((spoof) =>
+  // SECH-108: the shape Railway's edge actually sends — real client first, then an internal
+  // proxy hop that differs per request. The key must stay stable across those hops (keying on
+  // the rightmost hop gave every request a fresh bucket in production).
+  it("keys on the client IP, not the rotating internal proxy hop", () => {
+    const client = "198.51.100.20";
+    const keys = ["100.64.0.7", "100.64.12.201", "100.81.3.9"].map((hop) =>
       getClientIp(
         new Request("https://example.com", {
-          headers: { "x-forwarded-for": `${spoof}, ${real}` },
+          headers: { "x-forwarded-for": `${client}, ${hop}` },
         })
       )
     );
 
-    expect(new Set(keys)).toEqual(new Set([real]));
+    expect(new Set(keys)).toEqual(new Set([client]));
   });
 
-  it("ignores empty hops and whitespace", () => {
+  it("trims whitespace around the client hop", () => {
     const request = new Request("https://example.com", {
-      headers: { "x-forwarded-for": " 1.2.3.4 ,  , 198.51.100.20 , " },
+      headers: { "x-forwarded-for": "  198.51.100.20 , 100.64.0.7" },
     });
 
     expect(getClientIp(request)).toBe("198.51.100.20");

@@ -28,23 +28,23 @@ export const V1_API_RATE_LIMIT: RateLimitConfig = {
 };
 
 /**
- * Client IP for rate-limit keys (SECH-108). Uses the RIGHTMOST X-Forwarded-For entry —
- * the hop appended by the nearest proxy (Railway's edge), which a client cannot forge.
- * The leftmost entry is whatever the client sent if a proxy appends rather than replaces.
+ * Client IP for rate-limit keys (SECH-108). Uses the LEFTMOST X-Forwarded-For entry.
  *
- * Railway behaviour, verified against production 2026-09-22 (.context-docs/rate-limiting.md):
- * the edge currently overwrites XFF with the real client IP, so leftmost == rightmost today
- * and a spoofed XFF did not escape the v1 limiter. But Railway appended to client-supplied
- * XFF in 2024 and its staff guidance has changed since; rightmost is correct under both.
- * If a CDN/second proxy is ever put in front, this must be revisited (it would return the
- * CDN's IP and throttle all users behind one edge node together).
+ * Railway's edge, verified against production 2026-09-22 (.context-docs/rate-limiting.md):
+ * it discards any client-supplied XFF, writes the real client IP first, then APPENDS a
+ * Railway-internal proxy hop that changes on every request. So:
+ *   - leftmost  = real client IP, not spoofable (a spoofed XFF never reached the key);
+ *   - rightmost = rotating internal hop — keying on it gives every request a fresh bucket
+ *     and silently disables the limiter (this shipped briefly in f795573 and was reverted).
+ * If Railway ever starts appending to a client-supplied XFF instead, leftmost becomes
+ * spoofable; the IP-independent ACCOUNT_LOGIN_RATE_LIMIT still caps login guessing, and the
+ * post-deploy re-verify recipe in rate-limiting.md detects the change.
  */
 export function getClientIp(request: Request): string {
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) {
-    const hops = forwardedFor.split(",").map((h) => h.trim()).filter(Boolean);
-    const last = hops[hops.length - 1];
-    if (last) return last;
+    const first = forwardedFor.split(",")[0]?.trim();
+    if (first) return first;
   }
 
   const realIp = request.headers.get("x-real-ip");
