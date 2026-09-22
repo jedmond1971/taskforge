@@ -2,10 +2,17 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { NextRequest } from "next/server";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createWorld, destroyWorld, type World } from "./fixtures";
+import { actAs } from "./session";
 import { requireOAuthToken } from "@/lib/oauth/require-oauth-token";
+import { generateAccessToken, hashOAuthSecret } from "@/lib/oauth/tokens";
+import { ALL_OAUTH_SCOPES } from "@/lib/oauth/scopes";
+import { generateApiKey, hashApiKey } from "@/lib/api-keys";
 import { createMcpServer } from "@/lib/mcp/server";
+import * as adminActions from "@/app/(dashboard)/admin/actions";
+import * as settingsActions from "@/app/(dashboard)/settings/actions";
 import * as mcpRoute from "@/app/api/mcp/route";
 import * as extProjects from "@/app/api/external/v1/projects/route";
 import * as extProject from "@/app/api/external/v1/projects/[key]/route";
@@ -298,6 +305,127 @@ describe("MCP tools (OAuth bearer)", () => {
     } finally {
       await t.close();
       await prisma.project.update({ where: { id: w.A.project.id }, data: { isClosed: false } });
+    }
+  });
+});
+
+// SECH-94: sessionVersion only ever invalidated web sessions. OAuth tokens are opaque
+// bearer strings (no captured session version to check live), so password reset, a
+// platform role change, and org removal must actively revoke them instead — and org
+// removal must also revoke API keys the leaving member created for that org. All
+// fixtures here are ad-hoc (not w's shared users/tokens) since these tests permanently
+// burn the credentials they touch; placed last in the file so nothing else depends on them.
+describe("SECH-94: credentials are revoked when the owning user's password, role or org membership changes", () => {
+  const oauthCtx = (token: string) =>
+    requireOAuthToken(new Request("http://x", { headers: { Authorization: `Bearer ${token}` } }));
+
+  async function makeToken(userId: string, orgId: string, clientId: string) {
+    const plaintext = generateAccessToken();
+    await prisma.oAuthAccessToken.create({
+      data: {
+        hashedToken: hashOAuthSecret(plaintext),
+        clientId, userId, orgId,
+        scope: ALL_OAUTH_SCOPES.join(" "),
+        expiresAt: new Date(Date.now() + 3_600_000),
+      },
+    });
+    return plaintext;
+  }
+
+  it("adminResetUserPassword revokes the target's OAuth tokens", async () => {
+    const target = await prisma.user.create({ data: { name: "reset target", email: `${w.tag}-resettarget@itest.local`, passwordHash: "x" } });
+    const admin = await prisma.user.create({ data: { name: "root-reset", email: `${w.tag}-rootreset@itest.local`, passwordHash: "x", role: "ADMIN" } });
+    const client = await prisma.oAuthClient.create({ data: { clientName: `itest-sech94a-${w.tag}`, redirectUris: ["http://localhost:9/cb"] } });
+    try {
+      const token = await makeToken(target.id, w.orgB.id, client.id);
+      expect(await oauthCtx(token)).not.toBeInstanceOf(Response);
+
+      actAs({ id: admin.id, name: admin.name, email: admin.email, role: "ADMIN", orgId: w.orgB.id });
+      expect(await adminActions.adminResetUserPassword(target.id, "N3wPassw0rd!!")).toMatchObject({ success: true });
+
+      const rejected = await oauthCtx(token);
+      expect(rejected).toBeInstanceOf(Response);
+      expect((rejected as Response).status).toBe(401);
+    } finally {
+      await prisma.oAuthAccessToken.deleteMany({ where: { clientId: client.id } });
+      await prisma.oAuthClient.delete({ where: { id: client.id } });
+      await prisma.user.deleteMany({ where: { id: { in: [target.id, admin.id] } } });
+    }
+  });
+
+  it("adminUpdateUser revokes OAuth tokens only when the platform role actually changes", async () => {
+    const target = await prisma.user.create({ data: { name: "role target", email: `${w.tag}-roletarget@itest.local`, passwordHash: "x" } });
+    const admin = await prisma.user.create({ data: { name: "root-role", email: `${w.tag}-rootrole@itest.local`, passwordHash: "x", role: "ADMIN" } });
+    const client = await prisma.oAuthClient.create({ data: { clientName: `itest-sech94b-${w.tag}`, redirectUris: ["http://localhost:9/cb"] } });
+    try {
+      const token = await makeToken(target.id, w.orgB.id, client.id);
+      actAs({ id: admin.id, name: admin.name, email: admin.email, role: "ADMIN", orgId: w.orgB.id });
+
+      // A name-only update must not touch the token.
+      await adminActions.adminUpdateUser(target.id, { name: "Renamed Target" });
+      expect(await oauthCtx(token)).not.toBeInstanceOf(Response);
+
+      // A role change must revoke it.
+      await adminActions.adminUpdateUser(target.id, { role: "ADMIN" });
+      const rejected = await oauthCtx(token);
+      expect(rejected).toBeInstanceOf(Response);
+      expect((rejected as Response).status).toBe(401);
+    } finally {
+      await prisma.oAuthAccessToken.deleteMany({ where: { clientId: client.id } });
+      await prisma.oAuthClient.delete({ where: { id: client.id } });
+      await prisma.user.deleteMany({ where: { id: { in: [target.id, admin.id] } } });
+    }
+  });
+
+  it("adminRemoveOrgMember revokes the leaving member's OAuth tokens and API keys for that org only", async () => {
+    const member = await prisma.user.create({ data: { name: "org leaver", email: `${w.tag}-leaver@itest.local`, passwordHash: "x" } });
+    const admin = await prisma.user.create({ data: { name: "root-remove", email: `${w.tag}-rootremove@itest.local`, passwordHash: "x", role: "ADMIN" } });
+    await prisma.orgMember.create({ data: { orgId: w.orgB.id, userId: member.id, role: "MEMBER" } });
+    const client = await prisma.oAuthClient.create({ data: { clientName: `itest-sech94c-${w.tag}`, redirectUris: ["http://localhost:9/cb"] } });
+    const keyPlain = generateApiKey();
+    const key = await prisma.apiKey.create({
+      data: { orgId: w.orgB.id, name: "leaver key", keyPrefix: keyPlain.slice(0, 8), hashedKey: hashApiKey(keyPlain), createdById: member.id },
+    });
+    try {
+      const tokenB = await makeToken(member.id, w.orgB.id, client.id); // org being left
+      const tokenA = await makeToken(member.id, w.orgA.id, client.id); // unrelated org, must survive
+
+      actAs({ id: admin.id, name: admin.name, email: admin.email, role: "ADMIN", orgId: w.orgB.id });
+      expect(await adminActions.adminRemoveOrgMember(w.orgB.id, member.id)).toMatchObject({ success: true });
+
+      const rejectedToken = await oauthCtx(tokenB);
+      expect(rejectedToken).toBeInstanceOf(Response);
+      expect((await prisma.apiKey.findUniqueOrThrow({ where: { id: key.id } })).revokedAt).not.toBeNull();
+
+      // Membership in Org A was never touched — that token stays live.
+      expect(await oauthCtx(tokenA)).not.toBeInstanceOf(Response);
+    } finally {
+      await prisma.oAuthAccessToken.deleteMany({ where: { clientId: client.id } });
+      await prisma.oAuthClient.delete({ where: { id: client.id } });
+      await prisma.apiKey.deleteMany({ where: { id: key.id } });
+      await prisma.orgMember.deleteMany({ where: { userId: member.id } });
+      await prisma.user.deleteMany({ where: { id: { in: [member.id, admin.id] } } });
+    }
+  });
+
+  it("changePassword revokes the caller's own OAuth tokens", async () => {
+    const currentPassword = "OldPassw0rd!!";
+    const user = await prisma.user.create({
+      data: { name: "pw changer", email: `${w.tag}-pwchanger@itest.local`, passwordHash: await bcrypt.hash(currentPassword, 12) },
+    });
+    const client = await prisma.oAuthClient.create({ data: { clientName: `itest-sech94d-${w.tag}`, redirectUris: ["http://localhost:9/cb"] } });
+    try {
+      const token = await makeToken(user.id, w.orgB.id, client.id);
+      actAs({ id: user.id, name: user.name, email: user.email, role: "TEAM_MEMBER", orgId: w.orgB.id });
+
+      const result = await settingsActions.changePassword(currentPassword, "NewPassw0rd!!");
+      expect(result).toMatchObject({ success: true });
+
+      expect(await oauthCtx(token)).toBeInstanceOf(Response);
+    } finally {
+      await prisma.oAuthAccessToken.deleteMany({ where: { clientId: client.id } });
+      await prisma.oAuthClient.delete({ where: { id: client.id } });
+      await prisma.user.delete({ where: { id: user.id } });
     }
   });
 });

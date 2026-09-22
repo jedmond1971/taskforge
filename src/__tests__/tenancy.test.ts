@@ -61,6 +61,15 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
     adminAuditLog: {
       create: vi.fn().mockResolvedValue({}),
     },
+    oAuthAccessToken: {
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    oAuthRefreshToken: {
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    apiKey: {
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
     $executeRaw: vi.fn().mockResolvedValue(0),
     $transaction: vi.fn(),
   };

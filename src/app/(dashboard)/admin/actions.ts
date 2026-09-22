@@ -8,6 +8,7 @@ import { UserRole, OrgRole, Plan, ProjectMemberRole } from "@prisma/client";
 import { deleteObject, deleteObjectsWithPrefix } from "@/lib/s3";
 import { sendOrgInviteEmail, getInviteExpiryDate } from "@/lib/invites";
 import { logAdminAction } from "@/lib/audit-log";
+import { revokeOAuthTokensForUser, revokeApiKeysForUser } from "@/lib/credential-revocation";
 
 // Discriminated union returned by all admin mutation actions.
 // Expected validation failures return { success: false, error } instead of throwing,
@@ -98,15 +99,20 @@ export async function adminUpdateUser(
     ? await prisma.user.findUnique({ where: { id: userId }, select: { role: true, email: true } })
     : await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
 
-  const data = updates.role && before && "role" in before && updates.role !== before.role
-    ? { ...updates, sessionVersion: { increment: 1 } }
-    : updates;
+  const roleChanged = !!(updates.role && before && "role" in before && updates.role !== before.role);
+  const data = roleChanged ? { ...updates, sessionVersion: { increment: 1 } } : updates;
 
   const user = await prisma.user.update({
     where: { id: userId },
     data,
     select: { id: true, name: true, email: true, role: true },
   });
+
+  if (roleChanged) {
+    // OAuth tokens have no captured session version to check live (SECH-94) —
+    // revoke them here, the same trigger that invalidates web sessions.
+    await revokeOAuthTokensForUser(userId);
+  }
 
   if (updates.role && before && "role" in before) {
     await logAdminAction({
@@ -148,6 +154,9 @@ export async function adminResetUserPassword(
     where: { id: userId },
     data: { passwordHash, sessionVersion: { increment: 1 } },
   });
+  // OAuth tokens have no captured session version to check live (SECH-94) —
+  // revoke them here, the same trigger that invalidates web sessions.
+  await revokeOAuthTokensForUser(userId);
 
   await logAdminAction({
     actorId,
@@ -481,6 +490,10 @@ export async function adminRemoveOrgMember(orgId: string, userId: string): Promi
   }
 
   await prisma.orgMember.delete({ where: { orgId_userId: { orgId, userId } } });
+  // The removed user's OAuth tokens and org API keys for this org would otherwise
+  // keep working — nothing else re-checks OrgMember on the request path (SECH-94).
+  await revokeOAuthTokensForUser(userId, orgId);
+  await revokeApiKeysForUser(userId, orgId);
 
   await logAdminAction({
     actorId,

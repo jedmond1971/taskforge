@@ -3,6 +3,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { revokeOAuthTokensForUser } from "@/lib/credential-revocation";
 
 type ActionResult = { success: true } | { success: false; error: string };
 
@@ -36,6 +37,9 @@ export async function changePassword(
       sessionVersion: { increment: 1 },
     },
   });
+  // OAuth tokens have no captured session version to check live (SECH-94) —
+  // revoke them here, the same trigger that invalidates web sessions.
+  await revokeOAuthTokensForUser(session.user.id);
 
   return { success: true };
 }
