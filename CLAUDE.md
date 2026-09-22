@@ -230,7 +230,7 @@ See `.context-docs/middleware-patterns.md` for all 8 patterns. Key facts:
 
 ## Testing
 
-**Before touching auth, `permissions.ts`, server actions or API routes, also run `npm run test:integration`** (DB-backed cross-tenant suite, needs the local Docker DB; also runs in CI as the parallel `integration` job with a Postgres service — see `.context-docs/testing-notes.md`). Every route handler and server action must have a row in `.context-docs/authz-matrix.md` (`authz-matrix.test.ts` enforces it).
+**Before touching auth, `permissions.ts`, server actions or API routes, also run `npm run test:integration`** (DB-backed cross-tenant suite, needs the local Docker DB; also runs in CI as the parallel `integration` job with a Postgres service — see `.context-docs/testing-notes.md`). Every route handler and server action must have a row in `.context-docs/authz-matrix.md` (`authz-matrix.test.ts` enforces it). Likewise every export of `admin/actions.ts` must be added to `everyAdminAction()` in `src/integration/admin-actions.itest.ts`, or the integration job fails (SECH-97).
 
 See `.context-docs/testing-notes.md` — hand-written Prisma mocks in `tenancy.test.ts` (and other test files) must be updated when adding models/methods to admin actions; behavior assertions there also assume the throw-based error pattern, not the `{ success, error }` pattern from Server Action pitfalls above.
 
