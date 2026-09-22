@@ -286,3 +286,88 @@ describe("public docspaces are public to the owning org only (SECH-95)", () => {
     }
   });
 });
+
+// SECH-97: POST /api/docs/[projectKey]/pages/[pageId]/file — the one docs write that takes a
+// multipart upload and writes to S3 + the org's storage quota.
+describe("docs file upload stays inside the caller's own docspace and role", () => {
+  const upload = (projectKey: string, pageId: string, file: File) => {
+    const form = new FormData();
+    form.set("file", file);
+    return docsFile.POST(
+      new NextRequest(url(`/api/docs/${projectKey}/pages/${pageId}/file`), { method: "POST", body: form }),
+      params({ projectKey, pageId })
+    );
+  };
+  const pdf = () => new File(["%PDF-1.4 itest"], "report.pdf", { type: "application/pdf" });
+  const fileState = (id: string) => prisma.docPage.findUniqueOrThrow({ where: { id }, select: { type: true, fileKey: true, fileSize: true, mimeType: true } });
+
+  it("Org B cannot upload onto Org A's page, via A's key or via its own key", async () => {
+    const before = await fileState(w.A.page.id);
+    actAs(w.users.bOwner);
+    expect(await status(upload(w.keyA, w.A.page.id, pdf()))).toBe(404);
+    expect(await status(upload(w.keyB, w.A.page.id, pdf()))).toBe(404); // page id from another docspace
+    expect(await fileState(w.A.page.id)).toEqual(before);
+  });
+
+  it("a VIEWER, and a same-org reader of a public docspace, cannot upload", async () => {
+    const before = await fileState(w.A.page.id);
+    actAs(w.users.aViewer);
+    expect(await status(upload(w.keyA, w.A.page.id, pdf()))).toBe(403);
+
+    const reader = await prisma.user.create({ data: { name: "reader", email: `${w.tag}-reader@itest.local`, passwordHash: "x" } });
+    await prisma.orgMember.create({ data: { orgId: w.orgA.id, userId: reader.id, role: "MEMBER" } });
+    await prisma.docSpace.update({ where: { id: w.A.docSpace.id }, data: { isPublic: true } });
+    try {
+      actAs({ id: reader.id, name: reader.name, email: reader.email, role: reader.role, orgId: w.orgA.id });
+      expect(await status(upload(w.keyA, w.A.page.id, pdf()))).toBe(403);
+    } finally {
+      await prisma.docSpace.update({ where: { id: w.A.docSpace.id }, data: { isPublic: false } });
+      await prisma.orgMember.deleteMany({ where: { userId: reader.id } });
+      await prisma.user.delete({ where: { id: reader.id } });
+    }
+    expect(await fileState(w.A.page.id)).toEqual(before);
+  });
+
+  it("closed projects, disallowed file types and an exhausted org quota are all refused", async () => {
+    const before = await fileState(w.B.page.id);
+    actAs(w.users.bMember);
+
+    await prisma.project.update({ where: { id: w.B.project.id }, data: { isClosed: true } });
+    try {
+      expect(await status(upload(w.keyB, w.B.page.id, pdf()))).toBe(403);
+    } finally {
+      await prisma.project.update({ where: { id: w.B.project.id }, data: { isClosed: false } });
+    }
+
+    expect(await status(upload(w.keyB, w.B.page.id, new File(["<script>"], "x.html", { type: "text/html" })))).toBe(400);
+    expect(await status(upload(w.keyB, w.B.page.id, new File(["<script>"], "x.html", { type: "application/pdf" })))).toBe(400);
+
+    // Push Org B past its 5 GB quota (Attachment.fileSize is Int, so three ~2 GB rows).
+    const big = await Promise.all([1, 2, 3].map((n) =>
+      prisma.attachment.create({ data: { issueId: w.B.issue2.id, uploaderId: w.users.bOwner.id, fileName: `big${n}.pdf`, fileKey: `attachments/${w.B.issue2.id}/big${n}.pdf`, fileSize: 2_000_000_000, mimeType: "application/pdf" } })
+    ));
+    try {
+      expect(await status(upload(w.keyB, w.B.page.id, pdf()))).toBe(507);
+    } finally {
+      await prisma.attachment.deleteMany({ where: { id: { in: big.map((b) => b.id) } } });
+    }
+    expect(await fileState(w.B.page.id)).toEqual(before);
+  });
+
+  it("control: a TEAM_MEMBER uploads onto their own page; the object key is confined to that page", async () => {
+    const page = await prisma.docPage.create({
+      data: { docSpaceId: w.B.docSpace.id, sectionId: null, title: "upload target", content: "", authorId: w.users.bOwner.id, position: 77 },
+    });
+    try {
+      actAs(w.users.bMember);
+      const res = await upload(w.keyB, page.id, new File(["%PDF-1.4 itest"], "../../evil name.pdf", { type: "application/pdf" }));
+      expect(res.status).toBe(200);
+      const after = await fileState(page.id);
+      expect(after.type).toBe("DOCUMENT");
+      expect(after.fileKey).toMatch(new RegExp(`^docs/${w.B.docSpace.id}/${page.id}/[0-9a-f-]{36}-[A-Za-z0-9._-]+$`));
+      expect(after.fileKey).not.toContain("/../");
+    } finally {
+      await prisma.docPage.delete({ where: { id: page.id } });
+    }
+  });
+});

@@ -153,21 +153,26 @@ export async function POST(request: Request) {
     }
 
     // Rotation: this refresh token (and the access token it was paired with)
-    // is single-use — revoke both before issuing the replacement pair.
-    await prisma.$transaction([
-      prisma.oAuthRefreshToken.update({
-        where: { id: refreshToken.id },
+    // is single-use — revoke both before issuing the replacement pair. The
+    // conditional claim (revokedAt: null) makes concurrent replays of one
+    // refresh token lose the race instead of each minting a new pair (SECH-97).
+    const claimed = await prisma.$transaction(async (tx) => {
+      const { count } = await tx.oAuthRefreshToken.updateMany({
+        where: { id: refreshToken.id, revokedAt: null },
         data: { revokedAt: new Date() },
-      }),
-      ...(refreshToken.accessTokenId
-        ? [
-            prisma.oAuthAccessToken.update({
-              where: { id: refreshToken.accessTokenId },
-              data: { revokedAt: new Date() },
-            }),
-          ]
-        : []),
-    ]);
+      });
+      if (count === 0) return false;
+      if (refreshToken.accessTokenId) {
+        await tx.oAuthAccessToken.update({
+          where: { id: refreshToken.accessTokenId },
+          data: { revokedAt: new Date() },
+        });
+      }
+      return true;
+    });
+    if (!claimed) {
+      return tokenError("invalid_grant", "Refresh token is invalid, expired, or revoked");
+    }
 
     return issueTokenPair({
       clientId: client.id,
