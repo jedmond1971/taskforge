@@ -46,7 +46,12 @@ git switch main && git pull --ff-only
 ```
 
 - `git push origin main` is rejected (`GH006: Protected branch update failed`). That's expected — open a PR.
-- If `main` moved while the PR was open, `strict` blocks the merge until the branch is updated: `gh pr update-branch` (re-runs CI), then merge.
+- If `main` moved while the PR was open, `strict` blocks the merge: `gh pr merge` fails with "Pull request #N is not mergeable: the head branch is not up to date with the base branch", and suggests `--admin`. **Do not take the `--admin` suggestion** — that is break-glass and needs Jamie's explicit approval in the session.
+  `gh pr update-branch` is the documented command for this but **is not available in the installed `gh` 2.45.0** (it prints the subcommand list instead, which looks like a usage error rather than a missing feature — confirmed 2026-09-23 on SECH-111 PR #47). Update the branch by hand instead:
+  ```bash
+  git checkout <branch> && git merge origin/main -m "Merge main into <branch>" && git push
+  ```
+  All four required checks then re-run against the merged tree; merge once they are green. The squash-merge collapses the extra merge commit, so it leaves no trace on `main`.
 - **`gh pr edit --body` silently fails on this repo** (it prints a classic-Projects GraphQL deprecation error and doesn't save). Edit a PR body with `gh api -X PATCH repos/jedmond1971/taskforge/pulls/<n> -F body=@body.md` instead. `create`, `ready`, `checks` and `merge` work normally.
 - Dependabot PRs go through the same gate; merge them with `gh pr merge --squash` once green.
 - Railway deploys from the merge commit on `main`, so the "After pushing" CI/Railway monitoring in CLAUDE.md applies after `gh pr merge`, not after the branch push.
