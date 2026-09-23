@@ -396,6 +396,32 @@ This is separate from the description field. The description captures intent and
 decisions at the time the issue was created; comments capture what actually happened and
 any discoveries made along the way.
 
+#### Security evidence in the fix-summary comment (SECH-111)
+
+`.github/pull_request_template.md` is the reviewer-facing version of this. A fix-summary
+comment on a security-relevant issue should carry the same evidence, because the tracker —
+not GitHub — is where the security release gate (SECH-123) will go looking for it.
+
+For any change touching auth, tenancy, uploads, secrets, rate limits or headers, the comment
+must cover:
+
+- **Threat or risk addressed** — what could go wrong before the change that can't now
+- **Blast radius** — routes/actions, data, auth mechanism, and whether anything crosses an
+  org or project boundary
+- **Negative tests added** — the tests that fail if the control is removed, and how you
+  confirmed they actually detect its absence
+- **Verification** — the four commands and their actual results, not "all green"
+- **Dependency or config changes** — new packages, env vars, required CI checks
+- **Logging and privacy impact** — anything new reaching a log line
+- **Rollback or disable path** — revert, feature flag, `RATE_LIMIT_MODE=monitor`, and whether
+  a migration's revert is safe with the new column still present
+- **Residual risk and follow-up** — what this deliberately does not fix, and the issue for it
+
+The original SECH-111 rationale was that direct-to-`main` commits should carry the same
+evidence as a PR. Branch protection (SECH-102) removed that path entirely, so every change
+now gets a PR and its template. The checklist survives here anyway because the PR body is
+not visible from the tracker, and the gate reads the tracker.
+
 ### Self-referential work
 
 When building or improving the JedForge API itself (this file's subject), always create an
