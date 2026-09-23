@@ -8,6 +8,7 @@ import * as inviteActions from "@/app/(auth)/invite/[token]/actions";
 import * as authorizeActions from "@/app/(auth)/oauth/authorize/actions";
 import * as tokenRoute from "@/app/api/oauth/token/route";
 import * as registerRoute from "@/app/api/oauth/register/route";
+import { validateAuthorizeRequest } from "@/lib/oauth/validate-authorize-request";
 
 /**
  * SECH-97: the credential-issuing flows — org invites, the OAuth consent screen's server actions,
@@ -193,6 +194,59 @@ describe("approveAuthorization / denyAuthorization", () => {
   });
 });
 
+// ─── redirect_uri exactness and PKCE method (SH-021 / SECH-109) ───────────────
+
+describe("validateAuthorizeRequest", () => {
+  const base = () => ({
+    response_type: "code",
+    client_id: w.client.id,
+    redirect_uri: REDIRECT,
+    code_challenge: pkcePair().challenge,
+    code_challenge_method: "S256",
+    scope: "issues:read",
+  });
+
+  it("control: the exactly-registered redirect_uri with an S256 challenge is accepted", async () => {
+    expect(await validateAuthorizeRequest(base())).toMatchObject({ ok: true, redirectUri: REDIRECT });
+  });
+
+  // A registered URI must match byte for byte. Anything that merely contains or resembles it
+  // is a different URI, and must not be redirected to — not even to report the error.
+  it.each([
+    ["a path suffix", REDIRECT + "/extra"],
+    ["a trailing slash", REDIRECT + "/"],
+    ["an appended query", REDIRECT + "?next=1"],
+    ["an appended fragment", REDIRECT + "#x"],
+    ["an uppercased path", REDIRECT.replace("/cb", "/CB")],
+    ["a userinfo prefix", "http://localhost:9@evil.example/cb"],
+    ["the registered URI as a prefix of another origin", "http://localhost:9/cb.evil.example/cb"],
+    ["a different scheme", REDIRECT.replace("http://", "https://")],
+    ["a different port", REDIRECT.replace(":9/", ":90/")],
+  ])("refuses %s, and never redirects there", async (_label, redirect_uri) => {
+    expect(await validateAuthorizeRequest({ ...base(), redirect_uri })).toEqual({
+      ok: false,
+      redirectable: false,
+      message: expect.stringMatching(/not registered/i),
+    });
+  });
+
+  it("requires PKCE and accepts only S256 — plain is refused", async () => {
+    expect(await validateAuthorizeRequest({ ...base(), code_challenge: "" })).toMatchObject({
+      ok: false, redirectable: true, error: "invalid_request",
+    });
+    for (const method of ["plain", "PLAIN", "s256", "S512", ""]) {
+      expect(await validateAuthorizeRequest({ ...base(), code_challenge_method: method })).toMatchObject({
+        ok: false, redirectable: true, error: "invalid_request",
+        errorDescription: expect.stringMatching(/S256/),
+      });
+    }
+    // Omitting the method entirely is not a way to fall back to plain either.
+    const withoutMethod: Record<string, string> = { ...base() };
+    delete withoutMethod.code_challenge_method;
+    expect(await validateAuthorizeRequest(withoutMethod)).toMatchObject({ ok: false, redirectable: true });
+  });
+});
+
 // ─── /api/oauth/token ─────────────────────────────────────────────────────────
 
 function tokenRequest(fields: Record<string, string>, headers: Record<string, string> = {}) {
@@ -305,6 +359,20 @@ describe("POST /api/oauth/token — refresh_token", () => {
     expect((await refresh(first.refresh_token)).status).toBe(400);
   });
 
+  // SH-021 / RFC 9700 reuse detection: a rotated refresh token that shows up again means
+  // the token was copied. Refusing the replay is not enough — whoever rotated first is still
+  // holding live descendants, so the whole family has to die.
+  it("replaying an already-rotated refresh token revokes the descendants it minted", async () => {
+    const first = await freshPair();
+    const second = await (await refresh(first.refresh_token)).json();
+    expect((await tokenRowFor(second.access_token)).revokedAt).toBeNull();
+
+    expect((await refresh(first.refresh_token)).status).toBe(400);
+
+    expect((await tokenRowFor(second.access_token)).revokedAt).not.toBeNull();
+    expect((await refresh(second.refresh_token)).status).toBe(400);
+  });
+
   it("a refresh token cannot be redeemed by another client", async () => {
     const other = await prisma.oAuthClient.create({ data: { clientName: `itest-reg-${w.tag}-thief`, redirectUris: [REDIRECT] } });
     const pair = await freshPair();
@@ -321,10 +389,75 @@ describe("POST /api/oauth/token — refresh_token", () => {
     expect(await prisma.oAuthAccessToken.count({ where: { userId: w.users.bMember.id } })).toBe(before + 1);
   });
 
+  // Normal rotation must not trip reuse detection: only a token that comes back *after* it was
+  // rotated is a replay. A long-lived client rotates indefinitely, and each step stays usable.
+  it("a legitimate rotation chain keeps working and stays in one family", async () => {
+    let pair = await freshPair();
+    const familyOf = async (rt: string) =>
+      (await prisma.oAuthRefreshToken.findUniqueOrThrow({ where: { hashedToken: hashOAuthSecret(rt) } })).familyId;
+    const family = await familyOf(pair.refresh_token);
+
+    for (let i = 0; i < 3; i++) {
+      const res = await refresh(pair.refresh_token);
+      expect(res.status).toBe(200);
+      pair = await res.json();
+      expect((await tokenRowFor(pair.access_token)).revokedAt).toBeNull();
+      expect(await familyOf(pair.refresh_token)).toBe(family);
+    }
+  });
+
   it("an unsupported grant type is refused", async () => {
     const res = await tokenRoute.POST(tokenRequest({ grant_type: "client_credentials", client_id: w.client.id }));
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("unsupported_grant_type");
+  });
+});
+
+// ─── Credential storage (SH-021 / SECH-109) ───────────────────────────────────
+
+/** True if the plaintext appears anywhere in any column of any row of the table. */
+async function tableContains(table: string, plaintext: string) {
+  const rows = await prisma.$queryRawUnsafe<{ n: bigint }[]>(
+    `SELECT count(*) AS n FROM "${table}" t WHERE to_jsonb(t)::text LIKE $1`,
+    `%${plaintext}%`
+  );
+  return Number(rows[0].n) > 0;
+}
+
+describe("credential storage", () => {
+  it("stores only sha256 hashes — no authorization code or token is recoverable from the database", async () => {
+    const { code, verifier } = await makeCode();
+    const pair = await (await exchange(code, verifier)).json();
+
+    // Each credential is findable by its hash...
+    await prisma.oAuthAuthorizationCode.findUniqueOrThrow({ where: { hashedCode: hashOAuthSecret(code) } });
+    await prisma.oAuthAccessToken.findUniqueOrThrow({ where: { hashedToken: hashOAuthSecret(pair.access_token) } });
+    await prisma.oAuthRefreshToken.findUniqueOrThrow({ where: { hashedToken: hashOAuthSecret(pair.refresh_token) } });
+
+    // Canary: the detector works — the hash really is findable this way.
+    expect(await tableContains("OAuthAccessToken", hashOAuthSecret(pair.access_token))).toBe(true);
+
+    // ...and nowhere in those tables does the plaintext itself survive.
+    expect(await tableContains("OAuthAuthorizationCode", code)).toBe(false);
+    expect(await tableContains("OAuthAccessToken", pair.access_token)).toBe(false);
+    expect(await tableContains("OAuthRefreshToken", pair.refresh_token)).toBe(false);
+
+    // A token is not stored under the other token's row either (no cross-column echo).
+    expect(await tableContains("OAuthAccessToken", pair.refresh_token)).toBe(false);
+    expect(await tableContains("OAuthRefreshToken", pair.access_token)).toBe(false);
+  });
+
+  it("stores a registered client's secret only as a hash", async () => {
+    const res = await register({
+      client_name: `itest-reg-${w.tag}-storage`,
+      redirect_uris: [REDIRECT],
+      token_endpoint_auth_method: "client_secret_post",
+    });
+    const body = await res.json();
+    expect(body.client_secret).toBeTruthy();
+    expect(await tableContains("OAuthClient", hashOAuthSecret(body.client_secret))).toBe(true); // canary
+    expect(await tableContains("OAuthClient", body.client_secret)).toBe(false);
+    await prisma.oAuthClient.findFirstOrThrow({ where: { clientSecretHash: hashOAuthSecret(body.client_secret) } });
   });
 });
 

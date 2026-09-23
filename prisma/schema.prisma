@@ -675,6 +675,9 @@ model OAuthRefreshToken {
   client        OAuthClient       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   accessTokenId String?           @unique
   accessToken   OAuthAccessToken? @relation(fields: [accessTokenId], references: [id])
+  // SECH-109: lineage root shared by every token rotated from one authorization grant.
+  // Replaying an already-rotated token revokes the whole family (RFC 9700 reuse detection).
+  familyId      String
   userId        String
   user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   orgId         String
@@ -685,6 +688,7 @@ model OAuthRefreshToken {
   createdAt     DateTime          @default(now())
 
   @@index([clientId])
+  @@index([familyId])
 }
 
 model CustomField {

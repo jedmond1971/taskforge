@@ -165,6 +165,32 @@ describe("internal v1 API (shared secret)", () => {
     expect((await v1Projects.GET(v1(secret))).status).toBe(200);
   });
 
+  // SH-021 / SECH-109: a wrong secret must change nothing and must answer the same way
+  // whatever its length, so the response can't be used as a length oracle for the real key.
+  it("a wrong secret writes nothing and answers identically whatever its length", async () => {
+    const before = await snapshotA();
+    const write = (key: string) =>
+      v1Issues.POST(
+        new NextRequest("http://localhost/api/v1/issues", {
+          method: "POST",
+          headers: { "X-Internal-Api-Key": key, "content-type": "application/json", "x-forwarded-for": ip() },
+          body: JSON.stringify({ projectId: w.A.project.id, title: `v1-forgery-${w.tag}` }),
+        })
+      );
+
+    const sameLength = await write("z".repeat(secret.length));
+    const shorter = await write("z");
+    const longer = await write("z".repeat(secret.length + 64));
+
+    expect([sameLength.status, shorter.status, longer.status]).toEqual([401, 401, 401]);
+    const bodies = await Promise.all([sameLength.json(), shorter.json(), longer.json()]);
+    expect(bodies[1]).toEqual(bodies[0]);
+    expect(bodies[2]).toEqual(bodies[0]);
+
+    expect(await snapshotA()).toEqual(before);
+    expect(await prisma.issue.count({ where: { title: `v1-forgery-${w.tag}` } })).toBe(0);
+  });
+
   it("fails closed (500, never open) when no secret is configured", async () => {
     delete process.env.V1_API_KEY;
     try {
@@ -173,6 +199,31 @@ describe("internal v1 API (shared secret)", () => {
     } finally {
       process.env.V1_API_KEY = secret;
     }
+  });
+});
+
+// SH-021 / SECH-109: an org API key is stored as a hash plus a short display prefix.
+// The prefix is what the settings UI shows; the key itself must not be recoverable.
+describe("org API key storage", () => {
+  async function apiKeyTableContains(plaintext: string) {
+    const rows = await prisma.$queryRawUnsafe<{ n: bigint }[]>(
+      `SELECT count(*) AS n FROM "ApiKey" t WHERE to_jsonb(t)::text LIKE $1`,
+      `%${plaintext}%`
+    );
+    return Number(rows[0].n) > 0;
+  }
+
+  it("stores only a hash and a non-reusable display prefix", async () => {
+    const plaintext = w.apiKeys.a;
+    const row = await prisma.apiKey.findUniqueOrThrow({ where: { hashedKey: hashApiKey(plaintext) } });
+
+    expect(await apiKeyTableContains(hashApiKey(plaintext))).toBe(true); // canary
+    expect(await apiKeyTableContains(plaintext)).toBe(false);
+
+    // The stored prefix is a display fragment, not the key: it must not authenticate.
+    expect(plaintext.startsWith(row.keyPrefix)).toBe(true);
+    expect(row.keyPrefix.length).toBeLessThan(plaintext.length);
+    expect((await extProjects.GET(ext("GET", "/api/external/v1/projects", row.keyPrefix))).status).toBe(401);
   });
 });
 
