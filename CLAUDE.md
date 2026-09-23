@@ -93,7 +93,7 @@ See `.context-docs/groups-rbac.md` for the full design (Permission enum mapping,
 This project uses **`@base-ui/react`** (NOT Radix UI). Standard shadcn components that depend on Radix do not exist here. Custom equivalents are built on Base UI primitives.
 
 - `src/components/ui/confirm-dialog.tsx` — use for all destructive action confirmations (not `window.confirm()`). Its `onConfirm` closes the dialog immediately (`onOpenChange(false)` fires right after `onConfirm()`, not after the async work resolves) — the established pattern (`AttachmentsPanel`, doc page delete JFR-132) is to let the dialog close optimistically and surface failures via a `sonner` toast afterward, not to keep the dialog open with a loading state.
-- `src/components/ui/rich-text-editor.tsx` — TipTap v2 editor
+- `src/components/ui/rich-text-editor.tsx` — TipTap **v3** editor (v2 until SECH-124, 2026-09-23). Its extension set lives separately in `rich-text-extensions.ts` so tests can drive the real configuration; change extensions there, not in the component.
 - `src/components/ui/rich-text-display.tsx` — read-only HTML renderer for TipTap content
 
 See `.context-docs/rich-text.md` for TipTap packages, storage format, and empty-state behavior.
@@ -119,6 +119,13 @@ See `.context-docs/rich-text.md` for TipTap packages, storage format, and empty-
 ## Adding npm packages
 
 `npm install` runs fine in Claude Code's shell in this environment (verified 2026-07-31) — the earlier note that it couldn't be run directly was wrong. To add a package: edit `package.json`, then run `npm install` yourself to update `package-lock.json`, then commit both in the same change. **Do not skip the lockfile update** — CI and Railway both use `npm ci`, which fails with `EUSAGE` if `package.json` and `package-lock.json` are out of sync (this broke a push during the AI Chat work).
+
+**Bumping a package family whose peers are pinned to an exact version** (TipTap v3 pins `peer @tiptap/pm@"3.31.3"`, not a range) fails with `ERESOLVE` even when you update every member in `package.json`, because `npm install` tries to preserve the existing lockfile tree. Do **not** fix it with `--force`/`--legacy-peer-deps` (accepts a broken tree) or by deleting `package-lock.json` (re-resolves *everything*, so an unrelated dependency can drift in the same PR). Instead drop just that subtree's entries from the lockfile and reinstall:
+```bash
+python3 -c "import json;d=json.load(open('package-lock.json'));[d['packages'].pop(k) for k in [k for k in d['packages'] if '@scope/' in k]];d['packages']['']['dependencies']=json.load(open('package.json'))['dependencies'];json.dump(d,open('package-lock.json','w'),indent=2)"
+rm -rf node_modules/@scope && npm install
+```
+Afterwards diff the lockfile for changes *outside* that scope to confirm nothing else moved.
 
 ## Email sending (Resend + React Email)
 

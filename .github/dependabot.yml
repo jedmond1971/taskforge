@@ -10,6 +10,10 @@ updates:
     # a quiet week still opens a dozen single-package PRs and each one costs a full
     # CI run. Anything not matched below still gets its own PR, and Dependabot's
     # *security* updates are never grouped — those always arrive separately.
+    #
+    # Every group is scoped to minor/patch on purpose, so a MAJOR bump always gets
+    # its own PR and its own review. That means grouping looks like it is doing
+    # nothing during a week of majors — that is expected, not a misconfiguration.
     groups:
       # Reviewed by hand, every time: a bad bump here breaks sessions or tenancy.
       auth:
