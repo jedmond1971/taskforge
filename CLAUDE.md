@@ -244,6 +244,8 @@ See `.context-docs/middleware-patterns.md` for all 8 patterns. Key facts:
 
 **Stored XSS is covered by a standing suite (SECH-106)** — one corpus in `src/test-support/xss-payloads.ts` drives `xss-corpus.test.ts` (both sanitizers, hermetic) and `src/integration/stored-xss.itest.ts` (every persistence path, real DB). `rich-text-sinks.test.ts` is the guard that matters day to day: **adding a Prisma write to `description`/`body`/`content` without a sanitizer, or a new `dangerouslySetInnerHTML`, fails `npm test`** until you either wrap it or add a documented exception. Don't add an exception without checking the sink half — an unsanitized value is only safe while nothing renders it as markup.
 
+**Secret comparisons are guarded (SECH-109)** — `src/__tests__/constant-time-secrets.test.ts` fails if a listed auth file compares a secret or its digest with `===`/`==` instead of `timingSafeEqual`. Adding a new place that compares a caller-supplied secret to a stored one means using a constant-time primitive and adding the file to `COMPARISON_SITES`. Lookups that hand the digest to the DB (`findUnique({ where: { hashedToken } })`) don't belong there — there's no comparison in our code to get wrong. The SH-021 scenario-to-test matrix lives in `.context-docs/mcp.md`.
+
 See `.context-docs/testing-notes.md` — hand-written Prisma mocks in `tenancy.test.ts` (and other test files) must be updated when adding models/methods to admin actions; behavior assertions there also assume the throw-based error pattern, not the `{ success, error }` pattern from Server Action pitfalls above.
 
 ---
