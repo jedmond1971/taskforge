@@ -8,18 +8,31 @@ Classic branch protection on `jedmond1971/taskforge` → `main`:
 
 | Setting | Value | Why |
 |---|---|---|
-| Required status checks | `Verify`, `Integration (cross-tenant)`, `Secret scan` (GitHub Actions app, id 15368) | The two jobs in `.github/workflows/ci.yml`. Job `name:` values **are** the check contexts — renaming a job silently un-requires it until protection is updated. |
+| Required status checks | `Verify`, `Integration (cross-tenant)`, `Secret scan` (GitHub Actions app, id 15368) | Jobs in `.github/workflows/ci.yml`. Job `name:` values **are** the check contexts — renaming a job silently un-requires it until protection is updated. `Dependency audit` (SECH-104) also runs on every PR but is **not yet required** — see below. |
 | Require branch up to date (`strict`) | on | The checks must have run against the current `main`, not a stale base. |
 | Require a pull request | on, 0 approvals | Solo developer — an approval requirement would make every PR unmergeable. The PR exists so checks run *before* the commit reaches `main`. |
 | Include administrators (`enforce_admins`) | **on** | Claude Code pushes as `jedmond1971`, the repo admin. With this off, protection would apply to nobody. |
 | Force pushes / deletion | blocked | |
 
-When a new CI job becomes a release gate (e.g. npm audit — SECH-104), add its job name to the required contexts. `PATCH …/required_status_checks` **replaces** the list, so pass every existing context too:
+When a new CI job becomes a release gate, add its job name to the required contexts. `PATCH …/required_status_checks` **replaces** the list, so pass every existing context too:
 
 ```bash
 gh api -X PATCH repos/jedmond1971/taskforge/branches/main/protection/required_status_checks \
   -F strict=true -f 'contexts[]=Verify' -f 'contexts[]=Integration (cross-tenant)' -f 'contexts[]=Secret scan' -f 'contexts[]=<New job name>'
 ```
+
+A job can only be added to the required list **after it has run at least once on `main`** — GitHub will not accept a context it has never seen. So a new gate ships in two steps: merge the PR that adds the job, then patch protection.
+
+### Pending: `Dependency audit` (SECH-104)
+
+The job exists in `ci.yml` and runs on every PR, but it is **not** in the required contexts yet, so a red audit does not currently block a merge. To finish the gate:
+
+```bash
+gh api -X PATCH repos/jedmond1971/taskforge/branches/main/protection/required_status_checks \
+  -F strict=true -f 'contexts[]=Verify' -f 'contexts[]=Integration (cross-tenant)' -f 'contexts[]=Secret scan' -f 'contexts[]=Dependency audit'
+```
+
+Then confirm with `gh api repos/jedmond1971/taskforge/branches/main/protection --jq .required_status_checks.contexts`. Changing branch protection is a repo-admin action — Claude Code must have Jamie's approval in the session before running it.
 
 Inspect current state: `gh api repos/jedmond1971/taskforge/branches/main/protection`.
 

@@ -5,3 +5,46 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+
+    # SECH-104: group the weekly version bumps so they stay reviewable. Ungrouped,
+    # a quiet week still opens a dozen single-package PRs and each one costs a full
+    # CI run. Anything not matched below still gets its own PR, and Dependabot's
+    # *security* updates are never grouped — those always arrive separately.
+    groups:
+      # Reviewed by hand, every time: a bad bump here breaks sessions or tenancy.
+      auth:
+        patterns:
+          - "next-auth"
+          - "@auth/*"
+          - "bcryptjs"
+          - "@types/bcryptjs"
+        update-types: ["minor", "patch"]
+
+      # Framework and data layer — the bumps most likely to need a build check.
+      framework:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+          - "prisma"
+          - "@prisma/client"
+        update-types: ["minor", "patch"]
+
+      # Build, lint and test chain. Never ships to production.
+      tooling:
+        patterns:
+          - "eslint"
+          - "eslint-config-next"
+          - "typescript"
+          - "tsx"
+          - "vitest"
+          - "jsdom"
+          - "@testing-library/*"
+          - "@types/node"
+          - "postcss"
+          - "tailwindcss"
+          - "@tailwindcss/*"
+          - "playwright"
+        update-types: ["minor", "patch"]

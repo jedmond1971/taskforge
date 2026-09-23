@@ -77,6 +77,28 @@ jobs:
       - name: Integration tests
         run: npm run test:integration
 
+  # SECH-104: fails the build on high/critical advisories in the *production*
+  # dependency tree that aren't formally accepted in .security/audit-allowlist.json
+  # (mirroring the risk register, SECH-103). Deliberately has no `npm ci` step:
+  # `npm audit` resolves the tree from package-lock.json alone and the gate script
+  # is dependency-free, so this job stays fast and has no install to break.
+  # Moderates and below never block a merge — the weekly workflow reports those.
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Audit production dependencies
+        run: node scripts/audit-gate.mjs
+
   # SECH-112: gitleaks over the full history of every fetched ref (all branches + tags),
   # not just the pushed commit range, so a secret committed on any branch is caught.
   # Findings are redacted in logs and in the report artifact (public repo).
