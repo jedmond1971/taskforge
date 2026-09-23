@@ -235,6 +235,8 @@ See `.context-docs/middleware-patterns.md` for all 8 patterns. Key facts:
 
 **Before touching auth, `permissions.ts`, server actions or API routes, also run `npm run test:integration`** (DB-backed cross-tenant suite, needs the local Docker DB; also runs in CI as the parallel `integration` job with a Postgres service — see `.context-docs/testing-notes.md`). Every route handler and server action must have a row in `.context-docs/authz-matrix.md` (`authz-matrix.test.ts` enforces it). Likewise every export of `admin/actions.ts` must be added to `everyAdminAction()` in `src/integration/admin-actions.itest.ts`, or the integration job fails (SECH-97).
 
+**Stored XSS is covered by a standing suite (SECH-106)** — one corpus in `src/test-support/xss-payloads.ts` drives `xss-corpus.test.ts` (both sanitizers, hermetic) and `src/integration/stored-xss.itest.ts` (every persistence path, real DB). `rich-text-sinks.test.ts` is the guard that matters day to day: **adding a Prisma write to `description`/`body`/`content` without a sanitizer, or a new `dangerouslySetInnerHTML`, fails `npm test`** until you either wrap it or add a documented exception. Don't add an exception without checking the sink half — an unsanitized value is only safe while nothing renders it as markup.
+
 See `.context-docs/testing-notes.md` — hand-written Prisma mocks in `tenancy.test.ts` (and other test files) must be updated when adding models/methods to admin actions; behavior assertions there also assume the throw-based error pattern, not the `{ success, error }` pattern from Server Action pitfalls above.
 
 ---
