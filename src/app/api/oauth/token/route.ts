@@ -1,3 +1,4 @@
+import { randomUUID, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
@@ -30,7 +31,31 @@ async function authenticateClient(
   if (!secret) secret = body.client_secret ?? null;
 
   if (!secret || !client.clientSecretHash) return false;
-  return hashOAuthSecret(secret) === client.clientSecretHash;
+  // Constant-time: a byte-wise `===` on the digests would leak how much of a guess matched.
+  const presented = Buffer.from(hashOAuthSecret(secret));
+  const stored = Buffer.from(client.clientSecretHash);
+  return presented.length === stored.length && timingSafeEqual(presented, stored);
+}
+
+// SECH-109: every token minted from one authorization grant shares a familyId, so a
+// replayed (already-rotated) refresh token can take its whole lineage down with it.
+async function revokeTokenFamily(familyId: string) {
+  const now = new Date();
+  const members = await prisma.oAuthRefreshToken.findMany({
+    where: { familyId },
+    select: { id: true, accessTokenId: true },
+  });
+  const accessTokenIds = members.map((m) => m.accessTokenId).filter((id): id is string => id !== null);
+  await prisma.$transaction([
+    prisma.oAuthRefreshToken.updateMany({
+      where: { familyId, revokedAt: null },
+      data: { revokedAt: now },
+    }),
+    prisma.oAuthAccessToken.updateMany({
+      where: { id: { in: accessTokenIds }, revokedAt: null },
+      data: { revokedAt: now },
+    }),
+  ]);
 }
 
 async function issueTokenPair(params: {
@@ -38,6 +63,7 @@ async function issueTokenPair(params: {
   userId: string;
   orgId: string;
   scope: string;
+  familyId?: string;
 }) {
   const plaintextAccessToken = generateAccessToken();
   const plaintextRefreshToken = generateRefreshToken();
@@ -59,6 +85,7 @@ async function issueTokenPair(params: {
       hashedToken: hashOAuthSecret(plaintextRefreshToken),
       clientId: params.clientId,
       accessTokenId: accessToken.id,
+      familyId: params.familyId ?? randomUUID(),
       userId: params.userId,
       orgId: params.orgId,
       scope: params.scope,
@@ -171,9 +198,18 @@ async function handleGrant(request: Request, body: Record<string, string>): Prom
     if (
       !refreshToken ||
       refreshToken.clientId !== client.id ||
-      refreshToken.revokedAt !== null ||
       refreshToken.expiresAt < new Date()
     ) {
+      return tokenError("invalid_grant", "Refresh token is invalid, expired, or revoked");
+    }
+
+    // SECH-109 reuse detection: the token was already rotated (or revoked) and has come
+    // back. Treat it as a copied credential and kill the whole family, so the descendants
+    // the thief (or the victim) is holding stop working too. This is deliberately NOT the
+    // same path as losing the concurrent-claim race below — that is one honest client
+    // racing itself, and it reads revokedAt: null here.
+    if (refreshToken.revokedAt !== null) {
+      await revokeTokenFamily(refreshToken.familyId);
       return tokenError("invalid_grant", "Refresh token is invalid, expired, or revoked");
     }
 
@@ -204,6 +240,7 @@ async function handleGrant(request: Request, body: Record<string, string>): Prom
       userId: refreshToken.userId,
       orgId: refreshToken.orgId,
       scope: refreshToken.scope,
+      familyId: refreshToken.familyId,
     });
   }
 

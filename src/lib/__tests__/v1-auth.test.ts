@@ -44,6 +44,19 @@ describe("requireV1ApiKey", () => {
     expect(mockRateLimit.recordFailure).toHaveBeenCalledWith("v1api:203.0.113.5", expect.any(Number));
   });
 
+  // SH-021 / SECH-109: a rejected key must never reach the log line that records the failure —
+  // logs are the one place a wrong-but-nearly-right secret would sit in plaintext.
+  it("never writes the presented key into the auth-failure log", async () => {
+    const presented = "almost-correct-secret-ke";
+    await requireV1ApiKey(makeRequest({ "X-Internal-Api-Key": presented }));
+
+    expect(mockRateLimit.logAuthFailure).toHaveBeenCalled();
+    const logged = JSON.stringify(mockRateLimit.logAuthFailure.mock.calls);
+    expect(logged).not.toContain(presented);
+    expect(logged).not.toContain(REAL_KEY);
+    expect(logged).toContain("invalid_key"); // canary: we are looking at the right call
+  });
+
   it("returns 401 and records a failure when the key doesn't match", async () => {
     const result = await requireV1ApiKey(makeRequest({ "X-Internal-Api-Key": "wrong-key" }));
 
