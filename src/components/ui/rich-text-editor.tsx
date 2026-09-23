@@ -2,12 +2,7 @@
 
 import { useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
-import Link from "@tiptap/extension-link";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
-import Placeholder from "@tiptap/extension-placeholder";
+import { buildEditorExtensions } from "./rich-text-extensions";
 import {
   Bold,
   Italic,
@@ -89,19 +84,11 @@ export function RichTextEditor({
   const [isUploading, setIsUploading] = useState(false);
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-      }),
-      Image.configure({ inline: false, allowBase64: false }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: { rel: "noopener noreferrer" },
-      }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder }),
-    ],
+    // TipTap v3 renders on the first pass by default, which mismatches Next's
+    // server render of this client component. The `!editor` guard below already
+    // covers the gap until the post-mount render.
+    immediatelyRender: false,
+    extensions: buildEditorExtensions(placeholder),
     content: value || "",
     editable: !disabled,
     onUpdate({ editor }) {

@@ -8,7 +8,11 @@ const ALLOWED_TAGS = [
   "ul", "ol", "li",
   "blockquote", "hr",
   "a", "img",
-  "input",  // TipTap TaskItem renders as <input type="checkbox">
+  // TipTap TaskItem renders <li><label><input type="checkbox"><span></span></label><div>…
+  // `label` was missing until SECH-124, so the wrapper was silently stripped on every
+  // save and task-list checkboxes lost their clickable label. Both tags are inert —
+  // no script vector — and `for`/event attributes are still dropped by ALLOWED_ATTR.
+  "input", "label",
   "div", "span",
 ];
 
