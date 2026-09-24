@@ -40,14 +40,23 @@ affected — the browser got a bare 500. This is purely server-log exposure.
 
 ## Prisma errors are discarded and summarised, not scrubbed
 
-`summarizeError()` keeps the error class, `target` (operation), `code`, and `meta.target`
-column names when every element is a plain identifier. The rendered message is **dropped**.
+`summarizeError()` keeps the error class, `target` (operation), `code` (or `errorCode`, which
+is where `PrismaClientInitializationError` puts it), and `meta.target` column names when every
+element is a plain identifier.
+
+**The message is dropped by SHAPE, not by error class.** Only the
+`` Invalid `prisma.X()` invocation `` form embeds a `data:` block. Dropping by class name was a
+real blind spot: connection, timeout and Rust-panic messages carry no payload, so discarding
+them meant a production database outage logged `{"messageDropped":true}` and nothing else —
+the on-call engineer had no signal at all.
 
 Scrubbing it was rejected: it is a pre-rendered string with no keys left to match, document
 body is arbitrary text with no pattern, and a regex over Prisma's formatting would break
 silently the day Prisma changes it. Summarising fails safe.
 
-Non-Prisma errors keep a redacted, capped `message` **and `stack`**. This matters more than it
+Operational Prisma errors and all non-Prisma errors keep a redacted, capped `message` **and
+`stack`**. `stack` is listed in `RedactOptions.uncappedKeys` by `securityEvent`, because the
+200-char `meta` cap would otherwise cut a stack back to roughly one frame. This matters more than it
 looks: `Error`'s `message` and `stack` are **non-enumerable**, so an earlier version that
 treated an Error as a plain object silently stripped both from every error in production. The
 log looked present and said nothing. `redact()` now routes `Error` instances through
@@ -71,6 +80,27 @@ a 16-character minimum so an empty or short variable cannot become a match-every
 
 **No generic high-entropy matching.** Cuids are 25-character alphanumeric strings; an entropy
 heuristic would redact every id in every log line.
+
+The `Authorization` rules are two deliberately narrow patterns, not one broad one: a
+case-sensitive `Bearer|Basic` + 16-char-minimum credential, plus a separate case-insensitive
+match on the header *name*. A single case-insensitive `\b(Bearer|Basic)\s+\S+` ate the word
+after any prose use of "Basic" — "Basic validation failed" became "Basic [redacted] failed".
+
+## Types the generic walk gets wrong
+
+`redact()` special-cases these because `Object.keys()` gives the wrong answer for them:
+
+| Type | Why | Result |
+|---|---|---|
+| `Error` | `message`/`stack` are non-enumerable | routed through `summarizeError()` |
+| `Buffer` / TypedArray | keys are byte indices — 1 MB cost ~270 ms of blocking CPU | `[binary N bytes]` |
+| `Date` | no own-enumerable state; Prisma records carry `createdAt`/`updatedAt` | ISO string |
+| `Map` / `Set` | no own-enumerable state | array form |
+| `URL` | no own-enumerable state | `redactUrlForLog()` |
+
+Cycle detection tracks the **ancestor path**, not every object visited: a visit set that is
+never unwound reports the same object appearing under two sibling keys as a cycle and deletes
+its content.
 
 ## The cap is opt-in
 
