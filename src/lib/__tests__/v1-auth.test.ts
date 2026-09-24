@@ -5,13 +5,18 @@ const { mockRateLimit } = vi.hoisted(() => {
     checkRateLimit: vi.fn(),
     recordFailure: vi.fn(),
     getClientIp: vi.fn(),
-    logAuthFailure: vi.fn(),
     V1_API_RATE_LIMIT: { maxAttempts: 10, windowMs: 15 * 60 * 1000 },
   };
   return { mockRateLimit };
 });
 
 vi.mock("@/lib/rate-limit", () => mockRateLimit);
+
+const { mockSecurityEvents } = vi.hoisted(() => ({
+  mockSecurityEvents: { securityEvent: vi.fn() },
+}));
+
+vi.mock("@/lib/security-events", () => mockSecurityEvents);
 
 import { requireV1ApiKey } from "@/lib/v1-auth";
 
@@ -46,15 +51,15 @@ describe("requireV1ApiKey", () => {
 
   // SH-021 / SECH-109: a rejected key must never reach the log line that records the failure —
   // logs are the one place a wrong-but-nearly-right secret would sit in plaintext.
-  it("never writes the presented key into the auth-failure log", async () => {
+  it("never writes the presented key into the auth-failure event", async () => {
     const presented = "almost-correct-secret-ke";
     await requireV1ApiKey(makeRequest({ "X-Internal-Api-Key": presented }));
 
-    expect(mockRateLimit.logAuthFailure).toHaveBeenCalled();
-    const logged = JSON.stringify(mockRateLimit.logAuthFailure.mock.calls);
+    expect(mockSecurityEvents.securityEvent).toHaveBeenCalled();
+    const logged = JSON.stringify(mockSecurityEvents.securityEvent.mock.calls);
     expect(logged).not.toContain(presented);
     expect(logged).not.toContain(REAL_KEY);
-    expect(logged).toContain("invalid_key"); // canary: we are looking at the right call
+    expect(logged).toContain("auth.v1_key_invalid"); // canary: we are looking at the right call
   });
 
   it("returns 401 and records a failure when the key doesn't match", async () => {
@@ -63,8 +68,9 @@ describe("requireV1ApiKey", () => {
     expect(result).not.toBeNull();
     expect(result!.status).toBe(401);
     expect(mockRateLimit.recordFailure).toHaveBeenCalledWith("v1api:203.0.113.5", expect.any(Number));
-    expect(mockRateLimit.logAuthFailure).toHaveBeenCalledWith(
-      expect.objectContaining({ scope: "v1-api", reason: "invalid_key" })
+    expect(mockSecurityEvents.securityEvent).toHaveBeenCalledWith(
+      "auth.v1_key_invalid",
+      expect.objectContaining({ ip: "203.0.113.5" })
     );
   });
 

@@ -4,7 +4,8 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { authConfig } from "./auth.config";
-import { checkLoginRateLimit, recordLoginFailure, getClientIp, logAuthFailure } from "./rate-limit";
+import { checkLoginRateLimit, recordLoginFailure, getClientIp } from "./rate-limit";
+import { securityEvent } from "./security-events";
 
 const nextAuth = NextAuth({
   ...authConfig,
@@ -22,7 +23,7 @@ const nextAuth = NextAuth({
 
         const limit = await checkLoginRateLimit(ip, email);
         if (!limit.allowed) {
-          logAuthFailure({ scope: "login", reason: "rate_limited", email, ip });
+          securityEvent("auth.login_throttled", { ip, meta: { email, reason: "rate_limited" } });
           return null;
         }
 
@@ -36,7 +37,7 @@ const nextAuth = NextAuth({
 
         if (!user || !passwordMatch) {
           await recordLoginFailure(ip, email);
-          logAuthFailure({ scope: "login", reason: "invalid_credentials", email, ip });
+          securityEvent("auth.login_failed", { ip, meta: { email, reason: "invalid_credentials" } });
           return null;
         }
 

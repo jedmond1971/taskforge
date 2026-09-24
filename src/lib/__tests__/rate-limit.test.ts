@@ -233,10 +233,14 @@ describe("RATE_LIMIT_MODE=monitor", () => {
     vi.stubEnv("RATE_LIMIT_MODE", "monitor");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect((await checkRateLimit("login:1.2.3.4:user@example.com", CONFIG)).allowed).toBe(true);
-    const logged = JSON.stringify(warn.mock.calls);
-    expect(logged).toContain('"scope":"login"');
-    expect(logged).not.toContain("user@example.com");
-    expect(logged).not.toContain("1.2.3.4");
+    // SECH-114: the monitor-mode warning is now one JSON line from securityEvent(),
+    // so parse it rather than substring-matching the stringified mock calls.
+    const line = warn.mock.calls[0][0] as string;
+    const rec = JSON.parse(line);
+    expect(rec.type).toBe("ratelimit.monitor_would_block");
+    expect(rec.meta.scope).toBe("login");
+    expect(line).not.toContain("user@example.com");
+    expect(line).not.toContain("1.2.3.4");
     warn.mockRestore();
   });
 });

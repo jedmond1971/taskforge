@@ -8,7 +8,6 @@ const { mockPrisma, mockListObjects, mockDeleteObjects, mockRateLimit } = vi.hoi
     checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, retryAfterSeconds: 0 }),
     recordFailure: vi.fn(),
     getClientIp: vi.fn().mockReturnValue("203.0.113.5"),
-    logAuthFailure: vi.fn(),
     V1_API_RATE_LIMIT: { maxAttempts: 10, windowMs: 15 * 60 * 1000 },
   },
 }));
