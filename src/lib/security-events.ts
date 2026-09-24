@@ -1,4 +1,5 @@
 import { randomRequestId } from "./request-id";
+import { redact, MAX_STRING_LENGTH } from "./redaction";
 
 /**
  * Structured security events (SECH-114).
@@ -34,7 +35,8 @@ export type SecurityEventType =
   | "apikey.used_after_revoke"
   | "session.invalidated"
   | "upload.rejected"
-  | "admin.action";
+  | "admin.action"
+  | "prisma.error";
 
 export const SECURITY_EVENT_SEVERITY: Record<SecurityEventType, SecuritySeverity> = {
   "auth.login_failed": "warn",
@@ -61,6 +63,8 @@ export const SECURITY_EVENT_SEVERITY: Record<SecurityEventType, SecuritySeverity
   "session.invalidated": "info",
   "upload.rejected": "warn",
   "admin.action": "info",
+  // A failed DB write, summarised: operation and code only, never the payload.
+  "prisma.error": "warn",
 };
 
 export const SECURITY_EVENT_TYPES = Object.keys(SECURITY_EVENT_SEVERITY) as SecurityEventType[];
@@ -91,7 +95,11 @@ export function securityEvent(type: SecurityEventType, fields: SecurityEventFiel
     ...(fields.targetUserId ? { targetUserId: fields.targetUserId } : {}),
     ...(fields.orgId ? { orgId: fields.orgId } : {}),
     ...(fields.ip ? { ip: fields.ip } : {}),
-    ...(fields.meta ? { meta: fields.meta } : {}),
+    // SECH-115: only caller-supplied meta is redacted. The reserved fields above are set
+    // by the emitter from typed arguments, so redacting them would mangle `type` for no gain.
+    ...(fields.meta
+      ? { meta: redact(fields.meta, { maxStringLength: MAX_STRING_LENGTH }) as Record<string, unknown> }
+      : {}),
   });
 }
 

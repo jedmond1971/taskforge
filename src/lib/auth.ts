@@ -23,7 +23,13 @@ const nextAuth = NextAuth({
 
         const limit = await checkLoginRateLimit(ip, email);
         if (!limit.allowed) {
-          securityEvent("auth.login_throttled", { ip, meta: { email, reason: "rate_limited" } });
+          // SECH-115: `email` is redacted by default; this is the one documented exception.
+          // Without the address, credential stuffing is indistinguishable from one person
+          // mistyping their password. Renamed so the opt-in is deliberate and greppable.
+          securityEvent("auth.login_throttled", {
+            ip,
+            meta: { emailAttempted: email, reason: "rate_limited" },
+          });
           return null;
         }
 
@@ -37,7 +43,13 @@ const nextAuth = NextAuth({
 
         if (!user || !passwordMatch) {
           await recordLoginFailure(ip, email);
-          securityEvent("auth.login_failed", { ip, meta: { email, reason: "invalid_credentials" } });
+          // SECH-115: `email` is redacted by default; this is the one documented exception.
+          // Without the address, credential stuffing is indistinguishable from one person
+          // mistyping their password. Renamed so the opt-in is deliberate and greppable.
+          securityEvent("auth.login_failed", {
+            ip,
+            meta: { emailAttempted: email, reason: "invalid_credentials" },
+          });
           return null;
         }
 

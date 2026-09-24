@@ -97,19 +97,43 @@ describe("securityEvent", () => {
   // Review Focus 1: JSON.stringify throws on circular structures and BigInt. An
   // exception here would turn a failed login into a 500 — the logger must never be
   // the reason a request dies.
-  it("does not throw when meta cannot be serialized", () => {
-    const circular: Record<string, unknown> = {};
+  //
+  // SECH-115 changed HOW this is achieved, not whether: redact() now neutralises cycles
+  // and BigInts before emit() ever calls JSON.stringify, so the record survives intact
+  // instead of collapsing to serializationFailed. emit()'s fallback is kept as defence in
+  // depth and is covered directly below. These assert the guarantee, not the mechanism.
+  it("does not throw when meta contains a cycle, and keeps the rest of the record", () => {
+    const circular: Record<string, unknown> = { keepMe: "visible" };
     circular.self = circular;
 
     expect(() => securityEvent("auth.login_failed", { meta: circular })).not.toThrow();
     const rec = emitted();
     expect(rec.type).toBe("auth.login_failed");
-    expect((rec.meta as Record<string, unknown>).serializationFailed).toBe(true);
+    const meta = rec.meta as Record<string, unknown>;
+    expect(meta.keepMe).toBe("visible");
+    expect(meta.self).toBe("[circular]");
   });
 
   it("does not throw on a BigInt in meta", () => {
     expect(() => securityEvent("apikey.created", { meta: { n: BigInt(1) } })).not.toThrow();
-    expect((emitted().meta as Record<string, unknown>).serializationFailed).toBe(true);
+    expect((emitted().meta as Record<string, unknown>).n).toBe("1n");
+  });
+
+  it("emit() still degrades rather than throwing if a record somehow will not serialize", () => {
+    // Defence in depth: redact() should make this unreachable through securityEvent, but
+    // the fallback must keep working, so exercise it by making JSON.stringify throw.
+    const realStringify = JSON.stringify;
+    const spy = vi.spyOn(JSON, "stringify");
+    spy.mockImplementationOnce(() => {
+      throw new Error("boom");
+    });
+    spy.mockImplementation((...args: Parameters<typeof JSON.stringify>) => realStringify(...args));
+
+    expect(() => securityEvent("auth.login_failed", { meta: { a: 1 } })).not.toThrow();
+    const rec = emitted();
+    expect((rec.meta as Record<string, unknown>).serializationFailed).toBe(true);
+
+    spy.mockRestore();
   });
 });
 
@@ -147,7 +171,49 @@ describe("event catalog", () => {
       "session.invalidated",
       "upload.rejected",
       "admin.action",
+      "prisma.error",
     ];
     expect([...SECURITY_EVENT_TYPES].sort()).toEqual([...expected].sort());
+  });
+});
+
+describe("securityEvent redaction (SECH-115)", () => {
+  it("redacts a sensitive key passed in meta", () => {
+    securityEvent("oauth.token_failed", { meta: { clientId: "c1", token: "super-secret-value" } });
+    const rec = emitted();
+    expect((rec.meta as Record<string, unknown>).clientId).toBe("c1");
+    expect((rec.meta as Record<string, unknown>).token).toBe("[redacted]");
+  });
+
+  it("redacts a secret pattern inside an otherwise innocuous meta value", () => {
+    securityEvent("upload.rejected", {
+      meta: { reason: "mime_type", note: "Authorization: Bearer sk-live-abcdef0123456789" },
+    });
+    expect(warn.mock.calls[0][0]).not.toContain("sk-live-abcdef0123456789");
+  });
+
+  it("caps an attacker-influenced meta value", () => {
+    securityEvent("oauth.token_failed", { meta: { clientId: "x".repeat(5000) } });
+    const clientId = (emitted().meta as Record<string, unknown>).clientId as string;
+    expect(clientId.length).toBeLessThanOrEqual(220);
+  });
+
+  it("does not redact the reserved top-level fields", () => {
+    securityEvent("auth.login_failed", { userId: "u1", orgId: "o1", ip: "203.0.113.4" });
+    const rec = emitted();
+    expect(rec.userId).toBe("u1");
+    expect(rec.orgId).toBe("o1");
+    expect(rec.ip).toBe("203.0.113.4");
+    expect(rec.type).toBe("auth.login_failed");
+  });
+
+  // The one documented exception (SECH-114 inherited item): without the address you
+  // cannot tell credential stuffing from one person mistyping their password.
+  it("keeps the login-failure email, which opts in explicitly", () => {
+    securityEvent("auth.login_failed", {
+      ip: "203.0.113.4",
+      meta: { reason: "invalid_credentials", emailAttempted: "person@example.com" },
+    });
+    expect(warn.mock.calls[0][0]).toContain("person@example.com");
   });
 });
