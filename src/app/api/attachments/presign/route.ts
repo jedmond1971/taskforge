@@ -5,6 +5,8 @@ import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { getPresignedUploadUrl } from "@/lib/s3";
 import { MAX_ATTACHMENT_SIZE, isAllowedAttachmentMimeType, sanitizeFileName } from "@/lib/upload-validation";
 import { checkOrgStorageQuota } from "@/lib/storage-quota";
+import { securityEvent } from "@/lib/security-events";
+import { requestIdFromHeaders } from "@/lib/request-id";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +14,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const requestId = requestIdFromHeaders(request.headers);
+    const userId = session.user.id;
 
     const body = await request.json() as {
       issueId: string;
@@ -26,10 +31,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isAllowedAttachmentMimeType(mimeType)) {
+      securityEvent("upload.rejected", {
+        requestId,
+        userId,
+        meta: { reason: "mime_type", declaredType: mimeType, route: "presign" },
+      });
       return NextResponse.json({ error: "File type not allowed" }, { status: 400 });
     }
 
     if (fileSize > MAX_ATTACHMENT_SIZE) {
+      securityEvent("upload.rejected", {
+        requestId,
+        userId,
+        meta: { reason: "size", fileSize, route: "presign" },
+      });
       return NextResponse.json({ error: "File exceeds 20 MB limit" }, { status: 400 });
     }
 

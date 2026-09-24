@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import { SECURITY_EVENT_TYPES } from "@/lib/security-events";
 
 /**
  * SECH-114: each event type in the catalog has to actually be emitted somewhere.
@@ -24,6 +25,10 @@ const WIRING: Array<{ type: string; file: string }> = [
   { type: "session.invalidated", file: "app/(dashboard)/admin/actions.ts" },
   { type: "session.invalidated", file: "app/(dashboard)/settings/actions.ts" },
   { type: "admin.action", file: "lib/audit-log.ts" },
+  { type: "upload.rejected", file: "app/api/attachments/presign/route.ts" },
+  { type: "upload.rejected", file: "app/api/attachments/upload/route.ts" },
+  { type: "upload.rejected", file: "app/api/attachments/confirm/route.ts" },
+  { type: "upload.rejected", file: "app/api/editor-images/route.ts" },
 ];
 
 describe("security-event wiring", () => {
@@ -59,5 +64,30 @@ describe("security-event wiring", () => {
     const src = read("lib/external-api-auth.ts");
     // One shared rejection path: the log distinguishes the cases, the response must not.
     expect(src.match(/status:\s*401/g) ?? []).toHaveLength(2); // missing header + the shared branch
+  });
+});
+
+const SKIP_PATH = /(__tests__|[/\\]integration[/\\]|test-support|security-events\.ts)/;
+
+function walk(dir: string): string[] {
+  const out: string[] = [];
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, e.name);
+    if (SKIP_PATH.test(full)) continue;
+    if (e.isDirectory()) out.push(...walk(full));
+    else if (/\.tsx?$/.test(e.name)) out.push(full);
+  }
+  return out;
+}
+
+describe("catalog coverage", () => {
+  const ALL_SOURCE = walk(SRC)
+    .map((f) => fs.readFileSync(f, "utf8"))
+    .join("\n");
+
+  // A type declared but never emitted produces an alert rule that can never fire, and
+  // the resulting silence reads as "no attacks". Every catalog entry must be wired.
+  it.each(SECURITY_EVENT_TYPES)("%s is emitted somewhere outside the catalog", (type) => {
+    expect(ALL_SOURCE).toContain(`"${type}"`);
   });
 });
