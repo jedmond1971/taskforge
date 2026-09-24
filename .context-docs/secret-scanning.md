@@ -9,6 +9,26 @@ Defined in `.github/workflows/ci.yml`. It runs on every PR and on every push to 
 - `--redact` is on. The repo is **public**, so logs and the `gitleaks-report` artifact must never contain secret values.
 - Config: `.gitleaks.toml` extends the default ruleset. **Allowlist only triaged false positives, each with a written reason. Never allowlist a live credential. Rotate it instead:** removing a secret from history doesn't un-leak it from a public repo.
 
+## Reproducing the CI scan locally (faster than a PR round trip)
+
+The `Secret scan` job is a single container run, so the identical scan works locally — worth
+doing before pushing anything that adds realistic-looking test fixtures:
+
+```bash
+docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.30.1 \
+  git /repo --log-opts="--all" --config /repo/.gitleaks.toml --redact --no-banner
+```
+
+Two things that cost a red CI run on 2026-09-24 (SECH-115):
+
+- **A test corpus of realistic secret shapes trips the scan**, which is correct behaviour. The
+  SECH-115 redaction corpus is allowlisted by path in `.gitleaks.toml` with a written reason.
+  The rule that a real credential is rotated, never allowlisted, is unchanged — these values
+  are synthetic by construction (the JWT is the published jwt.io sample).
+- **The scan reads full history across every ref**, so a plan or spec document that embeds the
+  same fixture code verbatim in its task steps is flagged too, not just the source file. Check
+  `docs/` as well as `src/` when triaging.
+
 ## What gitleaks does not catch: exact-value history search
 
 gitleaks' generic rule needs high-entropy strings. A low-entropy, human-phrase secret (like the old dev `NEXTAUTH_SECRET` below) passes it cleanly. For a full audit, also search every commit on every ref, including `refs/stash`, for the **exact values** of real secrets. Read the values from `.env` and `~/.bashrc` inside a script, compare as bytes, and print only key names and match counts. Pipe `git log --all -p --text` into Python and read `sys.stdin.buffer`, because the history contains binary blobs that break utf-8 decoding.
