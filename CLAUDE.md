@@ -13,7 +13,7 @@
 3. `npm test` — zero failures required. This step was missing from this checklist until JFR-131 (2026-08-13): lint and tsc both passed locally while a hand-written test mock (see `.context-docs/testing-notes.md`) was stale, and CI caught it on push instead. Run it locally before pushing, not just as a CI backstop.
 4. `git diff --name-only --cached` — verify only files changed in this session are staged.
 
-**If `tsc --noEmit` fails with "Cannot find module" for a route you just deleted** — Next.js leaves stale type stubs under `.next/types/app/api/<path>/`. Delete the matching directory (`rm -rf .next/types/app/api/<path>`) and re-run.
+**If `tsc --noEmit` fails with "Cannot find module" for a route you just deleted** — run `rm -rf .next/types` and re-run. The generated dir is rebuilt by the next `next build`/`next dev`. (Corrected 2026-09-24: the older advice here was to delete `.next/types/app/api/<path>/`, which does **not** clear it — the dangling reference lives in `.next/types/validator.ts`, so tsc keeps failing until the whole `types` dir goes.)
 
 **`[...new Set()]` spread fails TypeScript (TS2802)** — The project's TypeScript target does not support iterating Sets via spread. Use `Array.from(new Set(...))` instead.
 
