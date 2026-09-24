@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashApiKey } from "@/lib/api-keys";
 import { checkRateLimit, consumeRateLimit, getClientIp, recordFailure, LIMITS } from "@/lib/rate-limit";
+import { securityEvent } from "@/lib/security-events";
+import { requestIdFromHeaders } from "@/lib/request-id";
 
 function tooMany(retryAfterSeconds: number) {
   return NextResponse.json(
@@ -32,6 +34,17 @@ export async function requireExternalApiKey(
     where: { hashedKey: hashed },
     select: { id: true, orgId: true, revokedAt: true, createdById: true },
   });
+
+  // SECH-114: a revoked key still being presented is a different signal from an unknown
+  // one — the holder has not noticed, or is not who we revoked it from. The 401 below is
+  // deliberately identical for both, so only the log distinguishes them.
+  if (key && key.revokedAt !== null) {
+    securityEvent("apikey.used_after_revoke", {
+      requestId: requestIdFromHeaders(request.headers),
+      orgId: key.orgId,
+      meta: { apiKeyId: key.id },
+    });
+  }
 
   if (!key || key.revokedAt !== null) {
     await recordFailure(ipKey, LIMITS.externalApiAuthFailuresPerIp.windowMs);

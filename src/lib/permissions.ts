@@ -1,6 +1,8 @@
 import { OrgRole, ProjectMemberRole, Permission } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { securityEvent } from "./security-events";
+import { currentRequestId } from "./request-context";
 
 export type { Permission };
 
@@ -117,14 +119,15 @@ async function resolveProjectRole(
       where: { userId_projectId: { userId: session.user.id, projectId: project.id } },
       select: { id: true },
     });
-    if (!privacyCheck) throw new Error("You do not have access to this project.");
-  }
-
-  // Closed projects reject writes at the session layer too (the external API
-  // and MCP already filter isClosed — SECH-93). Admins bypass, mirroring the
-  // closed-project UI gate in [projectKey]/layout.tsx.
-  if (project.isClosed && session.user.role !== "ADMIN") {
-    throw new Error("This project is closed");
+    if (!privacyCheck) {
+      securityEvent("authz.denied_private_project", {
+        requestId: await currentRequestId(),
+        userId: session.user.id,
+        orgId: project.orgId,
+        meta: { projectId: project.id },
+      });
+      throw new Error("You do not have access to this project.");
+    }
   }
 
   const membership = await prisma.projectMember.findUnique({
@@ -133,10 +136,47 @@ async function resolveProjectRole(
     },
     select: { role: true },
   });
-  if (!membership) throw new Error("Not a project member");
+
+  // Closed projects reject writes at the session layer too (the external API
+  // and MCP already filter isClosed — SECH-93). Admins bypass, mirroring the
+  // closed-project UI gate in [projectKey]/layout.tsx.
+  //
+  // SECH-114: the membership lookup is hoisted above this check on purpose. A closed
+  // project is normal navigation FOR A MEMBER, so that case stays silent — but a
+  // non-member reaching one is the same cross-tenant probe we report everywhere else,
+  // and short-circuiting here used to hide it (and offered a way to duck a threshold).
+  // The thrown error is unchanged either way, so nothing downstream sees a difference.
+  if (project.isClosed && session.user.role !== "ADMIN") {
+    if (!membership) {
+      securityEvent("authz.denied_not_member", {
+        requestId: await currentRequestId(),
+        userId: session.user.id,
+        orgId: project.orgId,
+        meta: { projectId: project.id, projectClosed: true },
+      });
+    }
+    throw new Error("This project is closed");
+  }
+  if (!membership) {
+    securityEvent("authz.denied_not_member", {
+      requestId: await currentRequestId(),
+      userId: session.user.id,
+      orgId: project.orgId,
+      meta: { projectId: project.id },
+    });
+    throw new Error("Not a project member");
+  }
 
   const grants = await getUserGrants(session.user.id, project.orgId, project.id);
-  if (!check(membership.role, grants)) throw new Error("Forbidden");
+  if (!check(membership.role, grants)) {
+    securityEvent("authz.denied_role", {
+      requestId: await currentRequestId(),
+      userId: session.user.id,
+      orgId: project.orgId,
+      meta: { projectId: project.id, role: membership.role },
+    });
+    throw new Error("Forbidden");
+  }
 
   return {
     userId: session.user.id,
@@ -198,10 +238,25 @@ export async function requireOrgRole(
     where: { orgId_userId: { orgId, userId: session.user.id } },
     select: { role: true },
   });
-  if (!membership) throw new Error("Not an organization member");
+  if (!membership) {
+    securityEvent("authz.denied_not_org_member", {
+      requestId: await currentRequestId(),
+      userId: session.user.id,
+      orgId,
+    });
+    throw new Error("Not an organization member");
+  }
 
   const grants = await getUserGrants(session.user.id, orgId);
-  if (!check(membership.role, grants)) throw new Error("Forbidden");
+  if (!check(membership.role, grants)) {
+    securityEvent("authz.denied_role", {
+      requestId: await currentRequestId(),
+      userId: session.user.id,
+      orgId,
+      meta: { role: membership.role },
+    });
+    throw new Error("Forbidden");
+  }
 
   return { userId: session.user.id, orgId, role: membership.role };
 }
@@ -214,7 +269,14 @@ export async function requireAdmin(): Promise<{ userId: string }> {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
 
-  if (session.user.role !== "ADMIN") throw new Error("Forbidden");
+  if (session.user.role !== "ADMIN") {
+    securityEvent("authz.denied_admin", {
+      requestId: await currentRequestId(),
+      userId: session.user.id,
+      meta: { role: session.user.role },
+    });
+    throw new Error("Forbidden");
+  }
 
   return { userId: session.user.id };
 }

@@ -9,6 +9,7 @@ import { deleteObject, deleteObjectsWithPrefix } from "@/lib/s3";
 import { sendOrgInviteEmail, getInviteExpiryDate } from "@/lib/invites";
 import { logAdminAction } from "@/lib/audit-log";
 import { revokeOAuthTokensForUser, revokeApiKeysForUser } from "@/lib/credential-revocation";
+import { securityEvent } from "@/lib/security-events";
 
 // Discriminated union returned by all admin mutation actions.
 // Expected validation failures return { success: false, error } instead of throwing,
@@ -101,6 +102,11 @@ export async function adminUpdateUser(
   });
 
   if (roleChanged) {
+    securityEvent("session.invalidated", {
+      userId: actorId,
+      targetUserId: userId,
+      meta: { trigger: "admin_role_change" },
+    });
     // OAuth tokens have no captured session version to check live (SECH-94) —
     // revoke them here, the same trigger that invalidates web sessions.
     await revokeOAuthTokensForUser(userId);
@@ -145,6 +151,12 @@ export async function adminResetUserPassword(
   await prisma.user.update({
     where: { id: userId },
     data: { passwordHash, sessionVersion: { increment: 1 } },
+  });
+
+  securityEvent("session.invalidated", {
+    userId: actorId,
+    targetUserId: userId,
+    meta: { trigger: "admin_password_reset" },
   });
   // OAuth tokens have no captured session version to check live (SECH-94) —
   // revoke them here, the same trigger that invalidates web sessions.

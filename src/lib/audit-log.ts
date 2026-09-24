@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { securityEvent } from "@/lib/security-events";
+import { currentRequestId } from "@/lib/request-context";
 
 export type AuditAction =
   | "USER_CREATED"
@@ -43,6 +45,20 @@ export async function logAdminAction(params: {
       targetId: params.targetId,
       targetLabel: params.targetLabel,
       metadata: params.metadata as object | undefined,
+    },
+  });
+
+  // SECH-114 bridge: the DB row stays the system of record for the admin UI; this puts
+  // the same action into the detection stream so SECH-117 can alert on it. Actor name
+  // and email stay in the row — the stream carries the id alone.
+  securityEvent("admin.action", {
+    requestId: await currentRequestId(),
+    userId: params.actorId,
+    targetUserId: params.targetType === "User" ? params.targetId : undefined,
+    meta: {
+      action: params.action,
+      targetType: params.targetType,
+      targetId: params.targetId,
     },
   });
 }

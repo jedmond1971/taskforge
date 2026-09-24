@@ -67,7 +67,10 @@ export const SECURITY_EVENT_TYPES = Object.keys(SECURITY_EVENT_SEVERITY) as Secu
 
 export type SecurityEventFields = {
   requestId?: string;
+  /** The account that PERFORMED the action. Always the actor, never the subject. */
   userId?: string;
+  /** The account the action was performed UPON, when that differs from the actor. */
+  targetUserId?: string;
   orgId?: string;
   ip?: string;
   /** Caller detail. Nested, never spread — a caller key must not overwrite `type`. */
@@ -85,6 +88,7 @@ export function securityEvent(type: SecurityEventType, fields: SecurityEventFiel
     // a correlation ID.
     requestId: fields.requestId ?? randomRequestId(),
     ...(fields.userId ? { userId: fields.userId } : {}),
+    ...(fields.targetUserId ? { targetUserId: fields.targetUserId } : {}),
     ...(fields.orgId ? { orgId: fields.orgId } : {}),
     ...(fields.ip ? { ip: fields.ip } : {}),
     ...(fields.meta ? { meta: fields.meta } : {}),

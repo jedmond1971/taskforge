@@ -9,6 +9,8 @@ import {
 } from "@/lib/oauth/tokens";
 import { ACCESS_TOKEN_TTL_MS, REFRESH_TOKEN_TTL_MS } from "@/lib/oauth/config";
 import { checkRateLimit, recordFailure, getClientIp, LIMITS } from "@/lib/rate-limit";
+import { securityEvent } from "@/lib/security-events";
+import { requestIdFromHeaders } from "@/lib/request-id";
 
 function tokenError(error: string, description: string, status = 400) {
   return NextResponse.json({ error, error_description: description }, { status });
@@ -108,6 +110,10 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     body = Object.fromEntries(formData.entries()) as Record<string, string>;
   } catch {
+    securityEvent("oauth.token_failed", {
+      requestId: requestIdFromHeaders(request.headers),
+      meta: { error: "invalid_request" },
+    });
     return tokenError("invalid_request", "Request body must be application/x-www-form-urlencoded");
   }
 
@@ -137,19 +143,28 @@ export async function POST(request: Request) {
 async function handleGrant(request: Request, body: Record<string, string>): Promise<Response> {
   const grantType = body.grant_type;
   const clientId = body.client_id;
-  if (!clientId) return tokenError("invalid_client", "client_id is required");
+  const requestId = requestIdFromHeaders(request.headers);
+
+  // SECH-114: every failure out of this function is a security event. Emitting from one
+  // per-request closure keeps the twelve call sites arity-identical, and carries only the
+  // OAuth error code and client id — never the presented code, secret or refresh token.
+  const fail = (error: string, description: string, status = 400) => {
+    securityEvent("oauth.token_failed", { requestId, meta: { error, clientId } });
+    return tokenError(error, description, status);
+  };
+  if (!clientId) return fail("invalid_client", "client_id is required");
 
   const client = await prisma.oAuthClient.findUnique({ where: { id: clientId } });
-  if (!client) return tokenError("invalid_client", "Unknown client_id", 401);
+  if (!client) return fail("invalid_client", "Unknown client_id", 401);
 
   if (!(await authenticateClient(request, body, client))) {
-    return tokenError("invalid_client", "Client authentication failed", 401);
+    return fail("invalid_client", "Client authentication failed", 401);
   }
 
   if (grantType === "authorization_code") {
     const { code, redirect_uri: redirectUri, code_verifier: codeVerifier } = body;
     if (!code || !redirectUri || !codeVerifier) {
-      return tokenError("invalid_request", "code, redirect_uri, and code_verifier are required");
+      return fail("invalid_request", "code, redirect_uri, and code_verifier are required");
     }
 
     const authCode = await prisma.oAuthAuthorizationCode.findUnique({
@@ -163,11 +178,11 @@ async function handleGrant(request: Request, body: Record<string, string>): Prom
       authCode.expiresAt < new Date() ||
       authCode.redirectUri !== redirectUri
     ) {
-      return tokenError("invalid_grant", "Authorization code is invalid, expired, or already used");
+      return fail("invalid_grant", "Authorization code is invalid, expired, or already used");
     }
 
     if (!verifyPkceS256(codeVerifier, authCode.codeChallenge)) {
-      return tokenError("invalid_grant", "code_verifier does not match code_challenge");
+      return fail("invalid_grant", "code_verifier does not match code_challenge");
     }
 
     // Conditional update guards against a concurrent replay of the same code.
@@ -176,7 +191,7 @@ async function handleGrant(request: Request, body: Record<string, string>): Prom
       data: { usedAt: new Date() },
     });
     if (claimed.count === 0) {
-      return tokenError("invalid_grant", "Authorization code is invalid, expired, or already used");
+      return fail("invalid_grant", "Authorization code is invalid, expired, or already used");
     }
 
     return issueTokenPair({
@@ -189,7 +204,7 @@ async function handleGrant(request: Request, body: Record<string, string>): Prom
 
   if (grantType === "refresh_token") {
     const plaintextRefreshToken = body.refresh_token;
-    if (!plaintextRefreshToken) return tokenError("invalid_request", "refresh_token is required");
+    if (!plaintextRefreshToken) return fail("invalid_request", "refresh_token is required");
 
     const refreshToken = await prisma.oAuthRefreshToken.findUnique({
       where: { hashedToken: hashOAuthSecret(plaintextRefreshToken) },
@@ -200,7 +215,7 @@ async function handleGrant(request: Request, body: Record<string, string>): Prom
       refreshToken.clientId !== client.id ||
       refreshToken.expiresAt < new Date()
     ) {
-      return tokenError("invalid_grant", "Refresh token is invalid, expired, or revoked");
+      return fail("invalid_grant", "Refresh token is invalid, expired, or revoked");
     }
 
     // SECH-109 reuse detection: the token was already rotated (or revoked) and has come
@@ -209,8 +224,14 @@ async function handleGrant(request: Request, body: Record<string, string>): Prom
     // same path as losing the concurrent-claim race below — that is one honest client
     // racing itself, and it reads revokedAt: null here.
     if (refreshToken.revokedAt !== null) {
+      securityEvent("oauth.refresh_reuse_detected", {
+        requestId,
+        userId: refreshToken.userId,
+        orgId: refreshToken.orgId,
+        meta: { clientId, familyId: refreshToken.familyId },
+      });
       await revokeTokenFamily(refreshToken.familyId);
-      return tokenError("invalid_grant", "Refresh token is invalid, expired, or revoked");
+      return fail("invalid_grant", "Refresh token is invalid, expired, or revoked");
     }
 
     // Rotation: this refresh token (and the access token it was paired with)
@@ -232,7 +253,7 @@ async function handleGrant(request: Request, body: Record<string, string>): Prom
       return true;
     });
     if (!claimed) {
-      return tokenError("invalid_grant", "Refresh token is invalid, expired, or revoked");
+      return fail("invalid_grant", "Refresh token is invalid, expired, or revoked");
     }
 
     return issueTokenPair({
@@ -244,5 +265,5 @@ async function handleGrant(request: Request, body: Record<string, string>): Prom
     });
   }
 
-  return tokenError("unsupported_grant_type", "grant_type must be authorization_code or refresh_token");
+  return fail("unsupported_grant_type", "grant_type must be authorization_code or refresh_token");
 }

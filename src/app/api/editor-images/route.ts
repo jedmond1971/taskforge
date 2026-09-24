@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { putObject, getPresignedDownloadUrl } from "@/lib/s3";
 import { isAllowedImageMimeType, sniffRasterFormat, validateRasterImage } from "@/lib/upload-validation";
+import { securityEvent } from "@/lib/security-events";
+import { requestIdFromHeaders } from "@/lib/request-id";
 
 const FORMAT_EXT = { png: ".png", jpeg: ".jpg", gif: ".gif", webp: ".webp" } as const;
 const EXT_TYPE: Record<string, string> = {
@@ -20,15 +22,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const requestId = requestIdFromHeaders(request.headers);
+  const userId = session.user.id;
+
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
   if (!file) {
     return NextResponse.json({ error: "Missing file" }, { status: 400 });
   }
   if (!isAllowedImageMimeType(file.type)) {
+    securityEvent("upload.rejected", {
+      requestId,
+      userId,
+      meta: { reason: "mime_type", declaredType: file.type, route: "editor-images" },
+    });
     return NextResponse.json({ error: "Unsupported image type" }, { status: 400 });
   }
   if (file.size > MAX_SIZE) {
+    securityEvent("upload.rejected", {
+      requestId,
+      userId,
+      meta: { reason: "size", fileSize: file.size, route: "editor-images" },
+    });
     return NextResponse.json({ error: "File exceeds 10 MB limit" }, { status: 400 });
   }
 
@@ -40,6 +55,11 @@ export async function POST(request: NextRequest) {
   // images can be animated GIF/WebP, so the original bytes are stored once
   // confirmed to be a real image of the declared type.
   if (!(await validateRasterImage(buffer, file.type))) {
+    securityEvent("upload.rejected", {
+      requestId,
+      userId,
+      meta: { reason: "not_raster_image", declaredType: file.type, route: "editor-images" },
+    });
     return NextResponse.json({ error: "Invalid or unsupported image file" }, { status: 400 });
   }
 

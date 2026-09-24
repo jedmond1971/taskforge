@@ -11,6 +11,8 @@ import {
   validateRasterImage,
 } from "@/lib/upload-validation";
 import { checkOrgStorageQuota } from "@/lib/storage-quota";
+import { securityEvent } from "@/lib/security-events";
+import { requestIdFromHeaders } from "@/lib/request-id";
 
 export const maxDuration = 60;
 
@@ -21,6 +23,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const requestId = requestIdFromHeaders(request.headers);
+    const userId = session.user.id;
+
     const formData = await request.formData();
     const issueId = formData.get("issueId") as string | null;
     const file = formData.get("file") as File | null;
@@ -30,10 +35,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isAllowedAttachmentMimeType(file.type)) {
+      securityEvent("upload.rejected", {
+        requestId,
+        userId,
+        meta: { reason: "mime_type", declaredType: file.type, route: "upload" },
+      });
       return NextResponse.json({ error: "File type not allowed" }, { status: 400 });
     }
 
     if (file.size > MAX_ATTACHMENT_SIZE) {
+      securityEvent("upload.rejected", {
+        requestId,
+        userId,
+        meta: { reason: "size", fileSize: file.size, route: "upload" },
+      });
       return NextResponse.json({ error: "File exceeds 20 MB limit" }, { status: 400 });
     }
 
@@ -70,6 +85,11 @@ export async function POST(request: NextRequest) {
     // Image attachments must be real PNG/JPEG/GIF/WebP whose bytes match the
     // declared type — never SVG or spoofed bytes (SECH-88/90, SECH-125).
     if (isAllowedImageMimeType(file.type) && !(await validateRasterImage(buffer, file.type))) {
+      securityEvent("upload.rejected", {
+        requestId,
+        userId,
+        meta: { reason: "not_raster_image", declaredType: file.type, route: "upload" },
+      });
       return NextResponse.json({ error: "Invalid or unsupported image file" }, { status: 400 });
     }
 
