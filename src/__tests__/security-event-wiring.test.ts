@@ -21,6 +21,9 @@ const WIRING: Array<{ type: string; file: string }> = [
   { type: "apikey.created", file: "app/(dashboard)/org-settings/actions.ts" },
   { type: "apikey.revoked", file: "app/(dashboard)/org-settings/actions.ts" },
   { type: "apikey.used_after_revoke", file: "lib/external-api-auth.ts" },
+  { type: "session.invalidated", file: "app/(dashboard)/admin/actions.ts" },
+  { type: "session.invalidated", file: "app/(dashboard)/settings/actions.ts" },
+  { type: "admin.action", file: "lib/audit-log.ts" },
 ];
 
 describe("security-event wiring", () => {

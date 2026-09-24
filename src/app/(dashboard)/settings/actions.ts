@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { revokeOAuthTokensForUser } from "@/lib/credential-revocation";
 import { checkRateLimit, recordFailure, tooManyAttemptsMessage, LIMITS } from "@/lib/rate-limit";
+import { securityEvent } from "@/lib/security-events";
 
 type ActionResult = { success: true } | { success: false; error: string };
 
@@ -46,6 +47,11 @@ export async function changePassword(
       passwordHash: await bcrypt.hash(newPassword, 12),
       sessionVersion: { increment: 1 },
     },
+  });
+
+  securityEvent("session.invalidated", {
+    userId: session.user.id,
+    meta: { trigger: "self_password_change" },
   });
   // OAuth tokens have no captured session version to check live (SECH-94) —
   // revoke them here, the same trigger that invalidates web sessions.
