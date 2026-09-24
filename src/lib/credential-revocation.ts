@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { securityEvent } from "@/lib/security-events";
 
 /**
  * Revokes every OAuth access/refresh token for a user (optionally scoped to one
@@ -23,4 +24,6 @@ export async function revokeApiKeysForUser(userId: string, orgId: string): Promi
     where: { createdById: userId, orgId, revokedAt: null },
     data: { revokedAt: new Date() },
   });
+
+  securityEvent("apikey.revoked", { userId, orgId, meta: { reason: "credential_revocation" } });
 }

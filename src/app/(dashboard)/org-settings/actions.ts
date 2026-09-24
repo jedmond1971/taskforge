@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireOrgRole, canManageApiKeys } from "@/lib/permissions";
 import { generateApiKey, hashApiKey } from "@/lib/api-keys";
 import { consumeRateLimit, tooManyAttemptsMessage, LIMITS } from "@/lib/rate-limit";
+import { securityEvent } from "@/lib/security-events";
 
 export type ApiKeyRow = {
   id: string;
@@ -80,6 +81,12 @@ export async function createApiKey(
     },
   });
 
+  securityEvent("apikey.created", {
+    userId,
+    orgId,
+    meta: { apiKeyId: created.id, keyPrefix },
+  });
+
   return {
     success: true,
     plaintext,
@@ -99,7 +106,7 @@ export async function revokeApiKey(
   orgId: string,
   keyId: string
 ): Promise<{ success: true } | { success: false; error: string }> {
-  await requireOrgRole(orgId, canManageApiKeys);
+  const { userId } = await requireOrgRole(orgId, canManageApiKeys);
 
   const key = await prisma.apiKey.findUnique({
     where: { id: keyId },
@@ -117,6 +124,8 @@ export async function revokeApiKey(
     where: { id: keyId },
     data: { revokedAt: new Date() },
   });
+
+  securityEvent("apikey.revoked", { userId, orgId, meta: { apiKeyId: keyId } });
 
   return { success: true };
 }

@@ -18,6 +18,9 @@ const read = (rel: string) => fs.readFileSync(path.join(SRC, rel), "utf8");
 const WIRING: Array<{ type: string; file: string }> = [
   { type: "oauth.token_failed", file: "app/api/oauth/token/route.ts" },
   { type: "oauth.refresh_reuse_detected", file: "app/api/oauth/token/route.ts" },
+  { type: "apikey.created", file: "app/(dashboard)/org-settings/actions.ts" },
+  { type: "apikey.revoked", file: "app/(dashboard)/org-settings/actions.ts" },
+  { type: "apikey.used_after_revoke", file: "lib/external-api-auth.ts" },
 ];
 
 describe("security-event wiring", () => {
@@ -35,5 +38,23 @@ describe("security-event wiring", () => {
       /securityEvent\([^)]*(clientSecret|codeVerifier|refreshTokenValue|plaintext)/.test(l)
     );
     expect(offending).toEqual([]);
+  });
+
+  it("api-key events carry the id and prefix but never the key or its hash", () => {
+    const files = ["app/(dashboard)/org-settings/actions.ts", "lib/external-api-auth.ts"];
+    const offending = files.flatMap((f) =>
+      read(f)
+        .split("\n")
+        .map((line, i) => [i + 1, line] as const)
+        .filter(([, l]) => /securityEvent\([^)]*(plaintext|hashedKey|incoming)/.test(l))
+        .map(([n, l]) => `${f}:${n}: ${l.trim()}`)
+    );
+    expect(offending).toEqual([]);
+  });
+
+  it("the external API returns an identical 401 whether the key is unknown or revoked", () => {
+    const src = read("lib/external-api-auth.ts");
+    // One shared rejection path: the log distinguishes the cases, the response must not.
+    expect(src.match(/status:\s*401/g) ?? []).toHaveLength(2); // missing header + the shared branch
   });
 });
