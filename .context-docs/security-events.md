@@ -1,0 +1,151 @@
+# Structured security events (SECH-114)
+
+`securityEvent()` in `src/lib/security-events.ts` is the only place a security signal is
+written. Everything below is enforced by tests; the "Adding an event type" section is the
+part you will actually need.
+
+## Record shape
+
+One JSON line per event:
+
+```jsonc
+{
+  "evt": "security",              // fixed discriminator — one grep token
+  "ts": "2026-09-24T14:35:30.123Z",
+  "type": "auth.login_failed",    // from the closed catalog below
+  "severity": "warn",             // info | warn | critical
+  "requestId": "0f8c…",
+  "userId": "cmo3…",              // omitted when unauthenticated
+  "orgId": "cmsq…",               // omitted when not org-scoped
+  "ip": "203.0.113.4",
+  "meta": { "reason": "invalid_credentials" }
+}
+```
+
+`evt: "security"` exists because Railway's stream mixes Next.js output, framework noise and
+ours — one fixed token makes the security stream filterable without matching a dozen type
+prefixes.
+
+**Caller data is nested under `meta`, never spread onto the record.** Spreading reads better
+but lets a caller key silently clobber `type` or `severity`, which are the fields alert rules
+match on. A test pins this.
+
+**Severity is a property of the event type**, read from `SECURITY_EVENT_SEVERITY`. Call sites
+never pass a severity, so the same event cannot be reported at two severities from two places.
+
+## Catalog
+
+| Type | Severity | Emitted from |
+|---|---|---|
+| `auth.login_failed` | warn | `lib/auth.ts` |
+| `auth.login_throttled` | warn | `lib/auth.ts` |
+| `auth.v1_key_invalid` | warn | `lib/v1-auth.ts` |
+| `auth.v1_throttled` | warn | `lib/v1-auth.ts` |
+| `ratelimit.monitor_would_block` | info | `lib/rate-limit.ts` |
+| `csp.violation` | info | `app/api/csp-report/route.ts` |
+| `authz.denied_not_member` | warn | `lib/permissions.ts` |
+| `authz.denied_private_project` | warn | `lib/permissions.ts` |
+| `authz.denied_not_org_member` | warn | `lib/permissions.ts` |
+| `authz.denied_role` | info | `lib/permissions.ts` |
+| `authz.denied_admin` | warn | `lib/permissions.ts` |
+| `oauth.token_failed` | warn | `app/api/oauth/token/route.ts` |
+| `oauth.refresh_reuse_detected` | critical | `app/api/oauth/token/route.ts` |
+| `apikey.created` | info | `app/(dashboard)/org-settings/actions.ts` |
+| `apikey.revoked` | info | `org-settings/actions.ts`, `lib/credential-revocation.ts` |
+| `apikey.used_after_revoke` | critical | `lib/external-api-auth.ts` |
+| `session.invalidated` | info | `admin/actions.ts` (×2), `settings/actions.ts` |
+| `upload.rejected` | warn | the 3 attachment routes + `editor-images` |
+| `admin.action` | info | `lib/audit-log.ts` (bridge) |
+
+## Denial classification — why we do not sample
+
+The ticket asked for authorization denials "sampled or thresholded". Both were rejected.
+
+`resolveProjectRole` throws for six reasons that differ enormously in value:
+
+| Denial | Normal volume | Signal | Emitted? |
+|---|---|---|---|
+| Not a project member | Rare | Very high — cross-tenant probe | Yes, `warn` |
+| No access to private project | Rare | Very high | Yes, `warn` |
+| `Forbidden` (role too low) | Low | Medium | Yes, `info` |
+| Project not found | Moderate | Low | **No** |
+| Project is closed | Moderate | None — normal navigation | **No** |
+| Unauthorized (no session) | Very high | None — expired sessions | **No** |
+
+Uniform sampling drops precisely the events worth having: a 1-in-10 sample of a population
+dominated by expired sessions reliably captures expired sessions and reliably misses the
+single cross-tenant probe. Not emitting the zero-signal denials removes the volume problem
+that sampling exists to solve. `authz-denial-events.test.ts` pins the **silence** as well as
+the emissions — deleting a "no event here" case is a visible test change, not a quiet drift.
+
+**Thresholding stays out of the emitter and belongs in SECH-117.** It is policy ("alert when
+one actor trips 20 of these in 5 minutes"), it should be tunable without a deploy, and
+per-actor counters held in the emitter would be per-instance — and therefore wrong — on a
+platform that restarts and scales processes freely.
+
+## The `emit()` seam
+
+`securityEvent()` builds the record and hands it to one private `emit()`. That is where
+SECH-115 inserts redaction and SECH-117 adds a sink — one file, not 150 call sites.
+
+`emit()` **degrades rather than throwing.** `JSON.stringify` throws on a circular structure
+or a `BigInt`, and passing a Prisma object into `meta` is a realistic mistake; an exception
+inside the emitter during a failed login would turn a 401 into a 500. On failure it emits the
+same record with `meta: { serializationFailed: true }`. A logger must never be the reason a
+request dies.
+
+## Request / correlation IDs
+
+`src/lib/request-id.ts` is deliberately dependency-free because `src/middleware.ts` runs on
+the **Edge runtime**: use the global `crypto.randomUUID()`, never `import … from "node:crypto"`.
+
+Middleware validates an inbound `x-request-id` against a strict UUID pattern and regenerates
+anything malformed — the value lands in a log stream, so an unvalidated header is a
+log-injection vector (a CRLF would forge a second, attacker-authored event line). The ID is
+set on the forwarded request headers **and on every response**, which is how "include it in
+error responses" is satisfied without touching a single route handler.
+
+**The `/api/auth` gap.** The middleware matcher excludes `api/auth`, and login failures are
+emitted from the `authorize` callback reached via `/api/auth/callback/credentials` — so the
+highest-value event source is the one path middleware never runs on. Widening the matcher over
+a live auth path was rejected (the blast radius of a middleware bug there is total lockout).
+Instead `securityEvent()` **lazily generates an ID when none is supplied**. Every event carries
+one; middleware's job is making a single ID span *multiple* events in one request.
+
+## Adding an event type
+
+1. Add it to the `SecurityEventType` union **and** `SECURITY_EVENT_SEVERITY` (the record type
+   makes a missing severity a compile error).
+2. Add it to the pinned list in `src/lib/__tests__/security-events.test.ts`.
+3. Wire a real call site, and add a row to `WIRING` in
+   `src/__tests__/security-event-wiring.test.ts`.
+
+Step 3 is not optional: `security-event-wiring.test.ts` has a coverage assertion that fails if
+a catalog type is never emitted. A declared-but-unwired type produces an SECH-117 alert rule
+that can never fire, and the resulting silence reads as "no attacks".
+
+## Guard tests
+
+| Test | What breaks it |
+|---|---|
+| `lib/__tests__/security-events.test.ts` | record shape, meta collision, newline splitting, unserializable meta, catalog/severity drift |
+| `lib/__tests__/request-id.test.ts` | malformed inbound IDs being honoured |
+| `__tests__/request-id-middleware.test.ts` | middleware not wiring the helpers, or a bare `return NextResponse.` skipping the header |
+| `__tests__/security-logging-sinks.test.ts` | ad-hoc `[security]`/`[csp-report]` logging returning, or anything but the emitter writing a security record |
+| `__tests__/security-event-wiring.test.ts` | a catalog type with no call site; a secret in an OAuth or API-key event |
+| `__tests__/authz-denial-events.test.ts` | a zero-signal denial starting to emit, or a boundary denial going silent |
+
+## Privacy
+
+No token, secret, presigned URL, password or file content reaches `meta` from any call site.
+Two deliberate decisions:
+
+- **The login-failure event carries `email`**, exactly as `logAuthFailure` did before. Without
+  it, credential stuffing is indistinguishable from one person mistyping their password. This
+  is flagged for **SECH-115** to decide deliberately rather than changed quietly here.
+- **`admin.action` carries only the actor's id**, not name or email — the `AdminAuditLog` row
+  already holds those for the admin UI, and a log destination should not become a second PII
+  sink.
+
+`csp-report`'s existing `scrub()` is unchanged: it still strips query strings from
+`document-uri`/`blocked-uri`, which is where invite tokens and presigned signatures would sit.
