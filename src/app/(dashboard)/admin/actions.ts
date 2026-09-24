@@ -103,7 +103,8 @@ export async function adminUpdateUser(
 
   if (roleChanged) {
     securityEvent("session.invalidated", {
-      userId,
+      userId: actorId,
+      targetUserId: userId,
       meta: { trigger: "admin_role_change" },
     });
     // OAuth tokens have no captured session version to check live (SECH-94) —
@@ -153,7 +154,8 @@ export async function adminResetUserPassword(
   });
 
   securityEvent("session.invalidated", {
-    userId,
+    userId: actorId,
+    targetUserId: userId,
     meta: { trigger: "admin_password_reset" },
   });
   // OAuth tokens have no captured session version to check live (SECH-94) —

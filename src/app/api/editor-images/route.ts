@@ -31,9 +31,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing file" }, { status: 400 });
   }
   if (!isAllowedImageMimeType(file.type)) {
+    securityEvent("upload.rejected", {
+      requestId,
+      userId,
+      meta: { reason: "mime_type", declaredType: file.type, route: "editor-images" },
+    });
     return NextResponse.json({ error: "Unsupported image type" }, { status: 400 });
   }
   if (file.size > MAX_SIZE) {
+    securityEvent("upload.rejected", {
+      requestId,
+      userId,
+      meta: { reason: "size", fileSize: file.size, route: "editor-images" },
+    });
     return NextResponse.json({ error: "File exceeds 10 MB limit" }, { status: 400 });
   }
 

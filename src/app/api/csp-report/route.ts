@@ -32,11 +32,25 @@ function allow(ip: string): boolean {
 
 // document-uri / blocked-uri can carry secrets (invite tokens, OAuth params,
 // presigned-URL signatures). Log only origin + path, capped.
+//
+// Dropping the query string is not enough on its own: an invite token lives in the PATH
+// (/invite/<token>), so a CSP violation raised on an invite page used to write a live,
+// unused token to the log stream — which SECH-116/117 are meant to ship off-platform.
+// Token-bearing path prefixes are redacted to the prefix.
+const TOKEN_PATH_PREFIXES = ["/invite/"];
+
+function redactPath(pathname: string): string {
+  for (const prefix of TOKEN_PATH_PREFIXES) {
+    if (pathname.startsWith(prefix)) return `${prefix}[redacted]`;
+  }
+  return pathname;
+}
+
 function scrub(value: unknown): string | undefined {
   if (typeof value !== "string" || !value) return undefined;
   try {
     const u = new URL(value);
-    return `${u.origin}${u.pathname}`.slice(0, 200);
+    return `${u.origin}${redactPath(u.pathname)}`.slice(0, 200);
   } catch {
     return value.slice(0, 50); // keywords like "inline", "eval", "data"
   }

@@ -45,10 +45,20 @@ describe("securityEvent", () => {
     expect(new Date(rec.ts as string).toISOString()).toBe(rec.ts);
   });
 
+  // Review fix 1: userId means ACTOR everywhere; the account acted upon is targetUserId.
+  // Without the split, "what did this account do?" returns events it did not cause.
+  it("carries targetUserId separately from the actor", () => {
+    securityEvent("session.invalidated", { userId: "actor1", targetUserId: "victim1" });
+    const rec = emitted();
+    expect(rec.userId).toBe("actor1");
+    expect(rec.targetUserId).toBe("victim1");
+  });
+
   it("omits absent optional fields rather than emitting nulls", () => {
     securityEvent("csp.violation");
     const rec = emitted();
     expect(rec).not.toHaveProperty("userId");
+    expect(rec).not.toHaveProperty("targetUserId");
     expect(rec).not.toHaveProperty("orgId");
     expect(rec).not.toHaveProperty("ip");
   });

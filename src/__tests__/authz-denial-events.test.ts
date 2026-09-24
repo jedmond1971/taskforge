@@ -13,6 +13,9 @@ const { mockAuth, mockPrisma, mockSecurityEvents } = vi.hoisted(() => ({
 vi.mock("@/lib/auth", () => ({ auth: mockAuth }));
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/security-events", () => mockSecurityEvents);
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ "x-request-id": "3f2504e0-4f89-41d3-9a0c-0305e82c3301" }),
+}));
 
 import { requireProjectRole, canEditIssues, canManageProject } from "@/lib/permissions";
 
@@ -73,11 +76,37 @@ describe("authorization-denial events (SECH-114)", () => {
     expect(mockSecurityEvents.securityEvent).not.toHaveBeenCalled();
   });
 
-  it("emits nothing when the project is merely closed", async () => {
+  it("emits nothing when a MEMBER hits a merely-closed project", async () => {
     mockPrisma.project.findUnique.mockResolvedValue({ ...PROJECT, isClosed: true });
 
     await expect(requireProjectRole("PL", canEditIssues)).rejects.toThrow("This project is closed");
     expect(mockSecurityEvents.securityEvent).not.toHaveBeenCalled();
+  });
+
+  // Review fix 3: isClosed short-circuited BEFORE the membership lookup, so a caller from
+  // another org probing a public-but-closed project was silent — the exact cross-tenant
+  // probe this stream exists to catch, and a way to duck any SECH-117 threshold.
+  it("still reports a NON-member probing a closed project", async () => {
+    mockPrisma.project.findUnique.mockResolvedValue({ ...PROJECT, isClosed: true });
+    mockPrisma.projectMember.findUnique.mockResolvedValue(null);
+
+    await expect(requireProjectRole("PL", canEditIssues)).rejects.toThrow("This project is closed");
+    expect(mockSecurityEvents.securityEvent).toHaveBeenCalledWith(
+      "authz.denied_not_member",
+      expect.objectContaining({ userId: "u1", orgId: "o1" })
+    );
+  });
+
+  // Review fix 2: spec section 4 requires Server Actions to read the id via await headers().
+  // Without it, several denials in one request look like several independent probes.
+  it("carries the request id from the ambient request", async () => {
+    mockPrisma.projectMember.findUnique.mockResolvedValue(null);
+
+    await expect(requireProjectRole("PL", canEditIssues)).rejects.toThrow("Not a project member");
+    expect(mockSecurityEvents.securityEvent).toHaveBeenCalledWith(
+      "authz.denied_not_member",
+      expect.objectContaining({ requestId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301" })
+    );
   });
 
   it("emits nothing when the project does not exist", async () => {

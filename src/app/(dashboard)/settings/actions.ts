@@ -51,6 +51,7 @@ export async function changePassword(
 
   securityEvent("session.invalidated", {
     userId: session.user.id,
+    targetUserId: session.user.id, // self-service: actor and subject are the same account
     meta: { trigger: "self_password_change" },
   });
   // OAuth tokens have no captured session version to check live (SECH-94) —

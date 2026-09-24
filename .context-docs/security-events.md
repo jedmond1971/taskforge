@@ -15,7 +15,8 @@ One JSON line per event:
   "type": "auth.login_failed",    // from the closed catalog below
   "severity": "warn",             // info | warn | critical
   "requestId": "0f8c…",
-  "userId": "cmo3…",              // omitted when unauthenticated
+  "userId": "cmo3…",              // the ACTOR; omitted when unauthenticated
+  "targetUserId": "cmo9…",        // the account acted UPON, when it differs from the actor
   "orgId": "cmsq…",               // omitted when not org-scoped
   "ip": "203.0.113.4",
   "meta": { "reason": "invalid_credentials" }
@@ -29,6 +30,13 @@ prefixes.
 **Caller data is nested under `meta`, never spread onto the record.** Spreading reads better
 but lets a caller key silently clobber `type` or `severity`, which are the fields alert rules
 match on. A test pins this.
+
+**`userId` always means the actor, never the subject.** An admin resetting someone's password
+emits `userId` = admin, `targetUserId` = the account. Without the split, querying "what did this
+account do?" returns events the account did not cause, and an SECH-117 rule counting per
+`userId` conflates "this actor is noisy" with "this account is being acted upon". Where no
+actor is in scope (`revokeApiKeysForUser`), only `targetUserId` is set and the acting admin is
+recoverable from the `admin.action` event sharing the same `requestId`.
 
 **Severity is a property of the event type**, read from `SECURITY_EVENT_SEVERITY`. Call sites
 never pass a severity, so the same event cannot be reported at two severities from two places.
@@ -69,7 +77,8 @@ The ticket asked for authorization denials "sampled or thresholded". Both were r
 | No access to private project | Rare | Very high | Yes, `warn` |
 | `Forbidden` (role too low) | Low | Medium | Yes, `info` |
 | Project not found | Moderate | Low | **No** |
-| Project is closed | Moderate | None — normal navigation | **No** |
+| Project is closed, caller IS a member | Moderate | None — normal navigation | **No** |
+| Project is closed, caller is NOT a member | Rare | Very high — same cross-tenant probe | Yes, `authz.denied_not_member` |
 | Unauthorized (no session) | Very high | None — expired sessions | **No** |
 
 Uniform sampling drops precisely the events worth having: a 1-in-10 sample of a population
@@ -109,6 +118,11 @@ error responses" is satisfied without touching a single route handler.
 emitted from the `authorize` callback reached via `/api/auth/callback/credentials` — so the
 highest-value event source is the one path middleware never runs on. Widening the matcher over
 a live auth path was rejected (the blast radius of a middleware bug there is total lockout).
+Server Actions and route handlers read the id with `currentRequestId()` from
+`src/lib/request-context.ts` (`await headers()`, returning `undefined` outside a request
+scope). That module is separate from `request-id.ts` precisely because `next/headers` is not
+available on Edge, and `request-id.ts` must stay import-free for middleware.
+
 Instead `securityEvent()` **lazily generates an ID when none is supplied**. Every event carries
 one; middleware's job is making a single ID span *multiple* events in one request.
 
@@ -143,9 +157,12 @@ Two deliberate decisions:
 - **The login-failure event carries `email`**, exactly as `logAuthFailure` did before. Without
   it, credential stuffing is indistinguishable from one person mistyping their password. This
   is flagged for **SECH-115** to decide deliberately rather than changed quietly here.
-- **`admin.action` carries only the actor's id**, not name or email — the `AdminAuditLog` row
+- **`admin.action` carries only ids** — actor as `userId`, and the affected account as
+  `targetUserId` when the target is a User. Never name or email: the `AdminAuditLog` row
   already holds those for the admin UI, and a log destination should not become a second PII
   sink.
 
-`csp-report`'s existing `scrub()` is unchanged: it still strips query strings from
-`document-uri`/`blocked-uri`, which is where invite tokens and presigned signatures would sit.
+`csp-report`'s `scrub()` strips the query string from `document-uri`/`blocked-uri` **and**
+redacts token-bearing path prefixes. Stripping the query alone was not enough: an invite token
+lives in the path (`/invite/<token>`), so a CSP violation raised on an invite page wrote a live,
+unused token to the stream. New token-bearing routes must be added to `TOKEN_PATH_PREFIXES`.
