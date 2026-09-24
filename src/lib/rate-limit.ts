@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { securityEvent } from "./security-events";
 
 export interface RateLimitConfig {
   maxAttempts: number;
@@ -102,10 +103,7 @@ export async function checkRateLimit(
   // Rollback lever (plan SH-010): RATE_LIMIT_MODE=monitor keeps measuring and
   // logging but never blocks, for every limiter (login, v1, SECH-107 endpoints).
   if (process.env.RATE_LIMIT_MODE === "monitor") {
-    console.warn("[security] rate limit would block (monitor mode)", {
-      scope: key.split(":")[0],
-      timestamp: new Date().toISOString(),
-    });
+    securityEvent("ratelimit.monitor_would_block", { meta: { scope: key.split(":")[0] } });
     return { allowed: true, retryAfterSeconds: 0 };
   }
 
@@ -177,16 +175,4 @@ export const LIMITS = {
 export function tooManyAttemptsMessage(retryAfterSeconds: number): string {
   const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));
   return `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`;
-}
-
-export function logAuthFailure(meta: {
-  scope: "login" | "v1-api";
-  reason: "invalid_credentials" | "rate_limited" | "invalid_key";
-  ip: string;
-  email?: string;
-}): void {
-  console.warn(`[security] ${meta.scope} auth failure`, {
-    ...meta,
-    timestamp: new Date().toISOString(),
-  });
 }

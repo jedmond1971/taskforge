@@ -1,4 +1,5 @@
 import { getClientIp } from "@/lib/rate-limit";
+import { securityEvent } from "@/lib/security-events";
 
 // Receives CSP violation reports (SECH-84). Public by design — browsers POST here
 // without our auth — so it is abusable as a log-spam sink: the body is size-capped,
@@ -44,7 +45,8 @@ function scrub(value: unknown): string | undefined {
 const noContent = () => new Response(null, { status: 204 });
 
 export async function POST(request: Request) {
-  if (!allow(getClientIp(request))) return noContent();
+  const ip = getClientIp(request);
+  if (!allow(ip)) return noContent();
 
   const declared = Number(request.headers.get("content-length") ?? 0);
   if (declared > MAX_BODY_BYTES) return noContent();
@@ -67,16 +69,17 @@ export async function POST(request: Request) {
   }
   if (!report || typeof report !== "object") return noContent();
 
-  console.warn(
-    "[csp-report]",
-    JSON.stringify({
-      directive: report["effective-directive"] ?? report["violated-directive"] ?? report["effectiveDirective"],
+  securityEvent("csp.violation", {
+    ip,
+    meta: {
+      directive:
+        report["effective-directive"] ?? report["violated-directive"] ?? report["effectiveDirective"],
       blocked: scrub(report["blocked-uri"] ?? report["blockedURL"]),
       document: scrub(report["document-uri"] ?? report["documentURL"]),
       source: scrub(report["source-file"] ?? report["sourceFile"]),
       line: typeof report["line-number"] === "number" ? report["line-number"] : undefined,
       disposition: report["disposition"],
-    })
-  );
+    },
+  });
   return noContent();
 }

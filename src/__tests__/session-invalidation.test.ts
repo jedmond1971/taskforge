@@ -43,7 +43,6 @@ vi.mock("@/lib/rate-limit", () => ({
   checkLoginRateLimit: vi.fn(),
   recordLoginFailure: vi.fn(),
   getClientIp: vi.fn(),
-  logAuthFailure: vi.fn(),
 }));
 
 import { auth, getCurrentUser, requireUser, INVALIDATED_SESSION_PATH } from "@/lib/auth";

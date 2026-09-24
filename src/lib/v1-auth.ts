@@ -1,6 +1,8 @@
 import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
-import { checkRateLimit, recordFailure, getClientIp, logAuthFailure, V1_API_RATE_LIMIT } from "./rate-limit";
+import { checkRateLimit, recordFailure, getClientIp, V1_API_RATE_LIMIT } from "./rate-limit";
+import { securityEvent } from "./security-events";
+import { requestIdFromHeaders } from "./request-id";
 
 export async function requireV1ApiKey(request: Request): Promise<Response | null> {
   const apiKey = process.env.V1_API_KEY;
@@ -12,11 +14,12 @@ export async function requireV1ApiKey(request: Request): Promise<Response | null
   }
 
   const ip = getClientIp(request);
+  const requestId = requestIdFromHeaders(request.headers);
   const key = `v1api:${ip}`;
 
   const limit = await checkRateLimit(key, V1_API_RATE_LIMIT);
   if (!limit.allowed) {
-    logAuthFailure({ scope: "v1-api", reason: "rate_limited", ip });
+    securityEvent("auth.v1_throttled", { requestId, ip, meta: { reason: "rate_limited" } });
     return NextResponse.json(
       { error: "Too many failed attempts. Try again later." },
       { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
@@ -34,7 +37,7 @@ export async function requireV1ApiKey(request: Request): Promise<Response | null
 
   if (keyBuf.length !== incomingBuf.length || !timingSafeEqual(keyBuf, incomingBuf)) {
     await recordFailure(key, V1_API_RATE_LIMIT.windowMs);
-    logAuthFailure({ scope: "v1-api", reason: "invalid_key", ip });
+    securityEvent("auth.v1_key_invalid", { requestId, ip, meta: { reason: "invalid_key" } });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
