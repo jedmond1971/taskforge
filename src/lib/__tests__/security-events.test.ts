@@ -255,3 +255,22 @@ describe("logError", () => {
     expect(extra.ok).toBe("keep");
   });
 });
+
+describe("review fixes (SECH-115 final review)", () => {
+  // Finding 4: logError spreads the summary into meta, and securityEvent caps meta strings
+  // at 200 chars — which re-truncated the stack to roughly one frame, making the deliberate
+  // 2000-char stack budget dead on the main application path.
+  it("does not re-truncate the stack down to the meta cap", () => {
+    const err = new Error("boom");
+    logError("some context", err);
+    const stack = (emitted().meta as Record<string, unknown>).stack as string;
+    expect(stack.length).toBeGreaterThan(220);
+    expect(stack.split("\n").length).toBeGreaterThan(2);
+  });
+
+  it("still caps an ordinary attacker-influenced meta value", () => {
+    logError("ctx", new Error("boom"), { note: "z".repeat(5000) });
+    const extra = (emitted().meta as Record<string, unknown>).extra as Record<string, unknown>;
+    expect((extra.note as string).length).toBeLessThanOrEqual(220);
+  });
+});

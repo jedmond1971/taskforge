@@ -89,3 +89,26 @@ describe("console redaction patch", () => {
     expect(spies.log).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("console patch fail-open (SECH-115 final review)", () => {
+  // Finding 10: the original fixture used a throwing getter, which redactInner already
+  // catches per key — so the fail-open branch was never actually reached and a regression
+  // that made the patch swallow the line would not have been caught. A Proxy whose
+  // ownKeys trap throws does reach it.
+  it("logs the original when redaction itself throws", () => {
+    const { c, spies } = fakeConsole();
+    const hostile = new Proxy(
+      {},
+      {
+        ownKeys() {
+          throw new Error("ownKeys exploded");
+        },
+      }
+    );
+    installConsoleRedaction(c, "production");
+
+    expect(() => c.error("ctx", hostile)).not.toThrow();
+    expect(spies.error).toHaveBeenCalledTimes(1);
+    expect(spies.error.mock.calls[0][0]).toBe("ctx");
+  });
+});

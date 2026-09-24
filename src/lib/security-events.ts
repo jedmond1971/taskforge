@@ -101,7 +101,14 @@ export function securityEvent(type: SecurityEventType, fields: SecurityEventFiel
     // SECH-115: only caller-supplied meta is redacted. The reserved fields above are set
     // by the emitter from typed arguments, so redacting them would mangle `type` for no gain.
     ...(fields.meta
-      ? { meta: redact(fields.meta, { maxStringLength: MAX_STRING_LENGTH }) as Record<string, unknown> }
+      ? {
+          meta: redact(fields.meta, {
+            maxStringLength: MAX_STRING_LENGTH,
+            // A stack carries its own, larger budget from summarizeError; re-capping it
+            // here would cut it back to roughly one frame.
+            uncappedKeys: ["stack"],
+          }) as Record<string, unknown>,
+        }
       : {}),
   });
 }
