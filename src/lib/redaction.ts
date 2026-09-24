@@ -95,6 +95,8 @@ export const SENSITIVE_KEYS = new Set(
 
 /** Cap applied to attacker-influenced strings (SECH-114 inherited item). Opt-in only. */
 export const MAX_STRING_LENGTH = 200;
+/** Stacks are long by nature and worth more room than a meta value. */
+const MAX_STACK_LENGTH = 2000;
 const MAX_DEPTH = 8;
 
 export interface RedactOptions {
@@ -126,6 +128,12 @@ function redactInner(
   if (typeof value === "number" || typeof value === "boolean") return value;
   if (typeof value === "bigint") return `${value.toString()}n`;
   if (typeof value !== "object") return REDACTED;
+
+  // An Error's `message` and `stack` are NON-ENUMERABLE, so treating one as a plain
+  // object silently drops both — and Next.js logs uncaught errors as objects, so every
+  // error would arrive as {name} and nothing else. Route them through the summariser,
+  // which keeps what is safe and drops only the Prisma payload.
+  if (value instanceof Error) return summarizeError(value);
 
   if (depth >= MAX_DEPTH) return "[depth-capped]";
   if (seen.has(value as object)) return "[circular]";
@@ -198,5 +206,8 @@ export function summarizeError(error: unknown): Record<string, unknown> {
   }
 
   out.message = capString(redactString(e.message ?? ""), MAX_STRING_LENGTH);
+  // A stack is the other half of a useful error report. Redacted and capped, but kept:
+  // dropping it is the over-redaction that makes a log look present and be useless.
+  if (typeof e.stack === "string") out.stack = capString(redactString(e.stack), MAX_STACK_LENGTH);
   return out;
 }

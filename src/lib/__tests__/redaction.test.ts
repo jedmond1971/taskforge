@@ -194,3 +194,35 @@ describe("summarizeError", () => {
     expect(summarizeError(err).target).toBe("docPage.create");
   });
 });
+
+describe("redact (Error instances)", () => {
+  // Found by measurement: Error's message and stack are NON-ENUMERABLE, so treating an
+  // Error as a plain object silently drops both. Next.js logs uncaught errors as objects,
+  // so every error in production would have arrived as {name, clientVersion} and nothing
+  // else — over-redaction, the failure nobody notices until they need the log.
+  it("keeps a non-Prisma error's message instead of dropping it", () => {
+    const out = redact(new Error("connection refused to upstream")) as Record<string, unknown>;
+    expect(out.name).toBe("Error");
+    expect(out.message).toContain("connection refused to upstream");
+  });
+
+  it("still redacts secrets inside an error message", () => {
+    const out = redact(new Error("failed with Bearer sk-live-abcdef0123456789")) as Record<string, unknown>;
+    expect(String(out.message)).not.toContain("sk-live-abcdef0123456789");
+  });
+
+  it("keeps a stack for a non-Prisma error", () => {
+    const out = redact(new Error("boom")) as Record<string, unknown>;
+    expect(String(out.stack ?? "")).toContain("Error");
+  });
+
+  it("still drops the payload for a Prisma error nested in an object", () => {
+    const prismaMessage = SECRET_PAYLOADS.find((p) => p.name === "prisma-validation-error")!;
+    const err = Object.assign(new Error(prismaMessage.payload), {
+      name: "PrismaClientValidationError",
+    });
+    const out = redact({ context: "POST /x", err });
+    expect(JSON.stringify(out)).not.toContain(prismaMessage.mustNotSurvive);
+    expect(JSON.stringify(out)).toContain("docPage.create");
+  });
+});
