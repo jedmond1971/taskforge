@@ -148,3 +148,55 @@ function redactInner(
   }
   return out;
 }
+
+/** Prisma renders the whole `data:` object into validation messages — never log one. */
+const PRISMA_ERROR_NAMES = new Set([
+  "PrismaClientValidationError",
+  "PrismaClientKnownRequestError",
+  "PrismaClientUnknownRequestError",
+  "PrismaClientInitializationError",
+  "PrismaClientRustPanicError",
+  "PrismaClientError",
+]);
+
+/** Column names are safe; values are not. */
+const IDENTIFIER_RE = /^[A-Za-z0-9_]+$/;
+
+/**
+ * Turns an unknown thrown value into a loggable summary.
+ *
+ * For Prisma errors the message is DISCARDED, not scrubbed: it is a pre-rendered string
+ * with no keys left to match, document body is arbitrary text with no pattern, and a
+ * regex over Prisma's formatting would break silently the day Prisma changes it. What
+ * survives — operation, code, column names — is what you actually need to debug.
+ */
+export function summarizeError(error: unknown): Record<string, unknown> {
+  if (!(error instanceof Error)) {
+    return { name: typeof error, message: redact(error) };
+  }
+
+  const e = error as Error & {
+    code?: unknown;
+    meta?: { target?: unknown };
+    clientVersion?: unknown;
+  };
+  const out: Record<string, unknown> = { name: e.name };
+
+  if (typeof e.code === "string") out.code = e.code;
+
+  const target = e.meta?.target;
+  if (Array.isArray(target) && target.every((t) => typeof t === "string" && IDENTIFIER_RE.test(t))) {
+    out.columns = target;
+  }
+
+  if (PRISMA_ERROR_NAMES.has(e.name)) {
+    // `Invalid `prisma.docPage.create()` invocation` — the operation, without the payload.
+    const op = /Invalid `prisma\.([A-Za-z0-9_.$]+)\(\)` invocation/.exec(e.message ?? "");
+    if (op) out.target = op[1];
+    out.messageDropped = true;
+    return out;
+  }
+
+  out.message = capString(redactString(e.message ?? ""), MAX_STRING_LENGTH);
+  return out;
+}

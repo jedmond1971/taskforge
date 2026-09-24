@@ -133,3 +133,64 @@ describe("redact (objects)", () => {
     expect(() => redact(deep)).not.toThrow();
   });
 });
+
+import { summarizeError } from "@/lib/redaction";
+
+describe("summarizeError", () => {
+  it("drops a Prisma message entirely rather than scrubbing it", () => {
+    const prismaMessage = SECRET_PAYLOADS.find((p) => p.name === "prisma-validation-error")!;
+    const err = Object.assign(new Error(prismaMessage.payload), {
+      name: "PrismaClientValidationError",
+      clientVersion: "5.22.0",
+    });
+
+    const out = summarizeError(err);
+
+    expect(JSON.stringify(out)).not.toContain(prismaMessage.mustNotSurvive);
+    expect(JSON.stringify(out)).not.toContain("data:");
+    expect(out.name).toBe("PrismaClientValidationError");
+  });
+
+  // Review Focus 1: the summary has to stay worth reading.
+  it("keeps the operation, the code and the column names", () => {
+    const err = Object.assign(new Error("Unique constraint failed"), {
+      name: "PrismaClientKnownRequestError",
+      code: "P2002",
+      meta: { target: ["userId_projectId"] },
+    });
+
+    const out = summarizeError(err);
+
+    expect(out.code).toBe("P2002");
+    expect(out.columns).toEqual(["userId_projectId"]);
+  });
+
+  it("drops meta.target when it is not a list of plain identifiers", () => {
+    const err = Object.assign(new Error("x"), {
+      name: "PrismaClientKnownRequestError",
+      code: "P2002",
+      meta: { target: ["CONFIDENTIAL-DOC-BODY-abc123"] },
+    });
+
+    expect(summarizeError(err).columns).toBeUndefined();
+  });
+
+  it("keeps a short non-Prisma message, redacted", () => {
+    const out = summarizeError(new Error("fetch failed for Bearer sk-live-abcdef0123456789"));
+    expect(out.name).toBe("Error");
+    expect(String(out.message)).not.toContain("sk-live-abcdef0123456789");
+  });
+
+  it("handles a thrown non-Error without throwing", () => {
+    expect(() => summarizeError("just a string")).not.toThrow();
+    expect(() => summarizeError(null)).not.toThrow();
+  });
+
+  it("extracts the Prisma operation name from the invocation line", () => {
+    const prismaMessage = SECRET_PAYLOADS.find((p) => p.name === "prisma-validation-error")!;
+    const err = Object.assign(new Error(prismaMessage.payload), {
+      name: "PrismaClientValidationError",
+    });
+    expect(summarizeError(err).target).toBe("docPage.create");
+  });
+});
