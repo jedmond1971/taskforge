@@ -226,3 +226,27 @@ describe("redact (Error instances)", () => {
     expect(JSON.stringify(out)).toContain("docPage.create");
   });
 });
+
+import { redactUrlForLog, TOKEN_PATH_PREFIXES } from "@/lib/redaction";
+
+describe("redactUrlForLog", () => {
+  it("redacts a token-bearing path prefix", () => {
+    expect(redactUrlForLog("https://www.jedforge.com/invite/abc123secret")).toBe(
+      "https://www.jedforge.com/invite/[redacted]"
+    );
+  });
+
+  it("strips the query string", () => {
+    expect(redactUrlForLog("https://www.jedforge.com/oauth/authorize?state=s3cr3t")).toBe(
+      "https://www.jedforge.com/oauth/authorize"
+    );
+  });
+
+  it("passes through CSP keywords that are not URLs", () => {
+    expect(redactUrlForLog("inline")).toBe("inline");
+  });
+
+  it("exports the prefix list so there is one copy", () => {
+    expect(TOKEN_PATH_PREFIXES).toContain("/invite/");
+  });
+});

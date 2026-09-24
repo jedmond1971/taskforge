@@ -211,3 +211,24 @@ export function summarizeError(error: unknown): Record<string, unknown> {
   if (typeof e.stack === "string") out.stack = capString(redactString(e.stack), MAX_STACK_LENGTH);
   return out;
 }
+
+/**
+ * Routes that carry a secret in the PATH, where dropping the query is not enough.
+ * SECH-114 found this: an invite token lives in /invite/<token>, so a CSP violation
+ * raised on an invite page wrote a live, unused token to the log stream.
+ */
+export const TOKEN_PATH_PREFIXES = ["/invite/"];
+
+/** origin + path, with token-bearing prefixes redacted and the query dropped. */
+export function redactUrlForLog(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value) return undefined;
+  try {
+    const u = new URL(value);
+    for (const prefix of TOKEN_PATH_PREFIXES) {
+      if (u.pathname.startsWith(prefix)) return `${u.origin}${prefix}${REDACTED}`;
+    }
+    return `${u.origin}${u.pathname}`.slice(0, 200);
+  } catch {
+    return value.slice(0, 50); // CSP keywords like "inline", "eval", "data"
+  }
+}
