@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getObjectBuffer } from "@/lib/s3";
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
+import { logError } from "@/lib/security-events";
 
 // GET /api/docs/[projectKey]/pages/[pageId]/images/[imageKey] — proxy an
 // image extracted from a DOCX preview conversion. Never serves a raw S3 URL
@@ -51,7 +52,7 @@ export async function GET(
       headers: { "Content-Type": contentType, "Cache-Control": "private, max-age=3600" },
     });
   } catch (error) {
-    console.error("GET docx image proxy error:", error);
+    logError("GET docx image proxy error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -19,6 +19,7 @@ import { notificationService } from "@/lib/notifications";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 import { deleteObject, deleteObjectsWithPrefix } from "@/lib/s3";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
+import { logError } from "@/lib/security-events";
 
 // Helper: verify user is a project member, returns { userId, projectId }.
 // Delegates to requireProjectRole (any role passes) so closed-project and
@@ -1019,7 +1020,7 @@ export async function moveIssue(
     revalidatePath(`/projects/${projectKey}/issues`);
     return { success: true, issue };
   } catch (error) {
-    console.error("moveIssue position write failed:", error);
+    logError("moveIssue position write failed", error);
     throw new Error("Failed to move issue — please retry");
   }
 }
@@ -1074,7 +1075,7 @@ export async function reorderIssues(
       });
     }
   } catch (error) {
-    console.error("reorderIssues position write failed:", error);
+    logError("reorderIssues position write failed", error);
     throw new Error("Failed to reorder issues — please retry");
   }
 
@@ -1219,7 +1220,7 @@ export async function deleteProject(projectKey: string) {
     try {
       await deleteObject(key);
     } catch (e) {
-      console.error(`Failed to delete S3 object ${key}:`, e);
+      logError(`Failed to delete S3 object ${key}`, e);
     }
   }
 
@@ -1227,7 +1228,7 @@ export async function deleteProject(projectKey: string) {
     try {
       await deleteObjectsWithPrefix(`docs/${page.docSpaceId}/${page.id}/docx-images/`);
     } catch (e) {
-      console.error(`Failed to delete docx-images for page ${page.id}:`, e);
+      logError(`Failed to delete docx-images for page ${page.id}`, e);
     }
   }
 

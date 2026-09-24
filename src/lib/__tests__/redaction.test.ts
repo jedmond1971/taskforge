@@ -226,3 +226,111 @@ describe("redact (Error instances)", () => {
     expect(JSON.stringify(out)).toContain("docPage.create");
   });
 });
+
+import { redactUrlForLog, TOKEN_PATH_PREFIXES } from "@/lib/redaction";
+
+describe("redactUrlForLog", () => {
+  it("redacts a token-bearing path prefix", () => {
+    expect(redactUrlForLog("https://www.jedforge.com/invite/abc123secret")).toBe(
+      "https://www.jedforge.com/invite/[redacted]"
+    );
+  });
+
+  it("strips the query string", () => {
+    expect(redactUrlForLog("https://www.jedforge.com/oauth/authorize?state=s3cr3t")).toBe(
+      "https://www.jedforge.com/oauth/authorize"
+    );
+  });
+
+  it("passes through CSP keywords that are not URLs", () => {
+    expect(redactUrlForLog("inline")).toBe("inline");
+  });
+
+  it("exports the prefix list so there is one copy", () => {
+    expect(TOKEN_PATH_PREFIXES).toContain("/invite/");
+  });
+});
+
+describe("review fixes (SECH-115 final review)", () => {
+  // Finding 1: `seen` was a visit set, never unwound, so the SAME object under two keys
+  // was reported as a cycle and its content deleted.
+  it("does not report a repeated (non-cyclic) reference as circular", () => {
+    const member = { id: "u1", name: "Jo" };
+    const out = redact({ before: member, after: member }) as Record<string, unknown>;
+    expect(out.before).toEqual({ id: "u1", name: "Jo" });
+    expect(out.after).toEqual({ id: "u1", name: "Jo" });
+  });
+
+  it("still detects a real cycle", () => {
+    const cyclic: Record<string, unknown> = { ok: "yes" };
+    cyclic.self = cyclic;
+    const out = redact(cyclic) as Record<string, unknown>;
+    expect(out.self).toBe("[circular]");
+  });
+
+  // Findings 2 and 3: only the `Invalid prisma.X() invocation` SHAPE embeds a data block.
+  // Dropping by error-class name blinded us to connection, timeout and panic errors.
+  it("keeps the message of an operational Prisma error", () => {
+    const err = Object.assign(new Error("Can't reach database server at `db`:`5432`"), {
+      name: "PrismaClientInitializationError",
+      errorCode: "P1001",
+    });
+    const out = summarizeError(err);
+    expect(String(out.message)).toContain("Can't reach database server");
+    expect(out.code).toBe("P1001");
+    expect(out.messageDropped).toBeUndefined();
+  });
+
+  it("still drops the message of a Prisma invocation error whatever its class name", () => {
+    const err = Object.assign(
+      new Error('\nInvalid `prisma.docPage.create()` invocation:\n\n{ data: { content: "SEKRIT" } }'),
+      { name: "SomeUnexpectedName" }
+    );
+    const out = summarizeError(err);
+    expect(JSON.stringify(out)).not.toContain("SEKRIT");
+    expect(out.target).toBe("docPage.create");
+    expect(out.messageDropped).toBe(true);
+  });
+
+  // Finding 5: the header pattern was case-insensitive and ate the next word after any
+  // occurrence of the English word "Basic".
+  it.each([
+    "Basic validation failed for docPage.create",
+    "basic authentication is disabled",
+    "Bearer with us while we retry",
+  ])("leaves ordinary prose alone: %s", (line) => {
+    expect(redactString(line)).toBe(line);
+  });
+
+  it("still redacts a real Authorization header in either case", () => {
+    expect(redactString("Authorization: Bearer sk-live-abcdef0123456789abcdef")).not.toContain(
+      "sk-live-abcdef0123456789abcdef"
+    );
+    expect(redactString("authorization: bearer sk-live-abcdef0123456789abcdef")).not.toContain(
+      "sk-live-abcdef0123456789abcdef"
+    );
+  });
+
+  // Finding 6: Object.keys(Buffer) is byte indices — a 1 MB buffer became a
+  // million-key object, 272ms of blocking CPU on a live request path.
+  it("summarises binary data instead of walking it byte by byte", () => {
+    const buf = Buffer.alloc(64 * 1024);
+    const started = Date.now();
+    const out = redact({ payload: buf }) as Record<string, unknown>;
+    expect(String(out.payload)).toMatch(/^\[binary \d+ bytes\]$/);
+    expect(Date.now() - started).toBeLessThan(100);
+  });
+
+  // Finding 7: Date/Map/Set have no own-enumerable state, so they collapsed to {}.
+  // Prisma records carry createdAt/updatedAt, so any logged record lost its timestamps.
+  it("keeps Date, Map and Set content", () => {
+    const out = redact({
+      when: new Date("2026-01-01T00:00:00.000Z"),
+      m: new Map([["a", 1]]),
+      s: new Set([1, 2]),
+    }) as Record<string, unknown>;
+    expect(out.when).toBe("2026-01-01T00:00:00.000Z");
+    expect(out.m).toEqual([["a", 1]]);
+    expect(out.s).toEqual([1, 2]);
+  });
+});

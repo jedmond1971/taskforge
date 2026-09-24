@@ -10,6 +10,7 @@ import { sendOrgInviteEmail, getInviteExpiryDate } from "@/lib/invites";
 import { logAdminAction } from "@/lib/audit-log";
 import { revokeOAuthTokensForUser, revokeApiKeysForUser } from "@/lib/credential-revocation";
 import { securityEvent } from "@/lib/security-events";
+import { logError } from "@/lib/security-events";
 
 // Discriminated union returned by all admin mutation actions.
 // Expected validation failures return { success: false, error } instead of throwing,
@@ -575,7 +576,7 @@ export async function adminDeleteProject(projectId: string): Promise<ActionResul
     try {
       await deleteObject(key);
     } catch (e) {
-      console.error(`Failed to delete S3 object ${key}:`, e);
+      logError(`Failed to delete S3 object ${key}`, e);
     }
   }
 
@@ -583,7 +584,7 @@ export async function adminDeleteProject(projectId: string): Promise<ActionResul
     try {
       await deleteObjectsWithPrefix(`docs/${page.docSpaceId}/${page.id}/docx-images/`);
     } catch (e) {
-      console.error(`Failed to delete docx-images for page ${page.id}:`, e);
+      logError(`Failed to delete docx-images for page ${page.id}`, e);
     }
   }
 

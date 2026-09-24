@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NotificationType } from "@prisma/client";
+import { logError } from "@/lib/security-events";
 
 const NOTIFICATION_CAP = 100;
 
@@ -40,7 +41,7 @@ async function createNotification({
     });
     await pruneNotifications(userId);
   } catch (error) {
-    console.error("[notifications] Failed to create notification:", error);
+    logError("[notifications] Failed to create notification", error);
   }
 }
 
@@ -75,7 +76,7 @@ async function createNotifications({
       await pruneNotifications(userId);
     }
   } catch (error) {
-    console.error("[notifications] Failed to create notifications:", error);
+    logError("[notifications] Failed to create notifications", error);
   }
 }
 

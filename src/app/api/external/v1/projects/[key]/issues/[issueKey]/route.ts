@@ -13,6 +13,7 @@ import {
   err,
 } from "../../../../_helpers";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
+import { logError } from "@/lib/security-events";
 
 export async function GET(
   request: NextRequest,
@@ -34,7 +35,7 @@ export async function GET(
 
     return NextResponse.json(formatIssue(issue));
   } catch (error) {
-    console.error(error);
+    logError("GET /api/external/v1/projects/[key]/issues/[issueKey]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -165,7 +166,7 @@ export async function PATCH(
 
     return NextResponse.json(formatIssue(updated));
   } catch (error) {
-    console.error(error);
+    logError("PATCH /api/external/v1/projects/[key]/issues/[issueKey]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

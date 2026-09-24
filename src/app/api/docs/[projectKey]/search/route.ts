@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveDocCtx } from "@/app/api/docs/_helpers";
+import { logError } from "@/lib/security-events";
 
 const MAX_RESULTS = 20;
 
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ projectKe
 
     return NextResponse.json({ results });
   } catch (error) {
-    console.error("GET /api/docs/[projectKey]/search error:", error);
+    logError("GET /api/docs/[projectKey]/search error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

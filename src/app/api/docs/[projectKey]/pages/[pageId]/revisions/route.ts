@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logError } from "@/lib/security-events";
 
 // GET /api/docs/[projectKey]/pages/[pageId]/revisions
 export async function GET(
@@ -43,7 +44,7 @@ export async function GET(
 
     return NextResponse.json({ revisions });
   } catch (error) {
-    console.error("GET /api/docs/[projectKey]/pages/[pageId]/revisions error:", error);
+    logError("GET /api/docs/[projectKey]/pages/[pageId]/revisions error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

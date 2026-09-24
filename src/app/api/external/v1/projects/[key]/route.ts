@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireExternalApiKey, err, formatProject } from "../../_helpers";
+import { logError } from "@/lib/security-events";
 
 export async function GET(request: NextRequest, props: { params: Promise<{ key: string }> }) {
   const params = await props.params;
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ key: 
 
     return NextResponse.json(formatProject(project));
   } catch (error) {
-    console.error(error);
+    logError("GET /api/external/v1/projects/[key]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

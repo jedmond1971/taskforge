@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireV1ApiKey } from "@/lib/v1-auth";
+import { logError } from "@/lib/security-events";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ projects });
   } catch (error) {
-    console.error(error);
+    logError("GET /api/v1/projects", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

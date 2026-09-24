@@ -7,6 +7,7 @@ import {
   normalizeBody,
   err,
 } from "../../../../../_helpers";
+import { logError } from "@/lib/security-events";
 
 export async function GET(
   request: NextRequest,
@@ -34,7 +35,7 @@ export async function GET(
 
     return NextResponse.json({ comments: comments.map(formatComment) });
   } catch (error) {
-    console.error(error);
+    logError("GET /api/external/v1/projects/[key]/issues/[issueKey]/comments", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -74,7 +75,7 @@ export async function POST(
 
     return NextResponse.json(formatComment(comment), { status: 201 });
   } catch (error) {
-    console.error(error);
+    logError("POST /api/external/v1/projects/[key]/issues/[issueKey]/comments", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

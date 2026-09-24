@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteObject } from "@/lib/s3";
+import { logError } from "@/lib/security-events";
 
 export async function DELETE(_request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -51,7 +52,7 @@ export async function DELETE(_request: NextRequest, props: { params: Promise<{ i
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error(error);
+    logError("DELETE /api/attachments/[id]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

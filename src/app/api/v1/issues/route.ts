@@ -6,6 +6,7 @@ import { resolveStatusForProject, PRIORITY_MAP, formatIssue } from "../_helpers"
 import { requireV1ApiKey } from "@/lib/v1-auth";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
+import { logError } from "@/lib/security-events";
 
 const ISSUE_INCLUDE = {
   projectStatus: { select: { id: true, name: true, category: true } },
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ issues: issues.map(formatIssue), total, limit, offset });
   } catch (error) {
-    console.error(error);
+    logError("GET /api/v1/issues", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -183,7 +184,7 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return NextResponse.json(formatIssue(issue as any), { status: 201 });
   } catch (error) {
-    console.error(error);
+    logError("POST /api/v1/issues", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

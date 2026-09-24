@@ -1,5 +1,6 @@
 import { getClientIp } from "@/lib/rate-limit";
 import { securityEvent } from "@/lib/security-events";
+import { redactUrlForLog } from "@/lib/redaction";
 
 // Receives CSP violation reports (SECH-84). Public by design — browsers POST here
 // without our auth — so it is abusable as a log-spam sink: the body is size-capped,
@@ -28,32 +29,6 @@ function allow(ip: string): boolean {
   }
   w.count += 1;
   return w.count <= MAX_REPORTS_PER_WINDOW;
-}
-
-// document-uri / blocked-uri can carry secrets (invite tokens, OAuth params,
-// presigned-URL signatures). Log only origin + path, capped.
-//
-// Dropping the query string is not enough on its own: an invite token lives in the PATH
-// (/invite/<token>), so a CSP violation raised on an invite page used to write a live,
-// unused token to the log stream — which SECH-116/117 are meant to ship off-platform.
-// Token-bearing path prefixes are redacted to the prefix.
-const TOKEN_PATH_PREFIXES = ["/invite/"];
-
-function redactPath(pathname: string): string {
-  for (const prefix of TOKEN_PATH_PREFIXES) {
-    if (pathname.startsWith(prefix)) return `${prefix}[redacted]`;
-  }
-  return pathname;
-}
-
-function scrub(value: unknown): string | undefined {
-  if (typeof value !== "string" || !value) return undefined;
-  try {
-    const u = new URL(value);
-    return `${u.origin}${redactPath(u.pathname)}`.slice(0, 200);
-  } catch {
-    return value.slice(0, 50); // keywords like "inline", "eval", "data"
-  }
 }
 
 const noContent = () => new Response(null, { status: 204 });
@@ -88,9 +63,9 @@ export async function POST(request: Request) {
     meta: {
       directive:
         report["effective-directive"] ?? report["violated-directive"] ?? report["effectiveDirective"],
-      blocked: scrub(report["blocked-uri"] ?? report["blockedURL"]),
-      document: scrub(report["document-uri"] ?? report["documentURL"]),
-      source: scrub(report["source-file"] ?? report["sourceFile"]),
+      blocked: redactUrlForLog(report["blocked-uri"] ?? report["blockedURL"]),
+      document: redactUrlForLog(report["document-uri"] ?? report["documentURL"]),
+      source: redactUrlForLog(report["source-file"] ?? report["sourceFile"]),
       line: typeof report["line-number"] === "number" ? report["line-number"] : undefined,
       disposition: report["disposition"],
     },

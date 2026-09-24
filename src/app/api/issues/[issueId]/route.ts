@@ -5,6 +5,7 @@ import { deleteObject } from "@/lib/s3";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { notificationService } from "@/lib/notifications";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
+import { logError } from "@/lib/security-events";
 
 export async function PATCH(request: NextRequest, props: { params: Promise<{ issueId: string }> }) {
   const params = await props.params;
@@ -125,7 +126,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ iss
 
     return NextResponse.json({ issue: updated });
   } catch (error) {
-    console.error(error);
+    logError("PATCH /api/issues/[issueId]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -171,14 +172,14 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ is
       try {
         await deleteObject(att.fileKey);
       } catch (e) {
-        console.error(`Failed to delete S3 attachment ${att.fileKey}:`, e);
+        logError(`Failed to delete S3 attachment ${att.fileKey}`, e);
       }
     }
 
     await prisma.issue.delete({ where: { id: params.issueId } });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error(error);
+    logError("DELETE /api/issues/[issueId]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

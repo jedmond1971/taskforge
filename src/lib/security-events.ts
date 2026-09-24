@@ -1,5 +1,5 @@
 import { randomRequestId } from "./request-id";
-import { redact, MAX_STRING_LENGTH } from "./redaction";
+import { redact, summarizeError, MAX_STRING_LENGTH } from "./redaction";
 
 /**
  * Structured security events (SECH-114).
@@ -36,7 +36,8 @@ export type SecurityEventType =
   | "session.invalidated"
   | "upload.rejected"
   | "admin.action"
-  | "prisma.error";
+  | "prisma.error"
+  | "app.error";
 
 export const SECURITY_EVENT_SEVERITY: Record<SecurityEventType, SecuritySeverity> = {
   "auth.login_failed": "warn",
@@ -65,6 +66,8 @@ export const SECURITY_EVENT_SEVERITY: Record<SecurityEventType, SecuritySeverity
   "admin.action": "info",
   // A failed DB write, summarised: operation and code only, never the payload.
   "prisma.error": "warn",
+  // A caught application error, summarised by logError().
+  "app.error": "warn",
 };
 
 export const SECURITY_EVENT_TYPES = Object.keys(SECURITY_EVENT_SEVERITY) as SecurityEventType[];
@@ -98,7 +101,14 @@ export function securityEvent(type: SecurityEventType, fields: SecurityEventFiel
     // SECH-115: only caller-supplied meta is redacted. The reserved fields above are set
     // by the emitter from typed arguments, so redacting them would mangle `type` for no gain.
     ...(fields.meta
-      ? { meta: redact(fields.meta, { maxStringLength: MAX_STRING_LENGTH }) as Record<string, unknown> }
+      ? {
+          meta: redact(fields.meta, {
+            maxStringLength: MAX_STRING_LENGTH,
+            // A stack carries its own, larger budget from summarizeError; re-capping it
+            // here would cut it back to roughly one frame.
+            uncappedKeys: ["stack"],
+          }) as Record<string, unknown>,
+        }
       : {}),
   });
 }
@@ -123,4 +133,24 @@ function emit(record: Record<string, unknown>): void {
     });
   }
   console.warn(line);
+}
+
+/**
+ * The one way application code logs a caught error (SECH-115).
+ *
+ * Never pass a raw error to a console method: for a Prisma error that prints the whole
+ * failed `data:` object, which is how document content reached production logs.
+ */
+export function logError(
+  context: string,
+  error: unknown,
+  extra?: Record<string, unknown>
+): void {
+  securityEvent("app.error", {
+    meta: {
+      context,
+      ...summarizeError(error),
+      ...(extra ? { extra: redact(extra) as Record<string, unknown> } : {}),
+    },
+  });
 }

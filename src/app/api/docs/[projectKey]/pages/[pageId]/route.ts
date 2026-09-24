@@ -6,6 +6,7 @@ import { resolveDocCtx, isDocsWriteLocked } from "@/app/api/docs/_helpers";
 import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 import { DocPageStatus } from "@prisma/client";
+import { logError } from "@/lib/security-events";
 
 async function resolvePage(projectKey: string, pageId: string, userId: string) {
   const ctx = await resolveDocCtx(projectKey, userId);
@@ -45,7 +46,7 @@ export async function GET(
 
     return NextResponse.json({ page: result.page });
   } catch (error) {
-    console.error("GET /api/docs/[projectKey]/pages/[pageId] error:", error);
+    logError("GET /api/docs/[projectKey]/pages/[pageId] error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -158,13 +159,13 @@ export async function PATCH(
         });
       }
     } catch (error) {
-      console.error("PATCH /api/docs/[projectKey]/pages/[pageId] write failed:", error);
+      logError("PATCH /api/docs/[projectKey]/pages/[pageId] write failed", error);
       return NextResponse.json({ error: "Concurrent modification — please retry" }, { status: 409 });
     }
 
     return NextResponse.json({ page: updated });
   } catch (error) {
-    console.error("PATCH /api/docs/[projectKey]/pages/[pageId] error:", error);
+    logError("PATCH /api/docs/[projectKey]/pages/[pageId] error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -201,7 +202,7 @@ export async function DELETE(
 
     return NextResponse.json({ deleted: true, id: result.page.id });
   } catch (error) {
-    console.error("DELETE /api/docs/[projectKey]/pages/[pageId] error:", error);
+    logError("DELETE /api/docs/[projectKey]/pages/[pageId] error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

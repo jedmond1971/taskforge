@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireV1ApiKey } from "@/lib/v1-auth";
 import { prisma } from "@/lib/prisma";
 import { listObjects, deleteObjects } from "@/lib/s3";
+import { logError } from "@/lib/security-events";
 
 export const maxDuration = 60;
 
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
       deletedKeys: orphanKeys,
     });
   } catch (error) {
-    console.error("POST /api/internal/cleanup-orphaned-attachments error:", error);
+    logError("POST /api/internal/cleanup-orphaned-attachments error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
