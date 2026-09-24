@@ -126,6 +126,28 @@ available on Edge, and `request-id.ts` must stay import-free for middleware.
 Instead `securityEvent()` **lazily generates an ID when none is supplied**. Every event carries
 one; middleware's job is making a single ID span *multiple* events in one request.
 
+## Production behaviour (verified 2026-09-24)
+
+Confirmed against Railway on commit `cd08a452`, by sending requests with **no** inbound
+`x-request-id` and matching the response header against the emitted event:
+
+- The route handler receives middleware's rewritten header. `NextResponse.next({ request: {
+  headers } })` propagates into API route handlers in a production build behind Railway's
+  proxy — worth recording because no other API route in this codebase reads a
+  middleware-injected header, so there was no prior art for it. Locally the same thing is
+  provable with a malformed or absent inbound id: if forwarding failed, `securityEvent()`
+  would fall back to a lazily generated id that would NOT match the response header.
+- **Railway parses the single-line JSON into structured fields** rather than storing it as a
+  blob: `evt`, `ts`, `type`, `severity`, `requestId`, `ip` and `meta.*` each render as
+  attributes in Deploy Logs. SECH-117 can therefore query on `type`/`severity` as fields
+  instead of regex-matching text — design alert rules on that assumption.
+- The `ip` field resolves to a real client IP, so the SECH-108 leftmost-XFF derivation still
+  holds for events as well as rate limiting.
+
+Reading these logs: see `.context-docs/local-dev-tooling.md` → the Railway dashboard bullet.
+Notably, the Deploy Logs **filter box does not substring-match history**, so an empty filtered
+result is not evidence the event is missing.
+
 ## Adding an event type
 
 1. Add it to the `SecurityEventType` union **and** `SECURITY_EVENT_SEVERITY` (the record type
