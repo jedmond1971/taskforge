@@ -5,3 +5,22 @@ title = "JedForge gitleaks config"
 
 [extend]
 useDefault = true
+
+# SECH-115: the redaction test corpus exists to contain realistic-looking secrets — that is
+# the entire point of it, and gitleaks flags them exactly as it should. Every value in these
+# two files is synthetic: the JWT is the published jwt.io sample, `sk-live-abcdef0123456789`
+# is visibly fake, and the jfk_live_ key and the AWS signature were typed at random. None was
+# ever issued by, or valid for, any system.
+#
+# Scoped to these two paths only. If a real credential is ever needed to reproduce a bug, it
+# does NOT belong here — rotate it and use a synthetic stand-in, because removing a secret
+# from history does not un-leak it from a public repo.
+[[allowlists]]
+description = "SECH-115 redaction test corpus — synthetic secret shapes, never live credentials"
+paths = [
+  '''src/test-support/secret-payloads\.ts''',
+  '''src/lib/__tests__/redaction\.test\.ts''',
+  # The implementation plan embeds the corpus verbatim in its task steps, so the same
+  # synthetic values appear there. Scoped to this one plan, not all of docs/.
+  '''docs/superpowers/plans/2026-09-24-sech-115-log-redaction\.md''',
+]
