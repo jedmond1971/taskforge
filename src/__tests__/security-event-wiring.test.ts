@@ -30,6 +30,7 @@ const WIRING: Array<{ type: string; file: string }> = [
   { type: "upload.rejected", file: "app/api/attachments/upload/route.ts" },
   { type: "upload.rejected", file: "app/api/attachments/confirm/route.ts" },
   { type: "upload.rejected", file: "app/api/editor-images/route.ts" },
+  { type: "prisma.error", file: "lib/prisma.ts" },
 ];
 
 describe("security-event wiring", () => {

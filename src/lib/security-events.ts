@@ -35,7 +35,8 @@ export type SecurityEventType =
   | "apikey.used_after_revoke"
   | "session.invalidated"
   | "upload.rejected"
-  | "admin.action";
+  | "admin.action"
+  | "prisma.error";
 
 export const SECURITY_EVENT_SEVERITY: Record<SecurityEventType, SecuritySeverity> = {
   "auth.login_failed": "warn",
@@ -62,6 +63,8 @@ export const SECURITY_EVENT_SEVERITY: Record<SecurityEventType, SecuritySeverity
   "session.invalidated": "info",
   "upload.rejected": "warn",
   "admin.action": "info",
+  // A failed DB write, summarised: operation and code only, never the payload.
+  "prisma.error": "warn",
 };
 
 export const SECURITY_EVENT_TYPES = Object.keys(SECURITY_EVENT_SEVERITY) as SecurityEventType[];

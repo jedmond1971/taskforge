@@ -171,6 +171,7 @@ describe("event catalog", () => {
       "session.invalidated",
       "upload.rejected",
       "admin.action",
+      "prisma.error",
     ];
     expect([...SECURITY_EVENT_TYPES].sort()).toEqual([...expected].sort());
   });
