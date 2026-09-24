@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
+import { REQUEST_ID_HEADER, normalizeRequestId } from "@/lib/request-id";
 
 const { auth } = NextAuth(authConfig);
 
@@ -14,16 +15,27 @@ export default auth((req) => {
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-pathname", nextUrl.pathname);
 
-  if (isApiRoute) return NextResponse.next({ request: { headers: requestHeaders } });
+  // SECH-114: one correlation ID per request, forwarded to handlers and echoed on the
+  // response so a report can be tied back to its log lines. Inbound values are validated
+  // in normalizeRequestId — an unvalidated header would be a log-injection vector.
+  const requestId = normalizeRequestId(req.headers.get(REQUEST_ID_HEADER));
+  requestHeaders.set(REQUEST_ID_HEADER, requestId);
+
+  const withRequestId = (res: NextResponse) => {
+    res.headers.set(REQUEST_ID_HEADER, requestId);
+    return res;
+  };
+
+  if (isApiRoute) return withRequestId(NextResponse.next({ request: { headers: requestHeaders } }));
 
   if (isAuthRoute) {
-    if (isLoggedIn) return NextResponse.redirect(new URL("/", nextUrl));
-    return NextResponse.next({ request: { headers: requestHeaders } });
+    if (isLoggedIn) return withRequestId(NextResponse.redirect(new URL("/", nextUrl)));
+    return withRequestId(NextResponse.next({ request: { headers: requestHeaders } }));
   }
 
   const isInviteRoute = nextUrl.pathname.startsWith("/invite/");
   if (isInviteRoute) {
-    return NextResponse.next({ request: { headers: requestHeaders } });
+    return withRequestId(NextResponse.next({ request: { headers: requestHeaders } }));
   }
 
   // OAuth consent screen does its own login redirect (preserving the full
@@ -33,16 +45,16 @@ export default auth((req) => {
   const isOAuthAuthorizeRoute = nextUrl.pathname === "/oauth/authorize";
   const isWellKnownRoute = nextUrl.pathname.startsWith("/.well-known/");
   if (isOAuthAuthorizeRoute || isWellKnownRoute) {
-    return NextResponse.next({ request: { headers: requestHeaders } });
+    return withRequestId(NextResponse.next({ request: { headers: requestHeaders } }));
   }
 
   if (!isLoggedIn) {
     const loginUrl = new URL("/login", nextUrl);
     loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
+    return withRequestId(NextResponse.redirect(loginUrl));
   }
 
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  return withRequestId(NextResponse.next({ request: { headers: requestHeaders } }));
 });
 
 export const config = {
