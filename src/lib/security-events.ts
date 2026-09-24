@@ -1,4 +1,5 @@
 import { randomRequestId } from "./request-id";
+import { redact, MAX_STRING_LENGTH } from "./redaction";
 
 /**
  * Structured security events (SECH-114).
@@ -91,7 +92,11 @@ export function securityEvent(type: SecurityEventType, fields: SecurityEventFiel
     ...(fields.targetUserId ? { targetUserId: fields.targetUserId } : {}),
     ...(fields.orgId ? { orgId: fields.orgId } : {}),
     ...(fields.ip ? { ip: fields.ip } : {}),
-    ...(fields.meta ? { meta: fields.meta } : {}),
+    // SECH-115: only caller-supplied meta is redacted. The reserved fields above are set
+    // by the emitter from typed arguments, so redacting them would mangle `type` for no gain.
+    ...(fields.meta
+      ? { meta: redact(fields.meta, { maxStringLength: MAX_STRING_LENGTH }) as Record<string, unknown> }
+      : {}),
   });
 }
 
