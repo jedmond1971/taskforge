@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireV1ApiKey } from "@/lib/v1-auth";
+import { logError } from "@/lib/security-events";
 
 export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       })),
     });
   } catch (error) {
-    console.error(error);
+    logError("GET /api/v1/projects/[id]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

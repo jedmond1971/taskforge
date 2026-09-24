@@ -5,6 +5,7 @@ import { DocPageType } from "@prisma/client";
 import { resolveDocCtx, isDocsWriteLocked } from "@/app/api/docs/_helpers";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
+import { logError } from "@/lib/security-events";
 
 // GET /api/docs/[projectKey]/pages
 export async function GET(req: NextRequest, props: { params: Promise<{ projectKey: string }> }) {
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ projectKe
 
     return NextResponse.json({ pages });
   } catch (error) {
-    console.error("GET /api/docs/[projectKey]/pages error:", error);
+    logError("GET /api/docs/[projectKey]/pages error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ projectK
 
     return NextResponse.json({ page }, { status: 201 });
   } catch (error) {
-    console.error("POST /api/docs/[projectKey]/pages error:", error);
+    logError("POST /api/docs/[projectKey]/pages error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -13,6 +13,7 @@ import {
 import { checkOrgStorageQuota } from "@/lib/storage-quota";
 import { securityEvent } from "@/lib/security-events";
 import { requestIdFromHeaders } from "@/lib/request-id";
+import { logError } from "@/lib/security-events";
 
 export const maxDuration = 60;
 
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
       attachment: { ...attachment, downloadUrl },
     });
   } catch (error) {
-    console.error(error);
+    logError("POST /api/attachments/upload", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

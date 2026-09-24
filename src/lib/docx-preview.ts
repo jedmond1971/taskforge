@@ -1,6 +1,7 @@
 import mammoth from "mammoth";
 import { putObject } from "@/lib/s3";
 import { sanitizeDocxPreviewHtml } from "@/lib/sanitize-html";
+import { logError } from "@/lib/security-events";
 
 // Converts a DOCX buffer to sanitized HTML for in-app preview. Embedded
 // images are extracted and uploaded to S3, then referenced via the app's
@@ -34,7 +35,7 @@ export async function convertDocxToPreviewHtml(
 
     return sanitizeDocxPreviewHtml(result.value);
   } catch (error) {
-    console.error(`DOCX preview conversion failed for page ${pageId}:`, error);
+    logError(`DOCX preview conversion failed for page ${pageId}`, error);
     return null;
   }
 }

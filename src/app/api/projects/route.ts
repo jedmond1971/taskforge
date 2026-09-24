@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logError } from "@/lib/security-events";
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ project }, { status: 201 });
   } catch (error) {
-    console.error("Create project error:", error);
+    logError("Create project error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

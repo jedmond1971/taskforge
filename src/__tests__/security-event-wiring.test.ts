@@ -31,6 +31,7 @@ const WIRING: Array<{ type: string; file: string }> = [
   { type: "upload.rejected", file: "app/api/attachments/confirm/route.ts" },
   { type: "upload.rejected", file: "app/api/editor-images/route.ts" },
   { type: "prisma.error", file: "lib/prisma.ts" },
+  { type: "app.error", file: "lib/security-events.ts" },
 ];
 
 describe("security-event wiring", () => {
@@ -143,9 +144,28 @@ describe("catalog coverage", () => {
     .map((f) => fs.readFileSync(f, "utf8"))
     .join("\n");
 
+  /**
+   * Types emitted by an exported helper that lives in the emitter module itself, so the
+   * literal never appears at a call site. Each needs its own coverage assertion below —
+   * exempting one without replacing the check would be a hole, not a fix.
+   */
+  const EMITTED_VIA_HELPER = new Map<string, string>([
+    ["app.error", "logError() in security-events.ts; call sites say logError(...), not the type"],
+  ]);
+
   // A type declared but never emitted produces an alert rule that can never fire, and
   // the resulting silence reads as "no attacks". Every catalog entry must be wired.
-  it.each(SECURITY_EVENT_TYPES)("%s is emitted somewhere outside the catalog", (type) => {
-    expect(ALL_SOURCE).toContain(`"${type}"`);
+  it.each(SECURITY_EVENT_TYPES.filter((t) => !EMITTED_VIA_HELPER.has(t)))(
+    "%s is emitted somewhere outside the catalog",
+    (type) => {
+      expect(ALL_SOURCE).toContain(`"${type}"`);
+    }
+  );
+
+  // The replacement check for the helper-emitted types: logError must actually be used
+  // widely, or app.error is declared and effectively dead.
+  it("logError is used across the application, not just declared", () => {
+    const callSites = walk(SRC).filter((f) => /\blogError\s*\(/.test(fs.readFileSync(f, "utf8")));
+    expect(callSites.length).toBeGreaterThan(20);
   });
 });

@@ -6,6 +6,7 @@ import { resolveDocCtx, isDocsWriteLocked } from "@/app/api/docs/_helpers";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { convertDocxToPreviewHtml } from "@/lib/docx-preview";
 import { checkOrgStorageQuota } from "@/lib/storage-quota";
+import { logError } from "@/lib/security-events";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -74,7 +75,7 @@ export async function GET(
     });
     return NextResponse.json({ url, mimeType: result.page.mimeType, fileName: result.page.title, html });
   } catch (error) {
-    console.error("GET /api/docs/.../file error:", error);
+    logError("GET /api/docs/.../file error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -154,7 +155,7 @@ export async function POST(
 
     return NextResponse.json({ page: updated });
   } catch (error) {
-    console.error("POST /api/docs/.../file error:", error);
+    logError("POST /api/docs/.../file error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

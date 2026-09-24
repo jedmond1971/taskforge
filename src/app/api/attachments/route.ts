@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPresignedDownloadUrl } from "@/lib/s3";
+import { logError } from "@/lib/security-events";
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ attachments: withUrls });
   } catch (error) {
-    console.error(error);
+    logError("GET /api/attachments", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

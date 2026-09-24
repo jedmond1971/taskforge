@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { deleteObject, deleteObjectsWithPrefix } from "@/lib/s3";
 import { resolveDocCtx, isDocsWriteLocked } from "@/app/api/docs/_helpers";
 import { canEditIssues, canManageProject, getUserGrants } from "@/lib/permissions";
+import { logError } from "@/lib/security-events";
 
 async function resolveSection(projectKey: string, sectionId: string, userId: string) {
   const ctx = await resolveDocCtx(projectKey, userId);
@@ -57,13 +58,13 @@ export async function PATCH(
         data,
       });
     } catch (error) {
-      console.error("PATCH /api/docs/[projectKey]/sections/[sectionId] position write failed:", error);
+      logError("PATCH /api/docs/[projectKey]/sections/[sectionId] position write failed", error);
       return NextResponse.json({ error: "Concurrent modification — please retry" }, { status: 409 });
     }
 
     return NextResponse.json({ section: updated });
   } catch (error) {
-    console.error("PATCH /api/docs/[projectKey]/sections/[sectionId] error:", error);
+    logError("PATCH /api/docs/[projectKey]/sections/[sectionId] error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -102,13 +103,13 @@ export async function DELETE(
         try {
           await deleteObject(page.fileKey);
         } catch (e) {
-          console.error(`Failed to delete S3 object ${page.fileKey}:`, e);
+          logError(`Failed to delete S3 object ${page.fileKey}`, e);
         }
       }
       try {
         await deleteObjectsWithPrefix(`docs/${page.docSpaceId}/${page.id}/docx-images/`);
       } catch (e) {
-        console.error(`Failed to delete docx-images for page ${page.id}:`, e);
+        logError(`Failed to delete docx-images for page ${page.id}`, e);
       }
     }
 
@@ -116,7 +117,7 @@ export async function DELETE(
 
     return NextResponse.json({ deleted: true, id: result.section.id });
   } catch (error) {
-    console.error("DELETE /api/docs/[projectKey]/sections/[sectionId] error:", error);
+    logError("DELETE /api/docs/[projectKey]/sections/[sectionId] error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

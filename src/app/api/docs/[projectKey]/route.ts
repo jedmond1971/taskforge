@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveDocCtx, upsertDocSpaceSafe, isDocsWriteLocked } from "@/app/api/docs/_helpers";
+import { logError } from "@/lib/security-events";
 
 // GET /api/docs/[projectKey] — fetch (or lazily create) the docspace with sections and pages
 export async function GET(_req: NextRequest, props: { params: Promise<{ projectKey: string }> }) {
@@ -35,7 +36,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ projectK
 
     return NextResponse.json({ docSpace });
   } catch (error) {
-    console.error("GET /api/docs/[projectKey] error:", error);
+    logError("GET /api/docs/[projectKey] error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -76,7 +77,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ project
 
     return NextResponse.json({ docSpace });
   } catch (error) {
-    console.error("PATCH /api/docs/[projectKey] error:", error);
+    logError("PATCH /api/docs/[projectKey] error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

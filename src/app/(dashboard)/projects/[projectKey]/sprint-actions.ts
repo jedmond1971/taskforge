@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireProjectRole, canManageSprint, canEditIssues } from "@/lib/permissions";
 import { Prisma, Sprint } from "@prisma/client";
+import { logError } from "@/lib/security-events";
 
 type SprintResult<T extends object = object> =
   | ({ success: true } & T)
@@ -77,7 +78,7 @@ export async function startSprint(
       // Lost the race to a concurrent start.
       return { success: false, error: "This project already has an active sprint." };
     }
-    console.error("startSprint failed:", error);
+    logError("startSprint failed", error);
     throw new Error("Failed to start sprint — please retry");
   }
 }
@@ -122,7 +123,7 @@ export async function completeSprint(
     revalidatePath(`/projects/${projectKey}/board`);
     return { success: true, movedToBacklogCount };
   } catch (error) {
-    console.error("completeSprint failed:", error);
+    logError("completeSprint failed", error);
     throw new Error("Failed to complete sprint — please retry");
   }
 }

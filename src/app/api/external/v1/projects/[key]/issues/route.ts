@@ -14,6 +14,7 @@ import {
   err,
 } from "../../../_helpers";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
+import { logError } from "@/lib/security-events";
 
 export async function GET(request: NextRequest, props: { params: Promise<{ key: string }> }) {
   const params = await props.params;
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ key: 
 
     return NextResponse.json({ issues: issues.map(formatIssue), total, limit, offset });
   } catch (error) {
-    console.error(error);
+    logError("GET /api/external/v1/projects/[key]/issues", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -197,7 +198,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ key:
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return NextResponse.json(formatIssue(issue as any), { status: 201 });
   } catch (error) {
-    console.error(error);
+    logError("POST /api/external/v1/projects/[key]/issues", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

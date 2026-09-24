@@ -4,6 +4,7 @@ import { resolveStatusForProject, PRIORITY_MAP, formatIssue } from "../../_helpe
 import { requireV1ApiKey } from "@/lib/v1-auth";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
+import { logError } from "@/lib/security-events";
 
 const ISSUE_INCLUDE = {
   projectStatus: { select: { id: true, name: true, category: true } },
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ key: 
     }
     return NextResponse.json(formatIssue(issue));
   } catch (error) {
-    console.error(error);
+    logError("GET /api/v1/issues/[key]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -154,7 +155,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ key
 
     return NextResponse.json(formatIssue(updated));
   } catch (error) {
-    console.error(error);
+    logError("PATCH /api/v1/issues/[key]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -176,7 +177,7 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ ke
 
     return NextResponse.json({ deleted: true, key: issue.key });
   } catch (error) {
-    console.error(error);
+    logError("DELETE /api/v1/issues/[key]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

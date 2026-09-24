@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireV1ApiKey } from "@/lib/v1-auth";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
+import { logError } from "@/lib/security-events";
 
 export async function PATCH(
   request: NextRequest,
@@ -44,7 +45,7 @@ export async function PATCH(
       updatedAt: updated.updatedAt,
     });
   } catch (error) {
-    console.error(error);
+    logError("PATCH /api/v1/issues/[key]/comments/[commentId]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -72,7 +73,7 @@ export async function DELETE(
 
     return NextResponse.json({ deleted: true, id: params.commentId });
   } catch (error) {
-    console.error(error);
+    logError("DELETE /api/v1/issues/[key]/comments/[commentId]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

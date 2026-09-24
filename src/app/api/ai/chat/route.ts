@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireProjectRole, canViewProject } from "@/lib/permissions";
 import { mintInternalMcpToken } from "@/lib/ai/internal-token";
 import { isAiChatEnabled } from "@/lib/ai/feature-flag";
+import { logError } from "@/lib/security-events";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -145,7 +146,7 @@ You do not have an update_issue or add_comment tool yet — if the user wants a 
       betas: ["mcp-client-2025-11-20"],
     });
   } catch (error) {
-    console.error("AI chat request failed:", error);
+    logError("AI chat request failed", error);
     return NextResponse.json(
       { error: "The assistant is unavailable right now. Please try again." },
       { status: 500 }

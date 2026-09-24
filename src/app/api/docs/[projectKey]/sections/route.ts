@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveDocCtx, isDocsWriteLocked } from "@/app/api/docs/_helpers";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
+import { logError } from "@/lib/security-events";
 
 // GET /api/docs/[projectKey]/sections
 export async function GET(_req: NextRequest, props: { params: Promise<{ projectKey: string }> }) {
@@ -27,7 +28,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ projectK
 
     return NextResponse.json({ sections });
   } catch (error) {
-    console.error("GET /api/docs/[projectKey]/sections error:", error);
+    logError("GET /api/docs/[projectKey]/sections error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ projectK
 
     return NextResponse.json({ section }, { status: 201 });
   } catch (error) {
-    console.error("POST /api/docs/[projectKey]/sections error:", error);
+    logError("POST /api/docs/[projectKey]/sections error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

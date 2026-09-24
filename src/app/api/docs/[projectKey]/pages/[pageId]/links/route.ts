@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logError } from "@/lib/security-events";
 
 async function resolvePageInProject(projectKey: string, pageId: string, userId: string) {
   const project = await prisma.project.findFirst({
@@ -58,7 +59,7 @@ export async function GET(
 
     return NextResponse.json({ links });
   } catch (error) {
-    console.error("GET /api/docs/[projectKey]/pages/[pageId]/links error:", error);
+    logError("GET /api/docs/[projectKey]/pages/[pageId]/links error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

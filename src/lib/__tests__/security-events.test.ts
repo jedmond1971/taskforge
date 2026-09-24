@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   securityEvent,
+  logError,
   SECURITY_EVENT_TYPES,
   SECURITY_EVENT_SEVERITY,
   type SecurityEventType,
@@ -172,6 +173,7 @@ describe("event catalog", () => {
       "upload.rejected",
       "admin.action",
       "prisma.error",
+      "app.error",
     ];
     expect([...SECURITY_EVENT_TYPES].sort()).toEqual([...expected].sort());
   });
@@ -215,5 +217,41 @@ describe("securityEvent redaction (SECH-115)", () => {
       meta: { reason: "invalid_credentials", emailAttempted: "person@example.com" },
     });
     expect(warn.mock.calls[0][0]).toContain("person@example.com");
+  });
+});
+
+describe("logError", () => {
+  it("emits a summarised, redacted record naming its context", () => {
+    const prismaPayload = [
+      "",
+      "Invalid `prisma.docPage.create()` invocation:",
+      "",
+      "{",
+      "  data: {",
+      '    content: "CONFIDENTIAL-DOC-BODY-abc123",',
+      "  }",
+      "}",
+    ].join("\n");
+    const err = Object.assign(new Error(prismaPayload), { name: "PrismaClientValidationError" });
+
+    logError("POST /api/docs/[projectKey]/pages", err);
+
+    const line = warn.mock.calls[0][0] as string;
+    expect(line).not.toContain("CONFIDENTIAL-DOC-BODY-abc123");
+    expect(line).toContain("POST /api/docs/[projectKey]/pages");
+    expect(line).toContain("docPage.create");
+  });
+
+  it("does not throw when handed a non-Error", () => {
+    expect(() => logError("ctx", "a string")).not.toThrow();
+    expect(() => logError("ctx", undefined)).not.toThrow();
+  });
+
+  it("redacts caller-supplied extra", () => {
+    logError("ctx", new Error("boom"), { token: "super-secret", ok: "keep" });
+    const rec = emitted();
+    const extra = (rec.meta as Record<string, unknown>).extra as Record<string, unknown>;
+    expect(extra.token).toBe("[redacted]");
+    expect(extra.ok).toBe("keep");
   });
 });

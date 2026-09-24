@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireV1ApiKey } from "@/lib/v1-auth";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
+import { logError } from "@/lib/security-events";
 
 function formatComment(comment: {
   id: string;
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ key: 
 
     return NextResponse.json({ comments: comments.map(formatComment) });
   } catch (error) {
-    console.error(error);
+    logError("GET /api/v1/issues/[key]/comments", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ key:
 
     return NextResponse.json(formatComment(comment), { status: 201 });
   } catch (error) {
-    console.error(error);
+    logError("POST /api/v1/issues/[key]/comments", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
