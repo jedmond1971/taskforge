@@ -60,3 +60,91 @@ export function redactString(input: string, envVars: string[] = SECRET_ENV_VARS)
 
   return out;
 }
+
+/**
+ * Keys whose VALUES never reach a log.
+ *
+ * `code` is deliberately absent: it collides with Prisma's error code (P2002), which is
+ * the diagnostic this whole ticket exists to preserve. OAuth's authorization code is
+ * covered by codeVerifier/code_verifier and by call sites not passing it.
+ */
+export const SENSITIVE_KEYS = new Set(
+  [
+    "password",
+    "passwordhash",
+    "newpassword",
+    "currentpassword",
+    "secret",
+    "clientsecret",
+    "codeverifier",
+    "code_verifier",
+    "token",
+    "accesstoken",
+    "refreshtoken",
+    "apikey",
+    "hashedkey",
+    "hashedtoken",
+    "authorization",
+    "cookie",
+    "email",
+    "content",
+    "description",
+    "body",
+  ].map((k) => k.toLowerCase())
+);
+
+/** Cap applied to attacker-influenced strings (SECH-114 inherited item). Opt-in only. */
+export const MAX_STRING_LENGTH = 200;
+const MAX_DEPTH = 8;
+
+export interface RedactOptions {
+  /**
+   * Truncate strings at this length. Left OFF by default on purpose: the console patch
+   * redacts whole log lines, and a default cap would silently truncate every line over
+   * the limit in production. Only securityEvent's `meta` opts in.
+   */
+  maxStringLength?: number;
+}
+
+function capString(s: string, max?: number): string {
+  if (!max || s.length <= max) return s;
+  return `${s.slice(0, max)}…[truncated]`;
+}
+
+export function redact(value: unknown, opts: RedactOptions = {}): unknown {
+  return redactInner(value, 0, new WeakSet(), opts);
+}
+
+function redactInner(
+  value: unknown,
+  depth: number,
+  seen: WeakSet<object>,
+  opts: RedactOptions
+): unknown {
+  if (value === null || value === undefined) return value;
+  if (typeof value === "string") return capString(redactString(value), opts.maxStringLength);
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  if (typeof value === "bigint") return `${value.toString()}n`;
+  if (typeof value !== "object") return REDACTED;
+
+  if (depth >= MAX_DEPTH) return "[depth-capped]";
+  if (seen.has(value as object)) return "[circular]";
+  seen.add(value as object);
+
+  if (Array.isArray(value)) return value.map((v) => redactInner(v, depth + 1, seen, opts));
+
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(value as Record<string, unknown>)) {
+    if (SENSITIVE_KEYS.has(key.toLowerCase())) {
+      out[key] = REDACTED;
+      continue;
+    }
+    try {
+      out[key] = redactInner((value as Record<string, unknown>)[key], depth + 1, seen, opts);
+    } catch {
+      // A throwing getter must not take the whole log line with it.
+      out[key] = "[unreadable]";
+    }
+  }
+  return out;
+}
