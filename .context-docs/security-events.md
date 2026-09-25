@@ -64,6 +64,7 @@ never pass a severity, so the same event cannot be reported at two severities fr
 | `session.invalidated` | info | `admin/actions.ts` (×2), `settings/actions.ts` |
 | `upload.rejected` | warn | the 3 attachment routes + `editor-images` |
 | `admin.action` | info | `lib/audit-log.ts` (bridge) |
+| `admin.role_granted` | critical | `admin/actions.ts` (×2: create-as-ADMIN, role change to ADMIN) |
 
 ## Denial classification — why we do not sample
 
@@ -92,10 +93,13 @@ one actor trips 20 of these in 5 minutes"), it should be tunable without a deplo
 per-actor counters held in the emitter would be per-instance — and therefore wrong — on a
 platform that restarts and scales processes freely.
 
+That policy now lives in `src/lib/alerting/rules.ts` (`authz_probe`) — see `alerting.md`.
+
 ## The `emit()` seam
 
 `securityEvent()` builds the record and hands it to one private `emit()`. That is where
-SECH-115 inserts redaction and SECH-117 adds a sink — one file, not 150 call sites.
+SECH-115 redacts `meta` here; SECH-117's `notifyAlerting()` runs after the log line is written
+(see `alerting.md`) — one file, not 150 call sites.
 
 `emit()` **degrades rather than throwing.** `JSON.stringify` throws on a circular structure
 or a `BigInt`, and passing a Prisma object into `meta` is a realistic mistake; an exception
