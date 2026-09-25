@@ -172,6 +172,7 @@ describe("event catalog", () => {
       "session.invalidated",
       "upload.rejected",
       "admin.action",
+      "admin.role_granted",
       "prisma.error",
       "app.error",
     ];

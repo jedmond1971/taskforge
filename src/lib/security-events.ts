@@ -36,6 +36,7 @@ export type SecurityEventType =
   | "session.invalidated"
   | "upload.rejected"
   | "admin.action"
+  | "admin.role_granted"
   | "prisma.error"
   | "app.error";
 
@@ -64,6 +65,9 @@ export const SECURITY_EVENT_SEVERITY: Record<SecurityEventType, SecuritySeverity
   "session.invalidated": "info",
   "upload.rejected": "warn",
   "admin.action": "info",
+  // A new platform ADMIN can read and change every tenant. Rare, deliberate, and the single
+  // most valuable thing to know about if it was not you.
+  "admin.role_granted": "critical",
   // A failed DB write, summarised: operation and code only, never the payload.
   "prisma.error": "warn",
   // A caught application error, summarised by logError().
