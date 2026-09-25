@@ -1,9 +1,18 @@
 import { getAlertConfig } from "./config";
-import { ALERT_RULES, GLOBAL_CAP_PER_HOUR, RETRY_AFTER_FAILURE_MS, type AlertRule, type AlertableRecord } from "./rules";
+import {
+  ALERT_RULES,
+  GLOBAL_CAP_PER_HOUR,
+  MAX_IN_FLIGHT,
+  RETRY_AFTER_FAILURE_MS,
+  type AlertRule,
+  type AlertableRecord,
+} from "./rules";
 import { observationsFor, isTripped, type Observation } from "./evaluate";
 import * as store from "./store";
-import { sendAlertEmail, type AlertMessage } from "./deliver";
+import { sendAlertEmail, sendAlertEmailWithRetry, type AlertMessage } from "./deliver";
 import { alertingFailure } from "./log";
+
+let inFlight = 0;
 
 const CAP_RULE = "_cap";
 const CAP_COOLDOWN_MS = 60 * 60 * 1000;
@@ -65,7 +74,11 @@ async function sendCapNotice(to: string): Promise<void> {
  * neither be blocked by nor consume real alert budget.
  */
 export async function dispatch(rule: AlertRule, subject: string, ctx: DispatchContext): Promise<DispatchResult> {
-  if (!ctx.drill && (await store.sentInLastHour()) >= GLOBAL_CAP_PER_HOUR) {
+  // Critical rules are exempt from the cap (review I2): their per-subject cooldowns already bound
+  // them, and ten cheap warn alerts must not be able to silence "an admin was just created".
+  if (!ctx.drill && rule.severity !== "critical" && (await store.sentInLastHour()) >= GLOBAL_CAP_PER_HOUR) {
+    // Once per rule per process: a flood must not become a flood of these lines.
+    alertingFailure(`capped:${rule.id}`, rule.id, { once: true });
     await sendCapNotice(ctx.to);
     return { sent: false, reason: "cap" };
   }
@@ -77,7 +90,7 @@ export async function dispatch(rule: AlertRule, subject: string, ctx: DispatchCo
     suppressed = claim.suppressed;
   }
 
-  const result = await sendAlertEmail(messageFor(rule, subject, ctx, suppressed), ctx.to);
+  const result = await sendAlertEmailWithRetry(messageFor(rule, subject, ctx, suppressed), ctx.to);
   if (!result.success) {
     // Otherwise a failed send would silence this rule for its whole cooldown.
     if (rule.cooldownMs > 0) await store.backdateClaim(rule.id, subject, rule.cooldownMs, RETRY_AFTER_FAILURE_MS);
@@ -90,10 +103,14 @@ export async function dispatch(rule: AlertRule, subject: string, ctx: DispatchCo
 
 async function handle(obs: Observation, record: AlertableRecord, to: string): Promise<void> {
   const { rule, subject, detail } = obs;
+  // Already alerted and still cooling: count it and stop. During a spray this is the ONLY work
+  // an event costs (review I1) — no row, no window count, no cap query, no claim.
+  if (rule.cooldownMs > 0 && (await store.suppressIfCooling(rule.id, subject, rule.cooldownMs))) return;
+
   let count: number | undefined;
   if (rule.threshold) {
-    await store.recordObservation(rule.id, subject, detail);
-    count = await store.countInWindow(rule.id, subject, rule.threshold.windowMs, !!rule.distinctBy);
+    await store.recordObservation(rule.id, subject, detail, rule.threshold.windowMs);
+    count = await store.countInWindow(rule.id, subject, rule.threshold.windowMs, !!rule.distinctBy, rule.threshold.count);
     if (!isTripped(rule, count)) return;
   }
   await dispatch(rule, subject, { to, drill: false, requestId: record.requestId, count });
@@ -105,6 +122,7 @@ async function handle(obs: Observation, record: AlertableRecord, to: string): Pr
  * cooldown claim.
  */
 export async function observe(record: AlertableRecord): Promise<void> {
+  let admitted = false;
   try {
     const cfg = getAlertConfig();
     if (!cfg.ready || !cfg.to) {
@@ -112,9 +130,20 @@ export async function observe(record: AlertableRecord): Promise<void> {
       if (cfg.enabled) alertingFailure("misconfigured", `missing ${cfg.missing.join(", ")}`, { once: true });
       return;
     }
-    for (const obs of observationsFor(record)) await handle(obs, record, cfg.to);
+    const observations = observationsFor(record);
+    if (observations.length === 0) return;
+    // Bound alerting's own load (review C1): beyond MAX_IN_FLIGHT concurrent observations, drop.
+    if (inFlight >= MAX_IN_FLIGHT) {
+      alertingFailure("overloaded", `more than ${MAX_IN_FLIGHT} observations in flight; dropping`, { once: true });
+      return;
+    }
+    inFlight++;
+    admitted = true;
+    for (const obs of observations) await handle(obs, record, cfg.to);
   } catch (err) {
     alertingFailure("observe_failed", err);
+  } finally {
+    if (admitted) inFlight--;
   }
 }
 

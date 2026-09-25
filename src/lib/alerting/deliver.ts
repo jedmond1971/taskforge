@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { SecurityAlertEmail } from "@/emails/SecurityAlertEmail";
 import { ALERT_FROM } from "./config";
+import { SEND_RETRY_DELAYS_MS } from "./rules";
 
 export interface AlertMessage {
   rule: string;
@@ -39,4 +40,30 @@ export async function sendAlertEmail(
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
   }
+}
+
+let retryDelaysMs: readonly number[] = SEND_RETRY_DELAYS_MS;
+
+/** Test seam: the real delays are seconds, which no test should wait for. */
+export function setSendRetryDelaysForTest(delays: readonly number[]): void {
+  retryDelaysMs = delays;
+}
+
+/**
+ * sendAlertEmail with inline retries (review I3). A one-off critical alert — an admin grant has
+ * no cooldown row to backdate, and a reused refresh token's family is already revoked so the
+ * event will not recur — is otherwise lost to a single transient Resend failure. Returns the
+ * LAST result; sleeps between attempts. Runs inside a detached observe(), so waiting is free.
+ */
+export async function sendAlertEmailWithRetry(
+  msg: AlertMessage,
+  to: string
+): Promise<{ success: boolean; error?: string }> {
+  let result = await sendAlertEmail(msg, to);
+  for (const delay of retryDelaysMs) {
+    if (result.success) break;
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    result = await sendAlertEmail(msg, to);
+  }
+  return result;
 }

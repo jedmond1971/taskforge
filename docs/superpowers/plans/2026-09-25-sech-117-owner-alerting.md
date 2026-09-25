@@ -2016,8 +2016,8 @@ Expected: FAIL — `adminSendAlertDrill` is not a function.
 ```ts
 /** Remove a drill run's synthetic observations and cooldown rows. Real subjects never start with "drill:". */
 export async function deleteDrillRows(subject: string): Promise<void> {
-  await prisma.alertEvent.deleteMany({ where: { subject } });
-  await prisma.alertState.deleteMany({ where: { subject } });
+  await alertingDb.alertEvent.deleteMany({ where: { subject } });
+  await alertingDb.alertState.deleteMany({ where: { subject } });
 }
 ```
 
@@ -2057,9 +2057,9 @@ export async function runDrill(): Promise<DrillResult> {
     for (const rule of ALERT_RULES) {
       if (rule.threshold) {
         for (let i = 0; i < rule.threshold.count; i++) {
-          await store.recordObservation(rule.id, subject, rule.distinctBy ? `drill-${i}` : undefined);
+          await store.recordObservation(rule.id, subject, rule.distinctBy ? `drill-${i}` : undefined, rule.threshold.windowMs);
         }
-        const count = await store.countInWindow(rule.id, subject, rule.threshold.windowMs, !!rule.distinctBy);
+        const count = await store.countInWindow(rule.id, subject, rule.threshold.windowMs, !!rule.distinctBy, rule.threshold.count);
         if (!isTripped(rule, count)) {
           results.push({ rule: rule.id, sent: false, reason: "threshold_not_reached" });
           continue;

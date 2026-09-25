@@ -59,6 +59,13 @@ describe("alerting subsystem structure", () => {
     }
   });
 
+  // Review C1: the shared client's $on("error") emits prisma.error, which feeds error_spike.
+  // The behavioural proof is alerting-store.itest.ts; this catches the import at review time.
+  it("store.ts uses its own Prisma client, never the shared one", () => {
+    const store = files.find((f) => f.name === "store.ts")!.text;
+    expect(/from\s+["']@\/lib\/prisma["']/.test(store)).toBe(false);
+  });
+
   it("only store.ts touches Prisma", () => {
     const offenders = files.filter((f) => f.name !== "store.ts" && /@\/lib\/prisma|@prisma\/client/.test(f.text)).map((f) => f.name);
     expect(offenders).toEqual([]);

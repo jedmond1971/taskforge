@@ -53,15 +53,27 @@ securityEvent() → emit() ─┬─ console.warn(line)            (unchanged, f
 
 ## Flood control
 
-1. **Cooldown claim** (`store.claimSend`): a single `INSERT … ON CONFLICT … DO UPDATE … WHERE
+1. **Cooldown pre-check** (`store.suppressIfCooling`): a subject already inside its cooldown costs
+   exactly one `UPDATE … SET suppressedCount + 1`. An attacker's later attempts write no row, run
+   no window count, no cap query and no claim.
+2. **Cooldown claim** (`store.claimSend`): a single `INSERT … ON CONFLICT … DO UPDATE … WHERE
    lastSentAt < now() - cooldown` statement using the database clock, so two instances cannot both
    send. It also returns the **prior** `suppressedCount` so the winning email says "N since last
-   alert". A losing claim increments the count.
-2. **Global cap: 10 emails per hour.** The cap is soft (two instances can overshoot by one). Past
-   it, one "Alert cap reached" email is sent (itself cooldown-claimed for 1 h), then alerts are
-   only logged. Cap notices do not count toward the cap.
-3. **Failed send:** the claim is backdated so a matching event can retry after 5 minutes rather
-   than being silenced for the full cooldown, and the failed send is not counted toward the cap.
+   alert". The pre-check above is only an optimisation; this claim is authoritative for the race at
+   the moment a cooldown expires.
+3. **Global cap: 10 warn-level emails per hour.** The cap is soft (two instances can overshoot by
+   one). Past it, one "Alert cap reached" email is sent (itself cooldown-claimed for 1 h), a
+   `[alerting] capped:<rule>` line is logged once per rule per process, and further warn alerts are
+   dropped. Cap notices do not count toward the cap. **Critical rules are exempt from the cap**
+   (`refresh_reuse`, `revoked_key_used`, `admin_role_granted`): their per-subject cooldowns already
+   bound them, and ten cheap warn alerts must not be able to silence "an admin was just created".
+4. **Send retries.** A failed send is retried inline after 2 s and again after 10 s
+   (`SEND_RETRY_DELAYS_MS`) before giving up — a one-off critical alert has no later event to
+   retry it. If all attempts fail the claim is backdated so a matching event can retry after 5
+   minutes, and the failed send is not counted toward the cap.
+5. **Load bound.** At most `MAX_IN_FLIGHT` (20) `observe()` calls run at once; the rest are dropped
+   with one `[alerting] overloaded` line. Observations are deduplicated at write (one account
+   failing 1,000 times writes one row) and counts stop at the threshold (`take`).
 
 ## Configuration
 
@@ -82,6 +94,11 @@ reported `configured: true`.
   feed `error_spike`, so an alerting failure that emitted one would feed itself.
   `alerting-guards.test.ts` fails on an import of `security-events`.
 - Never import Prisma outside `store.ts`, and keep `rules.ts` / `config.ts` import-free.
+- **Never use the shared client (`@/lib/prisma`) in alerting.** Its `$on("error")` emits
+  `prisma.error`, which feeds `error_spike`, so one failed alerting query would re-enter
+  `observe()` and repeat for as long as the database is unwell. `store.ts` owns a separate client
+  (`alertingDb`, `connection_limit=2`, error events with no listener). `alerting-store.itest.ts`
+  proves a failing store query emits no `prisma.error`, with a control showing the shared client does.
 - Never put an email address, token or key material in a rule `subject` or in the email body.
 
 ## Adding a rule
@@ -109,6 +126,6 @@ Added in Phase 2 — see this section once that PR lands.
 | `lib/__tests__/alerting-rules.test.ts`, `alerting-config.test.ts` | subjects, thresholds, hashing, config |
 | `lib/__tests__/alerting-deliver.test.ts` | email content, provider errors |
 | `lib/__tests__/security-events-alerting.test.ts` | the `emit()` hook is inert to alerting failures |
-| `integration/alerting-store.itest.ts` | atomic claim (12-way race), window, distinct, prune |
-| `integration/alerting-flow.itest.ts` | end-to-end rules, cooldown, cap, retry, no address leak, disabled |
+| `integration/alerting-store.itest.ts` | atomic claim (12-way race), window/limit, distinct + dedupe, cooldown pre-check, prune, no `prisma.error` loop |
+| `integration/alerting-flow.itest.ts` | end-to-end rules, cooldown, cap (critical exempt), retries, in-flight bound, no address leak, disabled |
 | `__tests__/alerting-guards.test.ts` | catalog coverage, loop guard, import-free modules |

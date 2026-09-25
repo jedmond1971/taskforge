@@ -38,7 +38,7 @@ export interface AlertRule {
   distinctBy?: (r: AlertableRecord) => string | undefined;
   /** Absent = fires on every occurrence. */
   threshold?: { count: number; windowMs: number };
-  /** 0 = no cooldown (every occurrence emails, still subject to the global cap). */
+  /** 0 = no cooldown (every occurrence emails). */
   cooldownMs: number;
   /** One line for the email body. */
   summary: string;
@@ -128,3 +128,13 @@ export const GLOBAL_CAP_PER_HOUR = 10;
 
 /** After a failed send, a matching event may retry once this much of the cooldown has passed. */
 export const RETRY_AFTER_FAILURE_MS = 5 * MINUTE;
+
+/**
+ * Bound on concurrent observe() calls (review C1). During an outage or an error storm every
+ * event would otherwise start its own chain of DB work and, if Resend is slow, hold it for the
+ * whole retry schedule. Excess observations are dropped with one "[alerting] overloaded" line.
+ */
+export const MAX_IN_FLIGHT = 20;
+
+/** Delays before each inline retry of a failed send (review I3): the attempt, then two retries. */
+export const SEND_RETRY_DELAYS_MS: readonly number[] = [2_000, 10_000];

@@ -51,6 +51,9 @@ securityEvent() → emit() ─┬─ console.warn(line)            (unchanged, f
   a detached promise with a catch, so a failure in alerting cannot alter the log line or turn a
   request into a 500. A test pins that `emit()` output is byte-identical whether `observe()`
   resolves, rejects or throws.
+- **Alerting uses its own Prisma client**, never the shared one: the shared client's `$on("error")`
+  emits `prisma.error`, which feeds `error_spike`, so a failed alerting query would re-enter alerting
+  (added after the Phase 1 review). `observe()` is also bounded to 20 concurrent calls.
 - **Alerting never calls `securityEvent`/`logError`.** `app.error` and `prisma.error` feed the
   `error_spike` rule; an alerting failure that emitted one would feed itself. Its own failures
   write one plain stderr line via a single `console` call that is added to the
@@ -155,6 +158,12 @@ No name or email (same rule as `admin.action`). Follows the "Adding an event typ
    Past the cap, one "alert cap reached" email is sent (itself a cooldown-claimed `_cap` state,
    1 h) and further alerts are only logged to stderr.
 3. Drill traffic (below) is exempt from the cap and never touches real subjects.
+4. **Critical rules are exempt from the global cap** (added after the Phase 1 review): their
+   per-subject cooldowns already bound them, and warn-level noise must not be able to silence a
+   critical alert for an hour. Capped warn alerts are logged (once per rule per process).
+5. **A subject already in cooldown costs one statement** (a suppressed-count increment), and
+   failed sends are retried inline (2 s, 10 s) before the claim is backdated — a one-off critical
+   alert has no later event to retry it.
 
 ## Delivery
 
