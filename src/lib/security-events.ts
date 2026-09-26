@@ -1,5 +1,8 @@
 import { randomRequestId } from "./request-id";
 import { redact, summarizeError, MAX_STRING_LENGTH } from "./redaction";
+import { ALERT_SOURCE_TYPES, type AlertableRecord } from "./alerting/rules";
+import { alertingEnabled } from "./alerting/config";
+import { alertingFailure } from "./alerting/log";
 
 /**
  * Structured security events (SECH-114).
@@ -8,7 +11,7 @@ import { redact, summarizeError, MAX_STRING_LENGTH } from "./redaction";
  * not something a call site passes, so the same event can never be reported at two
  * different severities from two places.
  *
- * SECH-115 inserts redaction inside emit(); SECH-117 adds a sink there. Neither has
+ * SECH-115 inserts redaction inside emit(); SECH-117's notifyAlerting() runs there. Neither has
  * to touch a call site.
  */
 
@@ -36,6 +39,7 @@ export type SecurityEventType =
   | "session.invalidated"
   | "upload.rejected"
   | "admin.action"
+  | "admin.role_granted"
   | "prisma.error"
   | "app.error";
 
@@ -64,6 +68,9 @@ export const SECURITY_EVENT_SEVERITY: Record<SecurityEventType, SecuritySeverity
   "session.invalidated": "info",
   "upload.rejected": "warn",
   "admin.action": "info",
+  // A new platform ADMIN can read and change every tenant. Rare, deliberate, and the single
+  // most valuable thing to know about if it was not you.
+  "admin.role_granted": "critical",
   // A failed DB write, summarised: operation and code only, never the payload.
   "prisma.error": "warn",
   // A caught application error, summarised by logError().
@@ -133,6 +140,27 @@ function emit(record: Record<string, unknown>): void {
     });
   }
   console.warn(line);
+  notifyAlerting(record);
+}
+
+/**
+ * SECH-117: hand the record to alerting. Detached and never awaited, so it can neither slow
+ * nor fail the request that emitted it.
+ *
+ * The import is dynamic on purpose: alerting reaches Prisma, and prisma.ts imports THIS
+ * module, so a static import would be a cycle. It also means a deployment with alerting off
+ * (the default) never loads Resend or the store at all. Only rules.ts and config.ts — both
+ * import-free — are loaded statically.
+ */
+function notifyAlerting(record: Record<string, unknown>): void {
+  try {
+    if (!alertingEnabled() || !ALERT_SOURCE_TYPES.has(String(record.type))) return;
+    void import("./alerting")
+      .then((m) => m.observe(record as unknown as AlertableRecord))
+      .catch((err) => alertingFailure("observe_failed", err));
+  } catch (err) {
+    alertingFailure("notify_failed", err);
+  }
 }
 
 /**

@@ -63,6 +63,14 @@ export async function adminCreateUser(data: {
     select: { id: true, name: true, email: true, role: true },
   });
 
+  if (user.role === "ADMIN") {
+    securityEvent("admin.role_granted", {
+      userId: actorId,
+      targetUserId: user.id,
+      meta: { to: "ADMIN", trigger: "admin_create_user" },
+    });
+  }
+
   await logAdminAction({
     actorId,
     action: "USER_CREATED",
@@ -108,6 +116,13 @@ export async function adminUpdateUser(
       targetUserId: userId,
       meta: { trigger: "admin_role_change" },
     });
+    if (updates.role === "ADMIN") {
+      securityEvent("admin.role_granted", {
+        userId: actorId,
+        targetUserId: userId,
+        meta: { from: before?.role, to: "ADMIN", trigger: "admin_update_user" },
+      });
+    }
     // OAuth tokens have no captured session version to check live (SECH-94) —
     // revoke them here, the same trigger that invalidates web sessions.
     await revokeOAuthTokensForUser(userId);

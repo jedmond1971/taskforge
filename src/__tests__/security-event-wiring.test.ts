@@ -26,6 +26,7 @@ const WIRING: Array<{ type: string; file: string }> = [
   { type: "session.invalidated", file: "app/(dashboard)/admin/actions.ts" },
   { type: "session.invalidated", file: "app/(dashboard)/settings/actions.ts" },
   { type: "admin.action", file: "lib/audit-log.ts" },
+  { type: "admin.role_granted", file: "app/(dashboard)/admin/actions.ts" },
   { type: "upload.rejected", file: "app/api/attachments/presign/route.ts" },
   { type: "upload.rejected", file: "app/api/attachments/upload/route.ts" },
   { type: "upload.rejected", file: "app/api/attachments/confirm/route.ts" },

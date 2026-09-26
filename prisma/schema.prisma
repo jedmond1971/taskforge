@@ -817,3 +817,27 @@ model RateLimitAttempt {
 
   @@index([key, createdAt])
 }
+
+/// SECH-117: observations that threshold alert rules count, plus the "_sent" ledger the
+/// global cap reads. `detail` is a hash prefix used for distinct-account counting — never a
+/// raw email. Rows older than 24h are pruned.
+model AlertEvent {
+  id        String   @id @default(cuid())
+  rule      String
+  subject   String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([rule, subject, createdAt])
+}
+
+/// SECH-117: per (rule, subject) cooldown. One atomic upsert claims a send, so two
+/// instances cannot both email. Rows older than 7 days are pruned.
+model AlertState {
+  rule            String
+  subject         String
+  lastSentAt      DateTime
+  suppressedCount Int      @default(0)
+
+  @@id([rule, subject])
+}

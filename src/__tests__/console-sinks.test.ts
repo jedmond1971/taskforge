@@ -14,6 +14,7 @@ const SKIP_PATH = /(__tests__|[/\\]integration[/\\]|test-support)/;
 
 const ALLOWED = new Map<string, string>([
   ["lib/security-events.ts", "the event emitter's single write point"],
+  ["lib/alerting/log.ts", "alerting's own failure line — must not use securityEvent, which feeds error_spike (SECH-117)"],
   ["instrumentation.ts", "the redaction patch itself must call the real console"],
   // Client components: logError writes server-side via securityEvent, so it would
   // silently do nothing in the browser. Client reporting is SECH-116.
