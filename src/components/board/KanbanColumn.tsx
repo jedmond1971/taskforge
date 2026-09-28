@@ -4,11 +4,17 @@ import { useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { StatusCategory } from "@prisma/client";
-import { Plus } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, Inbox } from "lucide-react";
 import { KanbanCard } from "./KanbanCard";
 import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
-import { CATEGORY_COLOR } from "@/lib/issue-utils";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
+
+const COLUMN_ACCENT: Record<StatusCategory, { top: string; dot: string; well: string }> = {
+  TODO: { top: "border-t-border", dot: "bg-muted-foreground", well: "bg-surface" },
+  IN_PROGRESS: { top: "border-t-warning", dot: "bg-warning", well: "bg-warning-soft/20" },
+  DONE: { top: "border-t-success", dot: "bg-success", well: "bg-success-soft/20" },
+};
 
 type BoardStatus = {
   id: string;
@@ -36,7 +42,9 @@ interface KanbanColumnProps {
 
 export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColumnProps) {
   const [createOpen, setCreateOpen] = useState(false);
-  const cfg = CATEGORY_COLOR[status.category];
+  const [collapsed, setCollapsed] = useState(false);
+  const accent = COLUMN_ACCENT[status.category];
+  const isDoneColumn = status.category === "DONE";
 
   const { setNodeRef } = useDroppable({ id: status.id });
 
@@ -45,20 +53,29 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
       {/* Column header */}
       <div
         className={cn(
-          "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 border-t-2 rounded-t-lg px-3 py-2.5 flex items-center justify-between",
-          cfg.borderTop
+          "bg-surface border-t-2 rounded-t-lg px-3 py-2.5 flex items-center justify-between shadow-[var(--shadow-panel)]",
+          accent.top
         )}
       >
-        <div className="flex items-center gap-2">
-          <div className={cn("w-2 h-2 rounded-full", cfg.dot)} />
-          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{status.name}</span>
-          <span className="text-xs text-zinc-500 bg-zinc-100 dark:bg-zinc-800 rounded px-1.5 py-0.5 font-mono">
+        <div className="flex items-center gap-2 min-w-0">
+          {isDoneColumn && (
+            <button
+              onClick={() => setCollapsed((v) => !v)}
+              className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              aria-label={collapsed ? `Expand ${status.name}` : `Collapse ${status.name}`}
+            >
+              {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          )}
+          <div className={cn("w-2 h-2 rounded-full flex-shrink-0", accent.dot)} />
+          <span className="text-sm font-semibold text-foreground truncate">{status.name}</span>
+          <span className="text-xs text-muted-foreground bg-surface-active rounded px-1.5 py-0.5 font-mono flex-shrink-0">
             {issues.length}
           </span>
         </div>
         <button
           onClick={() => setCreateOpen(true)}
-          className="p-1 text-zinc-400 dark:text-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
+          className="p-1 text-muted-foreground hover:text-foreground hover:bg-surface-active rounded transition-colors flex-shrink-0"
           aria-label={`Add issue to ${status.name}`}
         >
           <Plus className="w-4 h-4" />
@@ -69,32 +86,34 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
       <div
         ref={setNodeRef}
         className={cn(
-          "flex-1 min-h-0 border border-t-0 border-zinc-200 dark:border-zinc-800 rounded-b-lg p-2 space-y-2 overflow-y-auto transition-colors",
-          isOver && "bg-zinc-100 dark:bg-zinc-800/40"
+          "flex-1 min-h-0 rounded-b-lg p-2 space-y-2 overflow-y-auto scrollbar-thin transition-colors",
+          accent.well,
+          isOver && "bg-surface-active"
         )}
       >
         <SortableContext
           items={issues.map((i) => i.id)}
           strategy={verticalListSortingStrategy}
         >
-          {issues.map((issue) => (
-            <KanbanCard key={issue.id} issue={issue} projectKey={projectKey} />
-          ))}
+          {!collapsed &&
+            issues.map((issue) => (
+              <KanbanCard key={issue.id} issue={issue} projectKey={projectKey} />
+            ))}
         </SortableContext>
 
-        {issues.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-24 gap-2">
-            <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-              <Plus className="w-4 h-4 text-zinc-400 dark:text-zinc-600" />
-            </div>
-            <p className="text-xs text-zinc-400 dark:text-zinc-600">No issues</p>
-            <button
-              onClick={() => setCreateOpen(true)}
-              className="text-xs text-primary hover:text-primary/80 transition-colors"
-            >
-              Add one
-            </button>
-          </div>
+        {collapsed && issues.length > 0 && (
+          <p className="text-xs text-muted-foreground text-center py-2">
+            {issues.length} done issue{issues.length !== 1 ? "s" : ""} hidden
+          </p>
+        )}
+
+        {!collapsed && issues.length === 0 && (
+          <EmptyState
+            icon={Inbox}
+            title="No issues"
+            action={{ label: "Add one", onClick: () => setCreateOpen(true) }}
+            className="py-6"
+          />
         )}
       </div>
 
