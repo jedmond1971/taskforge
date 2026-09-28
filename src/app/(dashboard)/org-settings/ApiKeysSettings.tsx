@@ -14,6 +14,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { MonoMeta } from "@/components/ui/mono-meta";
 import { listApiKeys, createApiKey, revokeApiKey, type ApiKeyRow } from "./actions";
 
 function formatDate(iso: string): string {
@@ -53,19 +55,19 @@ function KeyCreatedDialog({
         </DialogHeader>
 
         <div className="space-y-3">
-          <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-            <code className="flex-1 break-all text-xs font-mono text-amber-300 select-all">
+          <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning-soft p-3">
+            <code className="flex-1 break-all text-xs font-mono text-warning select-all">
               {plaintext}
             </code>
             <button
               onClick={handleCopy}
-              className="flex-shrink-0 p-1.5 rounded text-amber-400 hover:text-amber-200 hover:bg-amber-500/20 transition-colors"
+              className="flex-shrink-0 p-1.5 rounded text-warning hover:bg-warning/20 transition-colors"
               title="Copy to clipboard"
             >
               {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
             </button>
           </div>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground">
             Store this key in a secure location such as a password manager or secrets manager.
             It cannot be recovered once dismissed.
           </p>
@@ -130,7 +132,7 @@ function CreateKeyDialog({
         </DialogHeader>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <label className="text-sm font-medium text-foreground">
             Key name
           </label>
           <Input
@@ -140,7 +142,6 @@ function CreateKeyDialog({
               if (e.key === "Enter" && !e.repeat && name.trim()) handleSubmit();
             }}
             placeholder="e.g. CI pipeline, Mobile app"
-            className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
             autoFocus
           />
         </div>
@@ -150,7 +151,6 @@ function CreateKeyDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={saving}
-            className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
           >
             Cancel
           </Button>
@@ -226,7 +226,7 @@ export function ApiKeysSettings({ orgId }: { orgId: string }) {
     return (
       <div className="space-y-2 animate-pulse">
         {[1, 2].map((i) => (
-          <div key={i} className="h-16 bg-zinc-100 dark:bg-zinc-800 rounded-lg" />
+          <div key={i} className="h-16 bg-surface-active rounded-lg" />
         ))}
       </div>
     );
@@ -239,8 +239,8 @@ export function ApiKeysSettings({ orgId }: { orgId: string }) {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">API Keys</h3>
-          <p className="text-xs text-zinc-500 dark:text-zinc-500">
+          <h3 className="text-sm font-medium text-foreground mb-1">API Keys</h3>
+          <p className="text-xs text-muted-foreground">
             Keys authenticate requests to the external REST API. Each key is scoped to this
             organization. The full key is shown only once at creation.
           </p>
@@ -256,16 +256,18 @@ export function ApiKeysSettings({ orgId }: { orgId: string }) {
       </div>
 
       {active.length === 0 && revoked.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 text-center">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">No API keys yet</p>
-          <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-1">
-            Create a key to start authenticating external API requests.
-          </p>
+        <div className="rounded-xl border border-dashed border-border">
+          <EmptyState
+            icon={Plus}
+            title="No API keys yet"
+            message="Create a key to start authenticating external API requests."
+            className="py-12"
+          />
         </div>
       ) : (
         <div className="space-y-4">
           {active.length > 0 && (
-            <div className="divide-y divide-zinc-200 dark:divide-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+            <div className="divide-y divide-border-soft rounded-xl border border-border-soft overflow-hidden">
               {active.map((key) => (
                 <KeyRow
                   key={key.id}
@@ -278,10 +280,10 @@ export function ApiKeysSettings({ orgId }: { orgId: string }) {
 
           {revoked.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                 Revoked
               </p>
-              <div className="divide-y divide-zinc-200 dark:divide-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden opacity-60">
+              <div className="divide-y divide-border-soft rounded-xl border border-border-soft overflow-hidden opacity-60">
                 {revoked.map((key) => (
                   <KeyRow key={key.id} apiKey={key} onRevoke={null} />
                 ))}
@@ -326,20 +328,20 @@ function KeyRow({
   onRevoke: (() => void) | null;
 }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-zinc-900">
+    <div className="flex items-center gap-3 px-4 py-3 bg-surface">
       <div className="flex-1 min-w-0 space-y-0.5">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          <span className="text-sm font-medium text-foreground">
             {apiKey.name}
           </span>
           {apiKey.revokedAt && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-danger-soft text-danger border border-danger/20">
               Revoked
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3 text-xs text-zinc-500">
-          <span className="font-mono">{apiKey.keyPrefix}…</span>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <MonoMeta>{apiKey.keyPrefix}…</MonoMeta>
           <span>Created {formatDate(apiKey.createdAt)} by {apiKey.createdBy.name}</span>
           {apiKey.lastUsedAt && <span>Last used {formatDate(apiKey.lastUsedAt)}</span>}
           {apiKey.revokedAt && <span>Revoked {formatDate(apiKey.revokedAt)}</span>}
@@ -351,7 +353,7 @@ function KeyRow({
           variant="ghost"
           size="sm"
           onClick={onRevoke}
-          className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10 flex-shrink-0"
+          className="text-muted-foreground hover:text-danger hover:bg-danger-soft flex-shrink-0"
         >
           <ShieldOff className="size-3.5 mr-1" />
           Revoke
