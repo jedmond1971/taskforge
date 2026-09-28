@@ -279,6 +279,60 @@ describe("MCP tools (OAuth bearer)", () => {
     } finally { await t.close(); }
   });
 
+  it("read_doc_page returns a cached DOCX preview for a DOCUMENT page (JFR-139)", async () => {
+    const docxPage = await prisma.docPage.create({
+      data: {
+        docSpaceId: w.A.docSpace.id,
+        title: "docx page",
+        type: "DOCUMENT",
+        fileKey: `docs/${w.A.docSpace.id}/itest-docx.docx`,
+        fileSize: 1234,
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        docxPreviewHtml: "<p>hello from docx</p>",
+        authorId: w.users.aOwner.id,
+        position: 1,
+      },
+    });
+    const t = await mcp(w.tokens.a);
+    try {
+      const res = await t.call("read_doc_page", { projectKey: w.keyA, pageId: docxPage.id });
+      expect(res.isError).toBeFalsy();
+      expect(JSON.parse(text(res))).toMatchObject({ content: "<p>hello from docx</p>" });
+    } finally {
+      await t.close();
+      await prisma.docPage.delete({ where: { id: docxPage.id } });
+    }
+  });
+
+  it("read_doc_page returns metadata (not an error) for a DOCUMENT page with no extractable preview", async () => {
+    const pdfPage = await prisma.docPage.create({
+      data: {
+        docSpaceId: w.A.docSpace.id,
+        title: "pdf page",
+        type: "DOCUMENT",
+        fileKey: `docs/${w.A.docSpace.id}/itest-pdf.pdf`,
+        fileSize: 5678,
+        mimeType: "application/pdf",
+        authorId: w.users.aOwner.id,
+        position: 2,
+      },
+    });
+    const t = await mcp(w.tokens.a);
+    try {
+      const res = await t.call("read_doc_page", { projectKey: w.keyA, pageId: pdfPage.id });
+      expect(res.isError).toBeFalsy();
+      expect(JSON.parse(text(res))).toMatchObject({
+        title: "pdf page",
+        mimeType: "application/pdf",
+        fileSize: 5678,
+        content: null,
+      });
+    } finally {
+      await t.close();
+      await prisma.docPage.delete({ where: { id: pdfPage.id } });
+    }
+  });
+
   it("an Org B token cannot read, write or link Org A's issues, comments or docs", async () => {
     const before = await snapshotA();
     const t = await mcp(w.tokens.b);
