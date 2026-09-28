@@ -132,7 +132,7 @@ function StatusRow({
         ref={setNodeRef}
         style={style}
         className={cn(
-          "flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900",
+          "flex items-center gap-2 px-3 py-2 rounded-lg border border-border-soft bg-surface",
           isDragging && "opacity-50 shadow-lg"
         )}
       >
@@ -140,7 +140,7 @@ function StatusRow({
         <button
           {...attributes}
           {...listeners}
-          className="text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 cursor-grab active:cursor-grabbing touch-none"
+          className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none"
           tabIndex={-1}
         >
           <GripVertical className="w-4 h-4" />
@@ -160,18 +160,18 @@ function StatusRow({
                 if (e.key === "Enter") saveEdit();
                 if (e.key === "Escape") cancelEdit();
               }}
-              className="flex-1 min-w-0 text-sm bg-zinc-50 dark:bg-zinc-800 border border-primary rounded px-2 py-1 text-zinc-900 dark:text-zinc-100 focus:outline-none"
+              className="flex-1 min-w-0 text-sm bg-surface-active border border-primary rounded px-2 py-1 text-foreground focus:outline-none"
             />
             <button
               onClick={saveEdit}
               disabled={isPending}
-              className="p-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500"
+              className="p-1 text-success hover:opacity-80"
             >
               <Check className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={cancelEdit}
-              className="p-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600"
+              className="p-1 text-muted-foreground hover:text-foreground"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -179,12 +179,12 @@ function StatusRow({
         ) : (
           <button
             onClick={startEdit}
-            className="flex-1 text-left text-sm text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 truncate py-0.5 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 px-1"
+            className="flex-1 text-left text-sm text-foreground truncate py-0.5 rounded hover:bg-surface-active px-1"
             title="Click to rename"
           >
             {status.name}
             {status.isDefault && (
-              <span className="ml-1.5 text-xs text-zinc-400 dark:text-zinc-600">(default)</span>
+              <span className="ml-1.5 text-xs text-muted-foreground">(default)</span>
             )}
           </button>
         )}
@@ -196,8 +196,8 @@ function StatusRow({
           className={cn(
             "p-1 rounded transition-colors",
             isLast
-              ? "text-zinc-300 dark:text-zinc-700 cursor-not-allowed"
-              : "text-zinc-400 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+              ? "text-muted-foreground/50 cursor-not-allowed"
+              : "text-muted-foreground hover:text-danger hover:bg-danger-soft"
           )}
           title={isLast ? "Can't delete the last status in a category" : "Delete status"}
         >
@@ -257,18 +257,18 @@ function AddStatusRow({
           if (e.key === "Escape") onCancel();
         }}
         placeholder="Status name…"
-        className="flex-1 min-w-0 text-sm bg-transparent border-none outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+        className="flex-1 min-w-0 text-sm bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground"
       />
       <button
         onClick={handleSave}
         disabled={isPending || !name.trim()}
-        className="p-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 disabled:opacity-40"
+        className="p-1 text-success hover:opacity-80 disabled:opacity-40"
       >
         <Check className="w-3.5 h-3.5" />
       </button>
       <button
         onClick={onCancel}
-        className="p-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600"
+        className="p-1 text-muted-foreground hover:text-foreground"
       >
         <X className="w-3.5 h-3.5" />
       </button>
@@ -364,7 +364,7 @@ export function BoardSettings({ projectKey }: { projectKey: string }) {
     return (
       <div className="space-y-2 animate-pulse">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-10 bg-zinc-100 dark:bg-zinc-800 rounded-lg" />
+          <div key={i} className="h-10 bg-surface-active rounded-lg" />
         ))}
       </div>
     );
@@ -373,8 +373,8 @@ export function BoardSettings({ projectKey }: { projectKey: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Auto-hide completed issues</h3>
-        <p className="text-xs text-zinc-500 dark:text-zinc-500 mb-2">
+        <h3 className="text-sm font-medium text-foreground mb-1">Auto-hide completed issues</h3>
+        <p className="text-xs text-muted-foreground mb-2">
           Automatically remove issues from the Done column on the board after they&apos;ve
           sat there this long. Issues remain fully visible on the Issues list — this only
           affects the board view.
@@ -383,7 +383,7 @@ export function BoardSettings({ projectKey }: { projectKey: string }) {
           value={autoHideDays === null ? "never" : String(autoHideDays)}
           onChange={(e) => handleAutoHideChange(e.target.value)}
           disabled={isSavingAutoHide}
-          className="w-full max-w-xs px-2 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+          className="w-full max-w-xs px-2 py-1.5 bg-surface-active border border-border rounded text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
         >
           <option value="never">Never</option>
           <option value="14">2 weeks</option>
@@ -394,8 +394,8 @@ export function BoardSettings({ projectKey }: { projectKey: string }) {
       </div>
 
       <div>
-        <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Board Columns</h3>
-        <p className="text-xs text-zinc-500 dark:text-zinc-500">
+        <h3 className="text-sm font-medium text-foreground mb-1">Board Columns</h3>
+        <p className="text-xs text-muted-foreground">
           Customize the columns on your Kanban board. Each status becomes a column.
           Drag to reorder within a category.
         </p>
@@ -414,7 +414,7 @@ export function BoardSettings({ projectKey }: { projectKey: string }) {
               <span className={cn("text-xs font-semibold uppercase tracking-wide", cfg.color)}>
                 {CATEGORY_LABELS[category]}
               </span>
-              <span className="text-xs text-zinc-400 dark:text-zinc-600">
+              <span className="text-xs text-muted-foreground">
                 {catStatuses.length} {catStatuses.length === 1 ? "status" : "statuses"}
               </span>
             </div>
@@ -453,7 +453,7 @@ export function BoardSettings({ projectKey }: { projectKey: string }) {
             {addingCategory !== category && (
               <button
                 onClick={() => setAddingCategory(category)}
-                className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors px-3 py-1.5"
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add status

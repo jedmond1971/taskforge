@@ -16,6 +16,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   getCustomFields,
   getOrgProjects,
@@ -57,12 +58,12 @@ const TYPE_LABELS: Record<CustomFieldType, string> = {
 };
 
 const TYPE_BADGE: Record<CustomFieldType, string> = {
-  TEXT: "bg-zinc-500/20 text-zinc-400 border border-zinc-500/30",
+  TEXT: "bg-surface-active text-muted-foreground border border-border-soft",
   NUMBER: "bg-blue-500/20 text-blue-400 border border-blue-500/30",
   DATE: "bg-purple-500/20 text-purple-400 border border-purple-500/30",
-  CHECKBOX: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30",
+  CHECKBOX: "bg-success-soft text-success border border-success/20",
   SELECT: "bg-primary/20 text-primary border border-primary/30",
-  MULTI_SELECT: "bg-amber-500/20 text-amber-400 border border-amber-500/30",
+  MULTI_SELECT: "bg-warning-soft text-warning border border-warning/20",
 };
 
 const ALL_TYPES: CustomFieldType[] = [
@@ -75,7 +76,7 @@ const ALL_TYPES: CustomFieldType[] = [
 ];
 
 const selectStyles =
-  "w-full h-9 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed";
+  "w-full h-9 rounded-lg border border-border bg-surface-active px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed";
 
 // ─── Field Dialog ─────────────────────────────────────────────────────────────
 
@@ -190,20 +191,19 @@ function FieldDialog({
         <div className="space-y-4">
           {/* Name */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label className="text-sm font-medium text-foreground">
               Field name
             </label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Story points"
-              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
             />
           </div>
 
           {/* Type */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label className="text-sm font-medium text-foreground">
               Field type
             </label>
             <select
@@ -226,7 +226,7 @@ function FieldDialog({
           {/* Options (SELECT / MULTI_SELECT only) */}
           {isSelectType && (
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <label className="text-sm font-medium text-foreground">
                 Options
               </label>
               <div className="space-y-2">
@@ -236,12 +236,11 @@ function FieldDialog({
                       value={opt}
                       onChange={(e) => updateOption(i, e.target.value)}
                       placeholder={`Option ${i + 1}`}
-                      className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
                     />
                     {options.length > 1 && (
                       <button
                         onClick={() => removeOption(i)}
-                        className="p-1 text-zinc-400 hover:text-red-400 transition-colors flex-shrink-0"
+                        className="p-1 text-muted-foreground hover:text-danger transition-colors flex-shrink-0"
                         title="Remove option"
                       >
                         <X className="size-4" />
@@ -263,17 +262,17 @@ function FieldDialog({
           {/* Project restrictions */}
           {projects.length > 0 && (
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <label className="text-sm font-medium text-foreground">
                 Project restrictions
               </label>
-              <p className="text-xs text-zinc-500 dark:text-zinc-500">
+              <p className="text-xs text-muted-foreground">
                 Leave all unchecked to apply this field to every project in the organization.
               </p>
-              <div className="space-y-1.5 max-h-40 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-800 p-2">
+              <div className="space-y-1.5 max-h-40 overflow-y-auto rounded-lg border border-border-soft p-2">
                 {projects.map((project) => (
                   <label
                     key={project.id}
-                    className="flex items-center gap-2.5 cursor-pointer rounded-md px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    className="flex items-center gap-2.5 cursor-pointer rounded-md px-2 py-1.5 hover:bg-surface-active"
                   >
                     <input
                       type="checkbox"
@@ -281,10 +280,10 @@ function FieldDialog({
                       onChange={() => toggleProject(project.id)}
                       className="accent-primary"
                     />
-                    <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                    <span className="text-sm text-foreground">
                       {project.name}
                     </span>
-                    <span className="text-xs text-zinc-500 font-mono ml-auto">
+                    <span className="text-xs text-muted-foreground font-mono ml-auto">
                       {project.key}
                     </span>
                   </label>
@@ -299,7 +298,6 @@ function FieldDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={saving}
-            className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
           >
             Cancel
           </Button>
@@ -385,7 +383,7 @@ export function CustomFieldsSettings({
     return (
       <div className="space-y-2 animate-pulse">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-14 bg-zinc-100 dark:bg-zinc-800 rounded-lg" />
+          <div key={i} className="h-14 bg-surface-active rounded-lg" />
         ))}
       </div>
     );
@@ -396,10 +394,10 @@ export function CustomFieldsSettings({
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+          <h3 className="text-sm font-medium text-foreground mb-1">
             Custom Fields
           </h3>
-          <p className="text-xs text-zinc-500 dark:text-zinc-500">
+          <p className="text-xs text-muted-foreground">
             Define custom fields for this organization&apos;s issues. Fields can be
             restricted to specific projects or applied org-wide.
           </p>
@@ -416,26 +414,26 @@ export function CustomFieldsSettings({
 
       {/* Field list */}
       {fields.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 text-center">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            No custom fields yet
-          </p>
-          <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-1">
-            Add a field to start tracking custom data on issues.
-          </p>
+        <div className="rounded-xl border border-dashed border-border">
+          <EmptyState
+            icon={Plus}
+            title="No custom fields yet"
+            message="Add a field to start tracking custom data on issues."
+            className="py-12"
+          />
         </div>
       ) : (
-        <div className="divide-y divide-zinc-200 dark:divide-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+        <div className="divide-y divide-border-soft rounded-xl border border-border-soft overflow-hidden">
           {fields.map((field) => {
             const restrictions = field.projectRestrictions;
             return (
               <div
                 key={field.id}
-                className="flex items-start gap-3 px-4 py-3 bg-white dark:bg-zinc-900"
+                className="flex items-start gap-3 px-4 py-3 bg-surface"
               >
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    <span className="text-sm font-medium text-foreground">
                       {field.name}
                     </span>
                     <span
@@ -454,7 +452,7 @@ export function CustomFieldsSettings({
                       {field.options.map((opt) => (
                         <span
                           key={opt}
-                          className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                          className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-surface-active text-muted-foreground"
                         >
                           {opt}
                         </span>
@@ -463,7 +461,7 @@ export function CustomFieldsSettings({
                   )}
 
                   {/* Restriction summary */}
-                  <p className="text-xs text-zinc-500 dark:text-zinc-500">
+                  <p className="text-xs text-muted-foreground">
                     {restrictions.length === 0
                       ? "All projects"
                       : restrictions.map((r) => r.project.name).join(", ")}
@@ -476,7 +474,7 @@ export function CustomFieldsSettings({
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => openEdit(field)}
-                    className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                    className="text-muted-foreground hover:text-foreground"
                     title="Edit field"
                   >
                     <Pencil className="size-3.5" />
@@ -485,7 +483,7 @@ export function CustomFieldsSettings({
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => setDeletingField(field)}
-                    className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
+                    className="text-muted-foreground hover:text-danger hover:bg-danger-soft"
                     title="Delete field"
                   >
                     <Trash2 className="size-3.5" />
