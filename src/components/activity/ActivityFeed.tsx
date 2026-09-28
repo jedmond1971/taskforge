@@ -3,6 +3,7 @@
 import React from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Activity } from "lucide-react";
+import { stripHtml, truncateText } from "@/lib/text";
 
 type ActivityEntry = {
   id: string;
@@ -24,8 +25,8 @@ function formatAction(entry: ActivityEntry): React.ReactNode {
   }
   if (entry.action === "updated" && entry.field) {
     const fieldLabel = entry.field;
-    const from = entry.oldValue ?? "–";
-    const to = entry.newValue ?? "–";
+    const from = entry.oldValue ? truncateText(stripHtml(entry.oldValue), 60) : "–";
+    const to = entry.newValue ? truncateText(stripHtml(entry.newValue), 60) : "–";
     return (
       <span className="text-zinc-500 dark:text-zinc-400">
         changed <span className="text-zinc-700 dark:text-zinc-300 font-medium">{fieldLabel}</span>{" "}

@@ -183,7 +183,7 @@ Internal API for Claude Code to track work. Full docs in `CLAUDE_API.md`. **Crea
 - **Two Railway GraphQL queries are blocked by the auto-mode classifier as credential fetches** (corrected 2026-09-23 — the DB one used to work): the **log stream** (`environmentLogs`), and **`variables(projectId, environmentId, serviceId)`**, which was the way to get `DATABASE_PUBLIC_URL` for direct production DB access. Both use the `RAILWAY_API_TOKEN` from `~/.bashrc`. Don't retry or work around them — ask Jamie to run the query or check the Railway dashboard UI (e.g. for `[csp-report]` log lines, SECH-84).
 - **The `deployments(...)` status query still works** and is the way to confirm a push reached production. It is also sufficient evidence that a **migration applied**: `railway.toml` sets `preDeployCommand = "npx prisma migrate deploy"`, so a failed migration fails the deploy instead of swapping in new code — a deployment whose `meta.commitHash` matches your commit with `status: SUCCESS` means the migration ran.
 
-See `.context-docs/local-dev-tooling.md` for the Railway CLI/GraphQL API workarounds, seeded-user org-membership nuance, Playwright setup and gotchas, icon/logo asset crop details, and psql/execSync quoting.
+See `.context-docs/local-dev-tooling.md` for the Railway CLI/GraphQL API workarounds, seeded-user org-membership nuance, Playwright setup and gotchas, icon/logo asset crop details, psql/execSync quoting, and following a session from the iPhone via Remote Control.
 
 ---
 
