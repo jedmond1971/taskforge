@@ -25,7 +25,6 @@ interface SavedFiltersProps {
     query: string;
     isGlobal: boolean;
   }) => void;
-  onCreateFilter?: () => void;
 }
 
 const quickFilters = [
@@ -52,7 +51,6 @@ export function SavedFilters({
   currentUserId,
   onRunFilter,
   onEditFilter,
-  onCreateFilter,
 }: SavedFiltersProps) {
   const router = useRouter();
 
@@ -108,7 +106,6 @@ export function SavedFilters({
             icon={ListFilter}
             title="No saved filters yet"
             message="Run a query, then save it to reuse it later."
-            action={onCreateFilter ? { label: "Save a filter", onClick: onCreateFilter } : undefined}
             className="py-6"
           />
         ) : (
