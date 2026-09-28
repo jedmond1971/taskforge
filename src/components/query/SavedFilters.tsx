@@ -5,6 +5,7 @@ import { Pencil, Trash2, ListFilter } from "lucide-react";
 import { toast } from "sonner";
 import { deleteFilter } from "@/app/(dashboard)/search/filter-actions";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MonoMeta } from "@/components/ui/mono-meta";
 
 interface SavedFilter {
   id: string;
@@ -75,7 +76,7 @@ export function SavedFilters({
     <div className="space-y-6">
       {/* Quick Filters */}
       <div>
-        <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">
+        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
           Quick Filters
         </h3>
         <div className="space-y-1">
@@ -83,14 +84,14 @@ export function SavedFilters({
             <button
               key={qf.name}
               onClick={() => onRunFilter(qf.query)}
-              className="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
+              className="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-active transition-colors group"
             >
-              <p className="text-sm text-zinc-800 dark:text-zinc-200 group-hover:text-primary/80 transition-colors">
+              <p className="text-sm text-foreground group-hover:text-primary/80 transition-colors">
                 {qf.name}
               </p>
-              <p className="text-xs text-zinc-600 font-mono truncate mt-0.5">
+              <MonoMeta className="truncate mt-0.5 block">
                 {qf.query}
-              </p>
+              </MonoMeta>
             </button>
           ))}
         </div>
@@ -98,7 +99,7 @@ export function SavedFilters({
 
       {/* My Filters */}
       <div>
-        <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">
+        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
           My Filters
         </h3>
         {myFilters.length === 0 ? (
@@ -113,16 +114,16 @@ export function SavedFilters({
             {myFilters.map((f) => (
               <div
                 key={f.id}
-                className="px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
+                className="px-3 py-2 rounded-lg hover:bg-surface-active transition-colors group"
               >
                 <div className="flex items-center justify-between">
                   <button
                     onClick={() => onRunFilter(f.query)}
-                    className="text-sm text-zinc-800 dark:text-zinc-200 group-hover:text-primary/80 transition-colors text-left flex-1 truncate"
+                    className="text-sm text-foreground group-hover:text-primary/80 transition-colors text-left flex-1 truncate"
                   >
                     {f.name}
                     {f.isGlobal && (
-                      <span className="ml-1.5 text-xs text-zinc-600">
+                      <span className="ml-1.5 text-xs text-muted-foreground">
                         (shared)
                       </span>
                     )}
@@ -131,22 +132,22 @@ export function SavedFilters({
                     {onEditFilter && (
                       <button
                         onClick={() => onEditFilter(f)}
-                        className="p-1 text-zinc-500 hover:text-zinc-300"
+                        className="p-1 text-muted-foreground hover:text-foreground"
                       >
                         <Pencil className="w-3 h-3" />
                       </button>
                     )}
                     <button
                       onClick={() => handleDelete(f.id)}
-                      className="p-1 text-zinc-500 hover:text-red-400"
+                      className="p-1 text-muted-foreground hover:text-danger"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-zinc-600 font-mono truncate mt-0.5">
+                <MonoMeta className="truncate mt-0.5 block">
                   {f.query}
-                </p>
+                </MonoMeta>
               </div>
             ))}
           </div>
@@ -156,27 +157,27 @@ export function SavedFilters({
       {/* Global Filters */}
       {globalFilters.length > 0 && (
         <div>
-          <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Shared Filters
           </h3>
           <div className="space-y-1">
             {globalFilters.map((f) => (
               <div
                 key={f.id}
-                className="px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
+                className="px-3 py-2 rounded-lg hover:bg-surface-active transition-colors group"
               >
                 <div className="flex items-center justify-between">
                   <button
                     onClick={() => onRunFilter(f.query)}
-                    className="text-sm text-zinc-800 dark:text-zinc-200 group-hover:text-primary/80 transition-colors text-left flex-1 truncate"
+                    className="text-sm text-foreground group-hover:text-primary/80 transition-colors text-left flex-1 truncate"
                   >
                     {f.name}
                   </button>
                 </div>
-                <p className="text-xs text-zinc-600 font-mono truncate mt-0.5">
+                <MonoMeta className="truncate mt-0.5 block">
                   {f.query}
-                </p>
-                <p className="text-xs text-zinc-700 mt-0.5">
+                </MonoMeta>
+                <p className="text-xs text-muted-foreground mt-0.5">
                   by {f.user.name}
                 </p>
               </div>

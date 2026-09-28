@@ -141,7 +141,7 @@ function getTokenClassName(type: HighlightToken["type"]): string {
     case "field":
       return "text-blue-400";
     case "operator":
-      return "text-zinc-500";
+      return "text-muted-foreground";
     case "string":
       return "text-emerald-400";
     case "keyword":
@@ -151,9 +151,9 @@ function getTokenClassName(type: HighlightToken["type"]): string {
     case "empty":
       return "text-amber-400";
     case "sortdir":
-      return "text-zinc-400";
+      return "text-muted-foreground";
     default:
-      return "text-zinc-900 dark:text-zinc-100";
+      return "text-foreground";
   }
 }
 
@@ -469,21 +469,21 @@ export function QueryBar({
               onKeyDown={handleKeyDown}
               onFocus={handleFocus}
               placeholder='e.g. status = "TODO" AND priority = "HIGH"'
-              className="w-full pl-3 pr-10 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm font-mono text-transparent caret-zinc-900 dark:caret-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary h-10 leading-6 placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
+              className="w-full pl-3 pr-10 py-2 bg-background border border-border rounded-lg text-sm font-mono text-transparent caret-foreground focus:outline-none focus:ring-2 focus:ring-primary h-10 leading-6 placeholder:text-muted-foreground"
               spellCheck={false}
               autoComplete="off"
             />
             {/* / shortcut hint */}
             {!query && (
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-xs font-mono text-zinc-400 dark:text-zinc-600 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded px-1.5 py-0.5">
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-xs font-mono text-muted-foreground bg-surface-active border border-border-soft rounded px-1.5 py-0.5">
                 /
               </span>
             )}
             {/* Autocomplete dropdown */}
             {showAutocomplete && suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-popover text-popover-foreground ring-1 ring-foreground/10 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
                 {suggestionType && (
-                  <p className="px-3 py-1.5 text-xs text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
+                  <p className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border-soft">
                     {suggestionType === "field"
                       ? "Fields"
                       : suggestionType === "operator"
@@ -497,10 +497,10 @@ export function QueryBar({
                   <button
                     key={s}
                     className={cn(
-                      "w-full text-left px-3 py-1.5 text-sm font-mono hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors",
+                      "w-full text-left px-3 py-1.5 text-sm font-mono hover:bg-surface-active transition-colors",
                       i === selectedIndex
-                        ? "bg-zinc-100 dark:bg-zinc-800 text-primary"
-                        : "text-zinc-700 dark:text-zinc-300"
+                        ? "bg-surface-active text-primary"
+                        : "text-foreground"
                     )}
                     onMouseDown={(e) => {
                       e.preventDefault();
@@ -526,7 +526,7 @@ export function QueryBar({
             <Button
               variant="outline"
               onClick={() => onSave(query)}
-              className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 flex-shrink-0"
+              className="flex-shrink-0"
               size="icon"
             >
               <Bookmark className="w-4 h-4" />
@@ -536,12 +536,12 @@ export function QueryBar({
       </div>
       {/* Error display */}
       {errors.length > 0 && (
-        <div className="text-xs text-red-400 space-y-1">
+        <div className="text-xs text-danger space-y-1">
           {errors.map((e, i) => (
             <p key={i}>
               {e.message}
               {e.suggestion && (
-                <span className="text-zinc-500">
+                <span className="text-muted-foreground">
                   {" "}
                   — Did you mean: {e.suggestion}?
                 </span>
@@ -552,13 +552,13 @@ export function QueryBar({
       )}
       {/* History dropdown */}
       {showHistory && history.length > 0 && (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+        <div className="bg-popover text-popover-foreground ring-1 ring-foreground/10 rounded-lg overflow-hidden">
           <div className="flex items-center justify-between px-3 py-1.5">
-            <p className="text-xs text-zinc-500 font-medium">
+            <p className="text-xs text-muted-foreground font-medium">
               Recent searches
             </p>
             <button
-              className="text-zinc-500 hover:text-zinc-300 transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-colors"
               onMouseDown={(e) => {
                 e.preventDefault();
                 setHistory([]);
@@ -578,7 +578,7 @@ export function QueryBar({
                 setShowHistory(false);
                 inputRef.current?.focus();
               }}
-              className="w-full text-left px-3 py-2 text-sm font-mono text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors border-t border-zinc-200 dark:border-zinc-800"
+              className="w-full text-left px-3 py-2 text-sm font-mono text-muted-foreground hover:bg-surface-active hover:text-foreground transition-colors border-t border-border-soft"
             >
               {q}
             </button>
