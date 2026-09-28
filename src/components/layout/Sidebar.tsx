@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MonoMeta } from "@/components/ui/mono-meta";
+import { ForgeMark } from "./ForgeMark";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,9 +33,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/search", label: "Search", icon: Search },
-  { href: "/docs", label: "Docs", icon: BookOpen },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, group: "Workspace" },
+  { href: "/search", label: "Search", icon: Search, group: "Workspace" },
+  { href: "/docs", label: "Docs", icon: BookOpen, group: "Project" },
 ];
 
 interface SidebarProps {
@@ -66,39 +68,25 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
         collapsed && "lg:w-16"
       )}
     >
-      {/* Logo */}
+      {/* Workspace switcher */}
       <div
         className={cn(
-          "flex items-center justify-between px-5 py-5 border-b border-sidebar-border",
-          collapsed && "lg:flex-col lg:justify-center lg:gap-2 lg:px-2 lg:py-4"
+          "flex items-center gap-2 p-3 border-b border-sidebar-border",
+          collapsed && "lg:flex-col lg:gap-2 lg:px-2 lg:py-3"
         )}
       >
-        <div className="flex items-center justify-center flex-1">
-          <div className="dark:hidden">
-            <img
-              src="/logo-light.png"
-              alt="JedForge"
-              className={cn("h-28 w-auto", collapsed && "lg:hidden")}
-            />
-            <img
-              src="/icons/light/icon-128.png"
-              alt="JedForge"
-              className={cn("hidden h-8 w-8", collapsed && "lg:block")}
-            />
-          </div>
-          <div className="hidden dark:block">
-            <img
-              src="/logo-dark.png"
-              alt="JedForge"
-              className={cn("h-28 w-auto", collapsed && "lg:hidden")}
-            />
-            <img
-              src="/icons/dark/icon-128.png"
-              alt="JedForge"
-              className={cn("hidden h-8 w-8", collapsed && "lg:block")}
-            />
-          </div>
-        </div>
+        <Link
+          href="/"
+          className={cn(
+            "flex items-center gap-2.5 flex-1 min-w-0 px-2 py-1.5 rounded-lg hover:bg-sidebar-accent transition-colors",
+            collapsed && "lg:flex-none lg:px-0 lg:justify-center"
+          )}
+        >
+          <ForgeMark className="text-sidebar-foreground" />
+          <span className={cn("text-sm font-semibold text-sidebar-foreground truncate", collapsed && "lg:hidden")}>
+            JedForge
+          </span>
+        </Link>
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
@@ -125,8 +113,13 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => {
+      <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-1">
+        <MonoMeta className={cn("block px-3 pb-1 uppercase tracking-wide", collapsed && "lg:hidden")}>
+          Workspace
+        </MonoMeta>
+        {navItems
+          .filter((item) => item.group === "Workspace")
+          .map((item) => {
           const Icon = item.icon;
           const isActive =
             item.href === "/"
@@ -145,20 +138,41 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]",
                 collapsed && "lg:justify-center lg:px-2",
                 isActive
-                  ? "bg-sidebar-primary/20 text-sidebar-foreground"
+                  ? "bg-surface-raised text-sidebar-foreground shadow-[inset_2px_0_0_var(--primary)]"
                   : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
               )}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
               <span className={cn(collapsed && "lg:hidden")}>{item.label}</span>
-              {isActive && (
-                <ChevronRight
-                  className={cn(
-                    "w-3 h-3 ml-auto text-sidebar-primary",
-                    collapsed && "lg:hidden"
-                  )}
-                />
+            </Link>
+          );
+        })}
+
+        <MonoMeta className={cn("block px-3 pt-3 pb-1 uppercase tracking-wide", collapsed && "lg:hidden")}>
+          Project
+        </MonoMeta>
+        {navItems
+          .filter((item) => item.group === "Project")
+          .map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname.startsWith(item.href);
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              title={item.label}
+              aria-label={collapsed ? item.label : undefined}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]",
+                collapsed && "lg:justify-center lg:px-2",
+                isActive
+                  ? "bg-surface-raised text-sidebar-foreground shadow-[inset_2px_0_0_var(--primary)]"
+                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
               )}
+            >
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              <span className={cn(collapsed && "lg:hidden")}>{item.label}</span>
             </Link>
           );
         })}
@@ -174,7 +188,7 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
                 className={cn(
                   "flex items-center rounded-lg text-sm font-medium transition-colors",
                   projectsActive
-                    ? "bg-sidebar-primary/20 text-sidebar-foreground"
+                    ? "bg-surface-raised text-sidebar-foreground shadow-[inset_2px_0_0_var(--primary)]"
                     : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
                 )}
               >
@@ -212,13 +226,12 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
                     "flex items-center gap-3 pl-8 pr-3 py-2 rounded-lg text-sm font-medium transition-colors min-h-[40px] mt-0.5",
                     collapsed && "lg:hidden",
                     closedActive
-                      ? "bg-sidebar-primary/20 text-sidebar-foreground"
+                      ? "bg-surface-raised text-sidebar-foreground shadow-[inset_2px_0_0_var(--primary)]"
                       : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
                   )}
                 >
                   <FolderX className="w-4 h-4 flex-shrink-0" />
                   Closed Projects
-                  {closedActive && <ChevronRight className="w-3 h-3 ml-auto text-sidebar-primary" />}
                 </Link>
               )}
             </div>
@@ -235,26 +248,18 @@ export function Sidebar({ onClose, collapsed, onToggleCollapse }: SidebarProps) 
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px]",
               collapsed && "lg:justify-center lg:px-2",
               pathname.startsWith("/admin")
-                ? "bg-sidebar-primary/20 text-sidebar-foreground"
+                ? "bg-surface-raised text-sidebar-foreground shadow-[inset_2px_0_0_var(--primary)]"
                 : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
             )}
           >
             <ShieldCheck className="w-4 h-4 flex-shrink-0" />
             <span className={cn(collapsed && "lg:hidden")}>Admin</span>
-            {pathname.startsWith("/admin") && (
-              <ChevronRight
-                className={cn(
-                  "w-3 h-3 ml-auto text-sidebar-primary",
-                  collapsed && "lg:hidden"
-                )}
-              />
-            )}
           </Link>
         )}
       </nav>
 
       {/* User section */}
-      <div className="p-3 border-t border-sidebar-border">
+      <div className="flex-shrink-0 p-3 border-t border-sidebar-border pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <DropdownMenu>
           <DropdownMenuTrigger
             className={cn(

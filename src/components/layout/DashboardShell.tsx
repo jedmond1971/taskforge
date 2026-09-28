@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { PageTitleProvider } from "./PageTitleContext";
+import { ForgeMark } from "./ForgeMark";
 import { Menu } from "lucide-react";
 
 const SIDEBAR_COLLAPSED_KEY = "jedforge-sidebar-collapsed";
@@ -98,23 +99,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile-only top bar with hamburger */}
-        <div className="lg:hidden flex items-center gap-2 px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex-shrink-0">
+        <div className="lg:hidden flex items-center gap-2 px-4 py-3 border-b border-border-soft bg-surface flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2.5 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+            className="p-2.5 text-muted-foreground hover:text-foreground hover:bg-surface-active rounded-lg transition-colors"
           >
             <Menu className="w-5 h-5" />
           </button>
-          <img
-            src="/logo-light.png"
-            alt="JedForge"
-            className="h-10 w-auto block dark:hidden"
-          />
-          <img
-            src="/logo-dark.png"
-            alt="JedForge"
-            className="h-10 w-auto hidden dark:block"
-          />
+          <div className="flex items-center gap-2 text-foreground">
+            <ForgeMark size={28} className="text-foreground" holeColor="var(--surface)" />
+            <span className="text-sm font-semibold">JedForge</span>
+          </div>
         </div>
 
         <Header />

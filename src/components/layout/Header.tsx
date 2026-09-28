@@ -69,21 +69,21 @@ export function Header() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
-    <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex items-center justify-between px-3 sm:px-6 flex-shrink-0 gap-2">
+    <header className="h-[58px] border-b border-border-soft bg-surface/80 backdrop-blur supports-[backdrop-filter]:bg-surface/60 flex items-center justify-between px-3 sm:px-6 flex-shrink-0 gap-2">
       <div className="flex items-center gap-2 min-w-0 flex-1">
         {breadcrumbs.length > 1 && (
-          <nav className="flex items-center gap-1 text-sm text-zinc-400 dark:text-zinc-500 min-w-0 overflow-hidden">
+          <nav className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 overflow-hidden">
             {breadcrumbs.map((crumb, i) => (
               <span key={crumb.href} className="flex items-center gap-1 flex-shrink-0 last:flex-shrink min-w-0">
                 {i > 0 && <ChevronRight className="w-3 h-3 flex-shrink-0" />}
                 {i === breadcrumbs.length - 1 ? (
-                  <span className="truncate text-zinc-900 dark:text-zinc-100 font-medium">
+                  <span className="truncate text-foreground font-medium">
                     {crumb.label}
                   </span>
                 ) : (
                   <Link
                     href={crumb.href}
-                    className="truncate hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                    className="truncate hover:text-foreground transition-colors"
                   >
                     {crumb.label}
                   </Link>
@@ -93,7 +93,7 @@ export function Header() {
           </nav>
         )}
         {breadcrumbs.length <= 1 && (
-          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 truncate">{title}</h1>
+          <h1 className="text-lg font-semibold text-foreground truncate">{title}</h1>
         )}
       </div>
 
@@ -118,7 +118,7 @@ export function Header() {
         ) : (
           <button
             disabled
-            className="inline-flex items-center gap-1.5 h-9 sm:h-7 px-2.5 text-[0.8rem] font-medium rounded-lg bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed flex-shrink-0"
+            className="inline-flex items-center gap-1.5 h-9 sm:h-7 px-2.5 text-[0.8rem] font-medium rounded-lg bg-surface-active text-muted-foreground cursor-not-allowed flex-shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Create Issue</span>

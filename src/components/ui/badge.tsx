@@ -49,4 +49,36 @@ function Badge({
   })
 }
 
-export { Badge, badgeVariants }
+const statusChipVariants = cva(
+  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+  {
+    variants: {
+      category: {
+        TODO: "bg-surface-active text-muted-foreground",
+        IN_PROGRESS: "bg-warning-soft text-warning",
+        DONE: "bg-success-soft text-success",
+      },
+    },
+  }
+)
+
+function StatusChip({ category, label }: { category: "TODO" | "IN_PROGRESS" | "DONE"; label: string }) {
+  return <span className={statusChipVariants({ category })}>{label}</span>
+}
+
+const priorityColor: Record<"CRITICAL" | "HIGH" | "MEDIUM" | "LOW", string> = {
+  CRITICAL: "text-danger",
+  HIGH: "text-warning",
+  MEDIUM: "text-info",
+  LOW: "text-muted-foreground",
+}
+
+function MetaChip({ priority, label }: { priority: keyof typeof priorityColor; label: string }) {
+  return (
+    <span className={cn("inline-flex items-center gap-1 text-xs font-medium", priorityColor[priority])}>
+      {label}
+    </span>
+  )
+}
+
+export { Badge, badgeVariants, StatusChip, MetaChip }
