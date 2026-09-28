@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   listGroups,
   getOrgProjectsForGroups,
@@ -108,7 +109,7 @@ function GroupNameDialog({
         </DialogHeader>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Group name</label>
+          <label className="text-sm font-medium text-foreground">Group name</label>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -116,7 +117,6 @@ function GroupNameDialog({
               if (e.key === "Enter" && !e.repeat && name.trim()) handleSubmit();
             }}
             placeholder="e.g. QA Leads, Contractors"
-            className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
             autoFocus
           />
         </div>
@@ -126,7 +126,6 @@ function GroupNameDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={saving}
-            className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
           >
             Cancel
           </Button>
@@ -263,24 +262,24 @@ function GroupDetailDialog({
         <div className="space-y-6">
           {/* Members */}
           <div className="space-y-2">
-            <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Members</h4>
+            <h4 className="text-sm font-medium text-foreground">Members</h4>
             {group.members.length === 0 ? (
-              <p className="text-xs text-zinc-500">No members yet.</p>
+              <p className="text-xs text-muted-foreground">No members yet.</p>
             ) : (
               <div className="space-y-1">
                 {group.members.map((m) => (
                   <div
                     key={m.id}
-                    className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-active"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm text-zinc-900 dark:text-zinc-100 truncate">{m.name}</p>
-                      <p className="text-xs text-zinc-500 truncate">{m.email}</p>
+                      <p className="text-sm text-foreground truncate">{m.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{m.email}</p>
                     </div>
                     <button
                       onClick={() => handleRemoveMember(m.userId)}
                       disabled={busy}
-                      className="p-1 text-zinc-400 hover:text-red-400 transition-colors flex-shrink-0"
+                      className="p-1 text-muted-foreground hover:text-danger transition-colors flex-shrink-0"
                       title="Remove from group"
                     >
                       <X className="size-3.5" />
@@ -295,24 +294,23 @@ function GroupDetailDialog({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Add an organization member by name or email..."
-                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
               />
               {query.trim() && (
-                <div className="mt-1 rounded-lg border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-200 dark:divide-zinc-800 max-h-40 overflow-y-auto">
+                <div className="mt-1 rounded-lg border border-border-soft divide-y divide-border-soft max-h-40 overflow-y-auto">
                   {searching ? (
-                    <p className="px-3 py-2 text-xs text-zinc-500">Searching...</p>
+                    <p className="px-3 py-2 text-xs text-muted-foreground">Searching...</p>
                   ) : results.length === 0 ? (
-                    <p className="px-3 py-2 text-xs text-zinc-500">No matching org members</p>
+                    <p className="px-3 py-2 text-xs text-muted-foreground">No matching org members</p>
                   ) : (
                     results.map((u) => (
                       <button
                         key={u.id}
                         onClick={() => handleAddMember(u.id)}
                         disabled={busy}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-active"
                       >
-                        <span className="text-zinc-900 dark:text-zinc-100">{u.name}</span>{" "}
-                        <span className="text-zinc-500 text-xs">{u.email}</span>
+                        <span className="text-foreground">{u.name}</span>{" "}
+                        <span className="text-muted-foreground text-xs">{u.email}</span>
                       </button>
                     ))
                   )}
@@ -323,14 +321,14 @@ function GroupDetailDialog({
 
           {/* Permissions */}
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Permissions</h4>
+            <h4 className="text-sm font-medium text-foreground">Permissions</h4>
 
             {ORG_SCOPED_PERMISSIONS.map((permission) => {
               const grant = group.grants.find((g) => g.permission === permission);
               return (
                 <label
                   key={permission}
-                  className="flex items-center gap-2.5 cursor-pointer rounded-md px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="flex items-center gap-2.5 cursor-pointer rounded-md px-2 py-1.5 hover:bg-surface-active"
                 >
                   <input
                     type="checkbox"
@@ -339,10 +337,10 @@ function GroupDetailDialog({
                     onChange={() => handleToggleOrgWide(permission, grant?.id ?? null)}
                     className="accent-primary"
                   />
-                  <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                  <span className="text-sm text-foreground">
                     {PERMISSION_LABELS[permission]}
                   </span>
-                  <span className="text-xs text-zinc-500 ml-auto">Org-wide</span>
+                  <span className="text-xs text-muted-foreground ml-auto">Org-wide</span>
                 </label>
               );
             })}
@@ -355,7 +353,7 @@ function GroupDetailDialog({
                 (g) => g.permission === permission && g.projectId !== null
               );
               return (
-                <div key={permission} className="space-y-1 rounded-lg border border-zinc-200 dark:border-zinc-800 p-2">
+                <div key={permission} className="space-y-1 rounded-lg border border-border-soft p-2">
                   <label className="flex items-center gap-2.5 cursor-pointer">
                     <input
                       type="checkbox"
@@ -364,10 +362,10 @@ function GroupDetailDialog({
                       onChange={() => handleToggleOrgWide(permission, orgWideGrant?.id ?? null)}
                       className="accent-primary"
                     />
-                    <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                    <span className="text-sm text-foreground">
                       {PERMISSION_LABELS[permission]}
                     </span>
-                    <span className="text-xs text-zinc-500 ml-auto">All projects</span>
+                    <span className="text-xs text-muted-foreground ml-auto">All projects</span>
                   </label>
 
                   {!orgWideGrant && projects.length > 0 && (
@@ -377,7 +375,7 @@ function GroupDetailDialog({
                         return (
                           <label
                             key={project.id}
-                            className="flex items-center gap-2.5 cursor-pointer rounded-md px-1 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                            className="flex items-center gap-2.5 cursor-pointer rounded-md px-1 py-1 hover:bg-surface-active"
                           >
                             <input
                               type="checkbox"
@@ -388,7 +386,7 @@ function GroupDetailDialog({
                               }
                               className="accent-primary"
                             />
-                            <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                            <span className="text-xs text-muted-foreground">
                               {project.name}
                             </span>
                           </label>
@@ -473,7 +471,7 @@ export function GroupsSettings({ orgId }: { orgId: string }) {
     return (
       <div className="space-y-2 animate-pulse">
         {[1, 2].map((i) => (
-          <div key={i} className="h-16 bg-zinc-100 dark:bg-zinc-800 rounded-lg" />
+          <div key={i} className="h-16 bg-surface-active rounded-lg" />
         ))}
       </div>
     );
@@ -483,8 +481,8 @@ export function GroupsSettings({ orgId }: { orgId: string }) {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Groups</h3>
-          <p className="text-xs text-zinc-500 dark:text-zinc-500">
+          <h3 className="text-sm font-medium text-foreground mb-1">Groups</h3>
+          <p className="text-xs text-muted-foreground">
             Grant specific people extra permissions without changing their role. A group can
             only boost someone who&apos;s already a member — it never grants new access on its own.
           </p>
@@ -503,24 +501,26 @@ export function GroupsSettings({ orgId }: { orgId: string }) {
       </div>
 
       {groups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 text-center">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">No groups yet</p>
-          <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-1">
-            Create a group to grant extra permissions to specific people.
-          </p>
+        <div className="rounded-xl border border-dashed border-border">
+          <EmptyState
+            icon={Users}
+            title="No groups yet"
+            message="Create a group to grant extra permissions to specific people."
+            className="py-12"
+          />
         </div>
       ) : (
-        <div className="divide-y divide-zinc-200 dark:divide-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+        <div className="divide-y divide-border-soft rounded-xl border border-border-soft overflow-hidden">
           {groups.map((group) => (
             <div
               key={group.id}
-              className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-zinc-900"
+              className="flex items-center gap-3 px-4 py-3 bg-surface"
             >
               <div className="flex-1 min-w-0 space-y-0.5">
-                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <span className="text-sm font-medium text-foreground">
                   {group.name}
                 </span>
-                <div className="flex items-center gap-3 text-xs text-zinc-500">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span>
                     {group.members.length} member{group.members.length === 1 ? "" : "s"}
                   </span>
@@ -535,7 +535,7 @@ export function GroupsSettings({ orgId }: { orgId: string }) {
                   variant="ghost"
                   size="sm"
                   onClick={() => setManagingGroupId(group.id)}
-                  className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <Users className="size-3.5 mr-1" />
                   Manage
@@ -547,7 +547,7 @@ export function GroupsSettings({ orgId }: { orgId: string }) {
                     setEditingGroup(group);
                     setNameDialogOpen(true);
                   }}
-                  className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                  className="text-muted-foreground hover:text-foreground"
                   title="Rename group"
                 >
                   <Pencil className="size-3.5" />
@@ -556,7 +556,7 @@ export function GroupsSettings({ orgId }: { orgId: string }) {
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => setDeletingGroup(group)}
-                  className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
+                  className="text-muted-foreground hover:text-danger hover:bg-danger-soft"
                   title="Delete group"
                 >
                   <Trash2 className="size-3.5" />

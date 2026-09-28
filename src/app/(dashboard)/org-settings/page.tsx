@@ -5,6 +5,9 @@ import { canManageApiKeys } from "@/lib/permissions";
 import { ApiKeysSettings } from "./ApiKeysSettings";
 import { GroupsSettings } from "./GroupsSettings";
 import { StorageUsageSettings } from "./StorageUsageSettings";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ShieldOff } from "lucide-react";
 
 
 export default async function OrgSettingsPage() {
@@ -21,13 +24,12 @@ export default async function OrgSettingsPage() {
     });
     if (!membership || !canManageApiKeys(membership.role)) {
       return (
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <h2 className="text-lg font-semibold text-zinc-100 mb-2">Access Denied</h2>
-            <p className="text-sm text-zinc-500">
-              Only organization admins and owners can manage API keys.
-            </p>
-          </div>
+        <div className="py-20">
+          <EmptyState
+            icon={ShieldOff}
+            title="Access Denied"
+            message="Only organization admins and owners can manage API keys."
+          />
         </div>
       );
     }
@@ -40,20 +42,17 @@ export default async function OrgSettingsPage() {
 
   return (
     <div className="max-w-2xl space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Organization Settings</h1>
-        <p className="text-zinc-500 text-sm mt-1">{org?.name}</p>
-      </div>
+      <PageHeader title="Organization Settings" subtitle={org?.name} />
 
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+      <div className="bg-surface shadow-[var(--shadow-panel)] rounded-xl p-6">
         <ApiKeysSettings orgId={orgId} />
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+      <div className="bg-surface shadow-[var(--shadow-panel)] rounded-xl p-6">
         <GroupsSettings orgId={orgId} />
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+      <div className="bg-surface shadow-[var(--shadow-panel)] rounded-xl p-6">
         <StorageUsageSettings orgId={orgId} />
       </div>
     </div>
