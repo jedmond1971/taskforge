@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Bot, Send, Wrench, Loader2 } from "lucide-react";
+import { Bot, Send, Wrench, Loader2, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 type ToolCall = {
@@ -21,6 +22,8 @@ type ChatMessage = {
 
 interface AiChatPanelProps {
   issueId: string;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 function toolCallLabel(call: ToolCall): string {
@@ -35,7 +38,7 @@ function toolCallLabel(call: ToolCall): string {
   return call.name;
 }
 
-export function AiChatPanel({ issueId }: AiChatPanelProps) {
+export function AiChatPanel({ issueId, collapsed, onToggleCollapse }: AiChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -55,7 +58,7 @@ export function AiChatPanel({ issueId }: AiChatPanelProps) {
     function updateHeight() {
       const el = panelRef.current;
       if (!el) return;
-      if (!window.matchMedia("(min-width: 1280px)").matches) {
+      if (collapsed || !window.matchMedia("(min-width: 1536px)").matches) {
         el.style.height = "";
         return;
       }
@@ -65,7 +68,7 @@ export function AiChatPanel({ issueId }: AiChatPanelProps) {
     updateHeight();
     window.addEventListener("resize", updateHeight);
     return () => window.removeEventListener("resize", updateHeight);
-  }, []);
+  }, [collapsed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,13 +134,34 @@ export function AiChatPanel({ issueId }: AiChatPanelProps) {
   }
 
   return (
-    <div ref={panelRef} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col">
-      <div className="flex items-center gap-2 mb-3">
-        <Bot className="w-4 h-4 text-primary" />
-        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Ask AI about this issue</p>
+    <div
+      ref={panelRef}
+      className={cn(
+        "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col",
+        collapsed && "2xl:p-2 2xl:items-center"
+      )}
+    >
+      <div className={cn("flex items-center gap-2 mb-3", collapsed && "2xl:mb-0")}>
+        <Bot className={cn("w-4 h-4 text-primary shrink-0", collapsed && "2xl:hidden")} />
+        <p className={cn("text-xs font-medium text-zinc-500 dark:text-zinc-400 flex-1", collapsed && "2xl:hidden")}>
+          Ask AI about this issue
+        </p>
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className="hidden 2xl:flex p-1.5 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors flex-shrink-0"
+            aria-label={collapsed ? "Expand AI chat panel" : "Collapse AI chat panel"}
+            title={collapsed ? "Expand AI chat panel" : "Collapse AI chat panel"}
+          >
+            {collapsed ? <PanelRightOpen className="w-4 h-4" /> : <PanelRightClose className="w-4 h-4" />}
+          </button>
+        )}
       </div>
 
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-3 mb-3 pr-1">
+      <div
+        ref={scrollRef}
+        className={cn("flex-1 min-h-0 overflow-y-auto space-y-3 mb-3 pr-1", collapsed && "2xl:hidden")}
+      >
         {isHydrating ? (
           <p className="text-xs text-zinc-400 dark:text-zinc-600">Loading…</p>
         ) : messages.length === 0 ? (
@@ -184,7 +208,7 @@ export function AiChatPanel({ issueId }: AiChatPanelProps) {
         )}
       </div>
 
-      <form onSubmit={handleSend} className="flex items-end gap-2">
+      <form onSubmit={handleSend} className={cn("flex items-end gap-2", collapsed && "2xl:hidden")}>
         <textarea
           ref={textareaRef}
           rows={1}
