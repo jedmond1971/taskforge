@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BellOff } from "lucide-react";
 import { getNotifications } from "@/app/(dashboard)/notifications/actions";
 import { NotificationItem } from "./NotificationItem";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type Notification = Awaited<ReturnType<typeof getNotifications>>[number];
 
@@ -38,16 +39,13 @@ export function NotificationDropdown({ onUnreadCountChange }: NotificationDropdo
 
       <div className="max-h-[360px] overflow-y-auto">
         {loading && (
-          <div className="px-3 py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
+          <div className="px-3 py-6 text-center text-sm text-muted-foreground">
             Loading…
           </div>
         )}
 
         {!loading && notifications.length === 0 && (
-          <div className="flex flex-col items-center gap-2 px-3 py-8 text-center">
-            <BellOff className="w-6 h-6 text-zinc-300 dark:text-zinc-600" />
-            <p className="text-sm text-zinc-400 dark:text-zinc-500">You&apos;re all caught up</p>
-          </div>
+          <EmptyState icon={BellOff} title="You're all caught up" className="py-8" />
         )}
 
         {!loading && notifications.length > 0 && (

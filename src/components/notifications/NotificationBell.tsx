@@ -36,7 +36,7 @@ export function NotificationBell() {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label="Notifications"
-        className="relative p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+        className="relative p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-surface-active transition-colors"
       >
         <Bell className="w-4 h-4" />
         {unreadCount > 0 && (
