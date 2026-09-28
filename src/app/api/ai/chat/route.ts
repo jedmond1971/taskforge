@@ -7,15 +7,9 @@ import { requireProjectRole, canViewProject } from "@/lib/permissions";
 import { mintInternalMcpToken } from "@/lib/ai/internal-token";
 import { isAiChatEnabled } from "@/lib/ai/feature-flag";
 import { logError } from "@/lib/security-events";
+import { stripHtml } from "@/lib/text";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 type ToolCallSummary = {
   name: string;
