@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { markNotificationRead } from "@/app/(dashboard)/notifications/actions";
+import { MonoMeta } from "@/components/ui/mono-meta";
 
 type NotificationItemData = {
   id: string;
@@ -35,7 +36,7 @@ export function NotificationItem({ notification, onRead }: NotificationItemProps
 
   const inner = (
     <div
-      className={`flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer ${
+      className={`flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors hover:bg-surface-active cursor-pointer ${
         !notification.read
           ? "border-l-2 border-primary pl-[10px]"
           : "border-l-2 border-transparent pl-[10px]"
@@ -46,12 +47,12 @@ export function NotificationItem({ notification, onRead }: NotificationItemProps
       )}
       {notification.read && <span className="mt-1.5 flex-shrink-0 w-2 h-2" />}
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-zinc-800 dark:text-zinc-200 leading-snug">
+        <p className="text-sm text-foreground leading-snug">
           {notification.message}
         </p>
-        <p className="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">
+        <MonoMeta className="mt-0.5 block">
           {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-        </p>
+        </MonoMeta>
       </div>
     </div>
   );
