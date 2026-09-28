@@ -333,7 +333,7 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
       }}
       parentId={issue.id}
     />
-    <div className="flex flex-col xl:flex-row xl:items-start gap-6">
+    <div className="flex flex-col 2xl:flex-row 2xl:items-start gap-6">
     <div className="max-w-5xl min-w-0 flex-1">
       {/* Hero */}
       <div className="mb-6">
@@ -667,7 +667,7 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
     </div>
 
     {aiChatEnabled && (
-      <div className="w-full xl:w-[420px] xl:shrink-0 xl:sticky xl:top-6">
+      <div className="w-full 2xl:w-[420px] 2xl:shrink-0 2xl:sticky 2xl:top-6">
         <AiChatPanel issueId={issue.id} />
       </div>
     )}
