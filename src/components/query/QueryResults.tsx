@@ -40,14 +40,14 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-3">
       <Skeleton className="h-5 w-32" />
-      <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
-        <div className="bg-zinc-50 dark:bg-zinc-900/50 px-4 py-2.5">
+      <div className="border border-border-soft rounded-lg overflow-hidden">
+        <div className="bg-surface-active px-4 py-2.5">
           <Skeleton className="h-4 w-full" />
         </div>
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            className="flex items-center gap-4 px-4 py-3 border-t border-zinc-200/50 dark:border-zinc-800/50"
+            className="flex items-center gap-4 px-4 py-3 border-t border-border-soft"
           >
             <Skeleton className="h-4 w-16" />
             <Skeleton className="h-4 flex-1" />
@@ -93,37 +93,37 @@ export function QueryResults({ results, isLoading }: QueryResultsProps) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-zinc-400">
+      <p className="text-sm text-muted-foreground">
         Found{" "}
-        <span className="text-zinc-900 dark:text-zinc-100 font-medium">{results.total}</span>{" "}
+        <span className="text-foreground font-medium">{results.total}</span>{" "}
         {results.total === 1 ? "issue" : "issues"}
       </p>
-      <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-x-auto shadow-sm dark:shadow-none">
+      <div className="border border-border-soft rounded-lg overflow-x-auto">
         <table className="w-full text-sm min-w-[800px]">
           <thead>
-            <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-              <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-24">
+            <tr className="border-b border-border-soft bg-surface-active">
+              <th className="text-left px-4 py-2.5 text-muted-foreground font-medium w-24">
                 Key
               </th>
-              <th className="text-left px-4 py-2.5 text-zinc-500 font-medium">
+              <th className="text-left px-4 py-2.5 text-muted-foreground font-medium">
                 Title
               </th>
-              <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-24">
+              <th className="text-left px-4 py-2.5 text-muted-foreground font-medium w-24">
                 Project
               </th>
-              <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-28">
+              <th className="text-left px-4 py-2.5 text-muted-foreground font-medium w-28">
                 Status
               </th>
-              <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-24">
+              <th className="text-left px-4 py-2.5 text-muted-foreground font-medium w-24">
                 Priority
               </th>
-              <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-20">
+              <th className="text-left px-4 py-2.5 text-muted-foreground font-medium w-20">
                 Type
               </th>
-              <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-32">
+              <th className="text-left px-4 py-2.5 text-muted-foreground font-medium w-32">
                 Assignee
               </th>
-              <th className="text-left px-4 py-2.5 text-zinc-500 font-medium w-28">
+              <th className="text-left px-4 py-2.5 text-muted-foreground font-medium w-28">
                 Created
               </th>
             </tr>
@@ -135,12 +135,12 @@ export function QueryResults({ results, isLoading }: QueryResultsProps) {
               return (
                 <tr
                   key={issue.id}
-                  className="border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors"
+                  className="border-b border-border-soft hover:bg-surface-active transition-colors"
                 >
                   <td className="px-4 py-3">
                     <Link
                       href={`/projects/${issue.project.key}/issues/${issue.key}`}
-                      className="text-zinc-500 hover:text-primary/80 font-mono text-xs transition-colors"
+                      className="text-muted-foreground hover:text-primary/80 font-mono text-xs transition-colors"
                     >
                       {issue.key}
                     </Link>
@@ -148,7 +148,7 @@ export function QueryResults({ results, isLoading }: QueryResultsProps) {
                   <td className="px-4 py-3">
                     <Link
                       href={`/projects/${issue.project.key}/issues/${issue.key}`}
-                      className="text-zinc-900 dark:text-zinc-100 hover:text-primary/80 transition-colors line-clamp-1"
+                      className="text-foreground hover:text-primary/80 transition-colors line-clamp-1"
                     >
                       {issue.title}
                     </Link>
@@ -175,17 +175,17 @@ export function QueryResults({ results, isLoading }: QueryResultsProps) {
                   </td>
                   <td className="px-4 py-3">
                     {issue.assignee ? (
-                      <span className="text-zinc-700 dark:text-zinc-300 text-xs">
+                      <span className="text-foreground text-xs">
                         {issue.assignee.name}
                       </span>
                     ) : (
-                      <span className="text-zinc-600 text-xs">
+                      <span className="text-muted-foreground text-xs">
                         Unassigned
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-zinc-500 text-xs">
+                    <span className="text-muted-foreground text-xs">
                       {formatDate(issue.createdAt)}
                     </span>
                   </td>

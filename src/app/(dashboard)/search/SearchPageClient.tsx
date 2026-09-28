@@ -18,6 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface FilterData {
   id: string;
@@ -128,12 +130,10 @@ export function SearchPageClient({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Search Issues</h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          Search issues across all your projects using powerful query syntax
-        </p>
-      </div>
+      <PageHeader
+        title="Search Issues"
+        subtitle="Search issues across all your projects using powerful query syntax"
+      />
 
       <div className="grid grid-cols-[280px_1fr] gap-6">
         {/* Sidebar with filters */}
@@ -163,44 +163,40 @@ export function SearchPageClient({
           {results && <QueryResults results={results} isLoading={isLoading} />}
 
           {!results && !isLoading && (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Search className="w-12 h-12 text-zinc-700" />
-              <p className="text-lg font-medium text-zinc-600 dark:text-zinc-500">
-                Search for issues
-              </p>
-              <p className="text-sm text-zinc-600">
-                Enter a query above or select a filter to get started
-              </p>
-            </div>
+            <EmptyState
+              icon={Search}
+              title="Search for issues"
+              message="Enter a query above or select a filter to get started"
+              className="py-16"
+            />
           )}
         </div>
       </div>
 
       {/* Save Filter Dialog */}
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-        <DialogContent className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-zinc-900 dark:text-zinc-100">
+            <DialogTitle>
               {editingFilter ? "Edit Filter" : "Save Filter"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <label className="text-sm font-medium text-foreground">
                 Filter name
               </label>
               <Input
                 value={filterName}
                 onChange={(e) => setFilterName(e.target.value)}
                 placeholder="My custom filter"
-                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <label className="text-sm font-medium text-foreground">
                 Query
               </label>
-              <div className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 rounded-lg text-sm text-zinc-600 dark:text-zinc-400 font-mono">
+              <div className="px-3 py-2 bg-surface-active border border-border-soft rounded-lg text-sm text-muted-foreground font-mono">
                 {editingFilter?.query ?? currentQuery}
               </div>
             </div>
@@ -209,9 +205,9 @@ export function SearchPageClient({
                 type="checkbox"
                 checked={filterIsGlobal}
                 onChange={(e) => setFilterIsGlobal(e.target.checked)}
-                className="rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-primary focus:ring-primary"
+                className="rounded border-border bg-background text-primary focus:ring-primary"
               />
-              <span className="text-sm text-zinc-700 dark:text-zinc-300">
+              <span className="text-sm text-foreground">
                 Share with all users
               </span>
             </label>
@@ -222,7 +218,6 @@ export function SearchPageClient({
                   setSaveDialogOpen(false);
                   setEditingFilter(null);
                 }}
-                className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300"
               >
                 Cancel
               </Button>
