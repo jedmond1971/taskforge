@@ -80,7 +80,7 @@ export default async function DocPagePage(
   if (page.type === "DOCUMENT") {
     return (
       <>
-        <SetPageTitle title={page.title} />
+        <SetPageTitle title="Docs" />
         <DocDocumentView
           page={serializedPage}
           projectKey={project.key.toLowerCase()}
@@ -98,7 +98,7 @@ export default async function DocPagePage(
 
   return (
     <>
-      <SetPageTitle title={page.title} />
+      <SetPageTitle title="Docs" />
       <DocPageEditor
         page={serializedPage}
         initialRevisions={serializedRevisions}

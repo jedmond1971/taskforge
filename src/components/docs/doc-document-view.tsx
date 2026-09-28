@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Download, Upload, FileText, AlertCircle, Loader2, Trash2 } from "lucide-react";
+import { Download, Upload, FileText, AlertCircle, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ReferencedIssuesPanel } from "@/components/docs/referenced-issues-panel";
 import { DocTypeIcon } from "@/components/docs/doc-type-icon";
+import { DocWorkbar } from "@/components/docs/doc-workbar";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface DocDocumentViewProps {
@@ -111,64 +111,60 @@ export function DocDocumentView({ page, projectKey, readOnly = false, canDelete 
 
   return (
     <div className="flex flex-col min-h-0 flex-1">
-      {/* Top bar */}
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <Link
-          href={`/projects/${projectKey}/docs`}
-          className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Docs</span>
-        </Link>
-
-        <div className="flex items-center gap-2">
-          {replaceError && (
-            <span className="text-xs text-red-500">{replaceError}</span>
-          )}
-          {canDelete && (
-            <button
-              onClick={() => setDeleteOpen(true)}
-              title="Delete document"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Delete</span>
-            </button>
-          )}
-          {!readOnly && (
-            <label className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer ${replacing ? "opacity-50 pointer-events-none" : ""}`}>
-              {replacing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{replacing ? "Uploading…" : "Replace"}</span>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                className="sr-only"
-                onChange={handleReplace}
-                disabled={replacing}
-              />
-            </label>
-          )}
-          {fileUrl && (
-            <a
-              href={fileUrl}
-              download={page.title}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Download
-            </a>
-          )}
-        </div>
-      </div>
+      <DocWorkbar
+        backHref={`/projects/${projectKey}/docs`}
+        backLabel="Docs"
+        title={page.title}
+        actions={
+          <>
+            {replaceError && (
+              <span className="text-xs text-danger">{replaceError}</span>
+            )}
+            {canDelete && (
+              <button
+                onClick={() => setDeleteOpen(true)}
+                title="Delete document"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-border-soft text-muted-foreground hover:bg-danger-soft hover:text-danger transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Delete</span>
+              </button>
+            )}
+            {!readOnly && (
+              <label className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-border-soft text-muted-foreground hover:bg-surface-active transition-colors cursor-pointer ${replacing ? "opacity-50 pointer-events-none" : ""}`}>
+                {replacing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{replacing ? "Uploading…" : "Replace"}</span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  className="sr-only"
+                  onChange={handleReplace}
+                  disabled={replacing}
+                />
+              </label>
+            )}
+            {fileUrl && (
+              <a
+                href={fileUrl}
+                download={page.title}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download
+              </a>
+            )}
+          </>
+        }
+      />
 
       {/* Title */}
       <div className="mb-4">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
           <DocTypeIcon type="DOCUMENT" mimeType={page.mimeType} size={24} />
           {page.title}
         </h1>
-        <div className="flex items-center gap-3 mt-1 text-xs text-zinc-400">
+        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
           {page.mimeType === "application/pdf" ? "PDF" : "Word Document"}
           {page.fileSize !== null && <span>· {formatBytes(page.fileSize)}</span>}
           <span>· Updated {new Date(page.updatedAt).toLocaleDateString()} by {page.author.name}</span>
@@ -179,15 +175,15 @@ export function DocDocumentView({ page, projectKey, readOnly = false, canDelete 
       <ReferencedIssuesPanel projectKey={projectKey} pageId={page.id} />
 
       {/* Viewer area */}
-      <div className="flex-1 min-h-0 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+      <div className="flex-1 min-h-0 bg-surface rounded-[10px] shadow-[var(--shadow-panel)] overflow-hidden">
         {loading && (
-          <div className="flex items-center justify-center h-64 gap-2 text-zinc-400">
+          <div className="flex items-center justify-center h-64 gap-2 text-muted-foreground">
             <Loader2 className="w-5 h-5 animate-spin" />
             <span className="text-sm">Loading document…</span>
           </div>
         )}
         {error && !loading && (
-          <div className="flex items-center justify-center h-64 gap-2 text-zinc-400">
+          <div className="flex items-center justify-center h-64 gap-2 text-muted-foreground">
             <AlertCircle className="w-5 h-5" />
             <span className="text-sm">{error}</span>
           </div>
@@ -201,17 +197,17 @@ export function DocDocumentView({ page, projectKey, readOnly = false, canDelete 
             />
           ) : isDocx(page.mimeType) && previewHtml ? (
             <div
-              className="rich-prose text-sm text-zinc-700 dark:text-zinc-300 max-w-none p-6 overflow-y-auto h-full"
+              className="rich-prose text-sm text-foreground max-w-none p-6 overflow-y-auto h-full"
               dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
           ) : (
             <div className="flex flex-col items-center justify-center gap-4 py-20 text-center px-6">
-              <FileText className="w-16 h-16 text-zinc-300 dark:text-zinc-600" />
+              <FileText className="w-16 h-16 text-muted-foreground/50" />
               <div>
-                <p className="text-base font-semibold text-zinc-700 dark:text-zinc-300">
+                <p className="text-base font-semibold text-foreground">
                   {page.title}
                 </p>
-                <p className="text-sm text-zinc-400 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   Word documents can&apos;t be previewed in the browser. Use the Download button to open it.
                 </p>
               </div>

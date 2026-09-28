@@ -2,8 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Edit2, Save, X, History, Check, Trash2, Share2 } from "lucide-react";
+import { Edit2, Save, X, History, Check, Trash2, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { DocPageStatus } from "@prisma/client";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
@@ -11,6 +10,7 @@ import { RichTextDisplay, type TocHeading } from "@/components/ui/rich-text-disp
 import { VersionHistoryPanel } from "@/components/docs/version-history-panel";
 import { ReferencedIssuesPanel } from "@/components/docs/referenced-issues-panel";
 import { DocTocRail } from "@/components/docs/doc-toc-rail";
+import { DocWorkbar } from "@/components/docs/doc-workbar";
 import { DOC_STATUS_CONFIG } from "@/lib/doc-status";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -149,105 +149,101 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
 
   return (
     <div className="flex flex-col min-h-0 flex-1">
-      {/* Top bar */}
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <Link
-          href={`/projects/${projectKey}/docs`}
-          className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Docs</span>
-        </Link>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setHistoryOpen((o) => !o)}
-            title="Version history"
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-colors ${
-              historyOpen
-                ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
-                : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200"
-            }`}
-          >
-            <History className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">History</span>
-          </button>
-
-          {canDelete && mode === "view" && (
+      <DocWorkbar
+        backHref={`/projects/${projectKey}/docs`}
+        backLabel="Docs"
+        title={mode === "edit" ? "Editing" : savedTitle}
+        actions={
+          <>
             <button
-              onClick={() => setDeleteOpen(true)}
-              title="Delete page"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md text-zinc-500 dark:text-zinc-400 hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+              onClick={() => setHistoryOpen((o) => !o)}
+              title="Version history"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md transition-colors ${
+                historyOpen
+                  ? "bg-surface-active text-foreground"
+                  : "text-muted-foreground hover:bg-surface-active hover:text-foreground"
+              }`}
             >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Delete</span>
+              <History className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">History</span>
             </button>
-          )}
 
-          {mode === "view" && (
-            <button
-              onClick={handleShare}
-              title="Copy link"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Share</span>
-            </button>
-          )}
-
-          {mode === "view" && !readOnly ? (
-            <button
-              onClick={() => setMode("edit")}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-              Edit
-            </button>
-          ) : mode === "edit" ? (
-            <div className="flex items-center gap-2">
-              {saveError && (
-                <span className="text-xs text-red-500">{saveError}</span>
-              )}
-              {saveSuccess && (
-                <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-                  <Check className="w-3 h-3" />
-                  Saved
-                </span>
-              )}
+            {canDelete && mode === "view" && (
               <button
-                onClick={handleCancel}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                onClick={() => setDeleteOpen(true)}
+                title="Delete page"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md text-muted-foreground hover:bg-danger-soft hover:text-danger transition-colors"
               >
-                <X className="w-3.5 h-3.5" />
-                Cancel
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Delete</span>
               </button>
+            )}
+
+            {mode === "view" && (
               <button
-                onClick={handleSave}
-                disabled={saving || !isDirty}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={handleShare}
+                title="Copy link"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md text-muted-foreground hover:bg-surface-active hover:text-foreground transition-colors"
               >
-                <Save className="w-3.5 h-3.5" />
-                {saving ? "Saving…" : "Save"}
+                <Share2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Share</span>
               </button>
-            </div>
-          ) : null}
-        </div>
-      </div>
+            )}
+
+            {mode === "view" && !readOnly ? (
+              <button
+                onClick={() => setMode("edit")}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                Edit
+              </button>
+            ) : mode === "edit" ? (
+              <div className="flex items-center gap-2">
+                {saveError && (
+                  <span className="text-xs text-danger">{saveError}</span>
+                )}
+                {saveSuccess && (
+                  <span className="flex items-center gap-1 text-xs text-success">
+                    <Check className="w-3 h-3" />
+                    Saved
+                  </span>
+                )}
+                <button
+                  onClick={handleCancel}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground border border-border-soft rounded-md hover:bg-surface-active transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !isDirty}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {saving ? "Saving…" : "Save"}
+                </button>
+              </div>
+            ) : null}
+          </>
+        }
+      />
 
       {/* Main content area + optional history panel */}
       <div className="flex gap-0 flex-1 min-h-0">
         <div className="flex-1 min-w-0">
           {mode === "edit" ? (
-            <div className="space-y-4">
+            <div className="max-w-[760px] space-y-4">
               {/* Editable title */}
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full text-2xl font-bold text-zinc-900 dark:text-zinc-100 bg-transparent border-0 outline-none focus:ring-0 p-0 placeholder-zinc-300 dark:placeholder-zinc-700"
+                className="w-full text-2xl font-bold text-foreground bg-transparent border-0 outline-none focus:ring-0 p-0 placeholder:text-muted-foreground"
                 placeholder="Page title"
               />
-              <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4">
+              <div className="border-t border-border-soft pt-4">
                 <RichTextEditor
                   key={editorKey}
                   value={content}
@@ -260,7 +256,7 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
           ) : (
             <div className="flex gap-0">
               <DocTocRail headings={toc} />
-              <div className="flex-1 min-w-0 space-y-4">
+              <div className="flex-1 min-w-0 max-w-[760px] space-y-4">
                 <div className="flex items-center gap-2">
                   {readOnly ? (
                     <span
@@ -281,12 +277,12 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
                     </select>
                   )}
                 </div>
-                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{savedTitle}</h1>
-                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{savedTitle}</h1>
+                <div className="border-t border-border-soft pt-4">
                   {savedContent ? (
                     <RichTextDisplay content={savedContent} onHeadingsExtracted={setToc} />
                   ) : (
-                    <p className="text-sm text-zinc-400 dark:text-zinc-600 italic">
+                    <p className="text-sm text-muted-foreground italic">
                       No content yet.{" "}
                       <button
                         onClick={() => setMode("edit")}
@@ -297,8 +293,8 @@ export function DocPageEditor({ page, initialRevisions, projectKey, readOnly = f
                     </p>
                   )}
                 </div>
-                <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                  <p className="text-xs text-zinc-400">
+                <div className="pt-4 border-t border-border-soft">
+                  <p className="text-xs text-muted-foreground">
                     Last updated {new Date(page.updatedAt).toLocaleDateString()} by {page.author.name}
                   </p>
                 </div>

@@ -28,7 +28,7 @@ export function RecentlyViewedDocs({ recentlyViewed, projectKey }: RecentlyViewe
 
   return (
     <div>
-      <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-3">
+      <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
         <History className="w-3.5 h-3.5" />
         Recently viewed
       </div>
@@ -37,10 +37,10 @@ export function RecentlyViewedDocs({ recentlyViewed, projectKey }: RecentlyViewe
           <Link
             key={page.id}
             href={`/projects/${projectKey}/docs/${page.id}`}
-            className="w-[230px] shrink-0 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3.5 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
+            className="w-[230px] shrink-0 bg-surface rounded-[10px] shadow-[var(--shadow-panel)] p-3.5 hover:shadow-[var(--shadow-overlay)] hover:-translate-y-0.5 transition-all"
           >
             <DocTypeIcon type={page.type} mimeType={page.mimeType} size={16} />
-            <p className="mt-2.5 text-[13.5px] font-semibold leading-snug text-zinc-800 dark:text-zinc-200 line-clamp-2 min-h-[2.6em]">
+            <p className="mt-2.5 text-[13.5px] font-semibold leading-snug text-foreground line-clamp-2 min-h-[2.6em]">
               {page.title}
             </p>
             <div className="mt-2.5 flex items-center justify-between">
@@ -50,7 +50,7 @@ export function RecentlyViewedDocs({ recentlyViewed, projectKey }: RecentlyViewe
                   {getInitials(page.author.name)}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-[11px] text-zinc-400">
+              <span className="text-[11px] text-muted-foreground">
                 {formatDistanceToNow(new Date(viewedAt), { addSuffix: true })}
               </span>
             </div>
