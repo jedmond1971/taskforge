@@ -8,6 +8,8 @@ import { PRIORITY_MAP, formatIssue, resolveStatusForProject } from "@/app/api/v1
 import { normalizeBody, TYPE_MAP, ISSUE_INCLUDE } from "@/app/api/external/v1/_helpers";
 import { canEditIssues, getUserGrants } from "@/lib/permissions";
 import { upsertDocSpaceSafe, isDocsWriteLocked } from "@/app/api/docs/_helpers";
+import { convertDocxToPreviewHtml } from "@/lib/docx-preview";
+import { getObjectBuffer } from "@/lib/s3";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
 import { notificationService } from "@/lib/notifications";
 import { parse, validate, executeQuery, ParseError } from "@/lib/query";
@@ -25,6 +27,8 @@ function errorResult(message: string) {
 function hasScope(ctx: OAuthTokenContext, scope: OAuthScope): boolean {
   return ctx.scope.split(/\s+/).includes(scope);
 }
+
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 const LINK_TYPE_MAP: Record<string, IssueLinkType> = {
   BLOCKS: IssueLinkType.BLOCKS,
@@ -246,7 +250,10 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
     "read_doc_page",
     {
       title: "Read Documentation Page",
-      description: "Read the content of a JedForge documentation page.",
+      description:
+        "Read the content of a JedForge documentation page. NATIVE pages return TipTap HTML. " +
+        "DOCUMENT (file upload) pages return an extracted text preview for DOCX files; other " +
+        "file types (PDF, legacy .doc) have no text-extraction pipeline and return metadata only.",
       inputSchema: {
         projectKey: z.string().describe("Project key, e.g. JFR"),
         pageId: z.string(),
@@ -260,11 +267,48 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
 
       const page = await prisma.docPage.findFirst({
         where: { id: pageId, docSpaceId: docCtx.docSpaceId },
-        select: { id: true, title: true, type: true, content: true },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          content: true,
+          mimeType: true,
+          fileSize: true,
+          fileKey: true,
+          docxPreviewHtml: true,
+        },
       });
       if (!page) return errorResult("Page not found");
 
-      return textResult(page);
+      if (page.type === DocPageType.NATIVE) {
+        return textResult({ id: page.id, title: page.title, type: page.type, content: page.content });
+      }
+
+      // DOCUMENT page: mirror the app's own preview support (doc-document-view.tsx) —
+      // only DOCX gets a cached/lazily-generated text preview; PDF and legacy .doc
+      // have no extraction pipeline and are download-only.
+      let html = page.docxPreviewHtml;
+      if (html === null && page.mimeType === DOCX_MIME && page.fileKey) {
+        const buffer = await getObjectBuffer(page.fileKey);
+        html = await convertDocxToPreviewHtml(buffer, docCtx.docSpaceId, page.id, projectKey);
+        if (html !== null) {
+          await prisma.docPage.update({ where: { id: page.id }, data: { docxPreviewHtml: html } });
+        }
+      }
+
+      if (html !== null) {
+        return textResult({ id: page.id, title: page.title, type: page.type, mimeType: page.mimeType, content: html });
+      }
+
+      return textResult({
+        id: page.id,
+        title: page.title,
+        type: page.type,
+        mimeType: page.mimeType,
+        fileSize: page.fileSize,
+        content: null,
+        note: "This page's file has no extractable text preview in JedForge. Download it from the app to view its contents.",
+      });
     }
   );
 
