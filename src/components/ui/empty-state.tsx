@@ -7,12 +7,13 @@ interface EmptyStateProps {
   message?: string;
   action?: { label: string; onClick?: () => void; href?: string };
   className?: string;
+  iconClassName?: string;
 }
 
-export function EmptyState({ icon: Icon, title, message, action, className }: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, message, action, className, iconClassName }: EmptyStateProps) {
   return (
     <div className={cn("flex flex-col items-center gap-2 py-10 text-center", className)}>
-      <Icon className="w-8 h-8 text-muted-foreground/50" aria-hidden="true" />
+      <Icon className={cn("w-8 h-8 text-muted-foreground/50", iconClassName)} aria-hidden="true" />
       <p className="text-sm font-medium text-foreground">{title}</p>
       {message && <p className="text-sm text-muted-foreground max-w-sm">{message}</p>}
       {action && (
