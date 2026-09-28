@@ -1,11 +1,21 @@
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { format, formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { FolderKanban, CheckCircle2, Clock, AlertCircle, CalendarClock, Plus } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { MetricCard } from "@/components/ui/metric-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { MetaChip } from "@/components/ui/badge";
+import {
+  FolderKanban,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  FileText,
+} from "lucide-react";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
-
+import { buildAttentionItems, type AttentionIssue } from "@/lib/dashboard";
 
 async function getUserProjects(userId: string) {
   return prisma.project.findMany({
@@ -70,209 +80,244 @@ async function getRecentActivity(userId: string) {
   });
 }
 
-const categoryStatusConfig = {
-  TODO: { color: "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300", icon: Clock },
-  IN_PROGRESS: { color: "bg-primary/15 text-primary", icon: Clock },
-  DONE: { color: "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300", icon: CheckCircle2 },
-} as const;
+async function getRecentDocs(userId: string) {
+  return prisma.docPage.findMany({
+    where: {
+      docSpace: { project: { members: { some: { userId } }, isClosed: false } },
+    },
+    include: {
+      docSpace: { select: { project: { select: { key: true, name: true } } } },
+      author: { select: { id: true, name: true } },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 5,
+  });
+}
 
-const priorityConfig = {
-  CRITICAL: { label: "Critical", color: "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300" },
-  HIGH: { label: "High", color: "bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300" },
-  MEDIUM: { label: "Medium", color: "bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300" },
-  LOW: { label: "Low", color: "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400" },
-} as const;
+async function getAssignedCount(userId: string) {
+  return prisma.issue.count({
+    where: {
+      assigneeId: userId,
+      projectStatus: { category: { not: "DONE" } },
+      project: { isClosed: false },
+    },
+  });
+}
+
+async function getDueSoonCount(userId: string) {
+  const now = new Date();
+  const soon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return prisma.issue.count({
+    where: {
+      project: { members: { some: { userId } }, isClosed: false },
+      projectStatus: { category: { not: "DONE" } },
+      dueDate: { not: null, lte: soon },
+    },
+  });
+}
+
+async function getOpenIssuesCount(userId: string) {
+  return prisma.issue.count({
+    where: {
+      project: { members: { some: { userId } }, isClosed: false },
+      projectStatus: { category: { not: "DONE" } },
+    },
+  });
+}
+
+const priorityLabel: Record<"CRITICAL" | "HIGH" | "MEDIUM" | "LOW", string> = {
+  CRITICAL: "Critical",
+  HIGH: "High",
+  MEDIUM: "Medium",
+  LOW: "Low",
+};
 
 export default async function DashboardPage() {
   const session = await requireUser();
+  const userId = session.user.id;
 
-  const [projects, assignedIssues, upcomingDueDates, recentActivity] = await Promise.all([
-    getUserProjects(session.user.id),
-    getAssignedIssues(session.user.id),
-    getUpcomingDueDates(session.user.id),
-    getRecentActivity(session.user.id),
+  const [
+    projects,
+    assignedIssues,
+    upcomingDueDates,
+    recentActivity,
+    recentDocs,
+    assignedCount,
+    dueSoonCount,
+    openIssuesCount,
+  ] = await Promise.all([
+    getUserProjects(userId),
+    getAssignedIssues(userId),
+    getUpcomingDueDates(userId),
+    getRecentActivity(userId),
+    getRecentDocs(userId),
+    getAssignedCount(userId),
+    getDueSoonCount(userId),
+    getOpenIssuesCount(userId),
   ]);
 
   const firstName = session.user.name?.split(" ")[0] ?? "there";
 
+  const attentionItems: AttentionIssue[] = buildAttentionItems(assignedIssues, upcomingDueDates).slice(0, 5);
+  const now = new Date();
+
   return (
     <div className="space-y-6 sm:space-y-8 max-w-6xl">
-      {/* Welcome */}
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-          Hi, {firstName}
-        </h1>
-        <p className="text-zinc-500 dark:text-zinc-400 mt-1 text-sm">
-          Here&apos;s what&apos;s happening across your projects today.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow={format(now, "EEEE, MMMM d")}
+        title={`Welcome back, ${firstName}`}
+        subtitle="Here's what needs your attention today."
+      />
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center">
-                <FolderKanban className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{projects.length}</p>
-                <p className="text-xs text-zinc-500">Projects</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-600/20 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{assignedIssues.length}</p>
-                <p className="text-xs text-zinc-500">Assigned to you</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-600/20 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                  {projects.reduce((sum, p) => sum + p._count.issues, 0)}
-                </p>
-                <p className="text-xs text-zinc-500">Total issues</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard label="Active projects" value={projects.length} icon={FolderKanban} />
+        <MetricCard label="Assigned to you" value={assignedCount} icon={Clock} />
+        <MetricCard label="Due soon / overdue" value={dueSoonCount} icon={AlertCircle} />
+        <MetricCard label="Total open work" value={openIssuesCount} icon={CheckCircle2} />
       </div>
+
+      {/* Needs your attention */}
+      <Card className="bg-surface shadow-[var(--shadow-panel)]">
+        <CardHeader className="pb-3 flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base font-semibold text-foreground">Needs your attention</CardTitle>
+            <p className="text-sm text-muted-foreground mt-0.5">Prioritized by urgency and blockers</p>
+          </div>
+          <Link href="/search" className="text-sm text-primary hover:underline">
+            View all
+          </Link>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          {attentionItems.length === 0 ? (
+            <EmptyState
+              icon={CheckCircle2}
+              title="Nothing needs your attention"
+              message="Issues assigned to you or due soon will show up here."
+            />
+          ) : (
+            attentionItems.map((issue) => {
+              const isOverdue = issue.dueDate ? new Date(issue.dueDate) < now : false;
+              return (
+                <Link
+                  key={issue.id}
+                  href={`/projects/${issue.project.key}/issues/${issue.key}`}
+                  className="flex items-center justify-between p-3 rounded-lg hover:bg-surface-active transition-colors group"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-foreground truncate group-hover:text-primary">{issue.title}</p>
+                    <span className="text-xs text-muted-foreground">
+                      {issue.project.key}-{issue.key.split("-")[1]}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 ml-3 flex-shrink-0">
+                    <MetaChip priority={issue.priority} label={priorityLabel[issue.priority]} />
+                    {issue.dueDate && (
+                      <span
+                        className={`text-xs font-medium whitespace-nowrap flex items-center gap-1 ${
+                          isOverdue ? "text-danger" : "text-warning"
+                        }`}
+                      >
+                        {isOverdue && <AlertCircle className="w-3 h-3" />}
+                        {isOverdue
+                          ? "Overdue"
+                          : new Date(issue.dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Your Projects */}
-        <Card className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+        <Card className="bg-surface shadow-[var(--shadow-panel)]">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Your Projects</CardTitle>
+            <CardTitle className="text-base font-semibold text-foreground">Your Projects</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {projects.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-8">
-                <FolderKanban className="w-10 h-10 text-zinc-300 dark:text-zinc-700" />
-                <p className="text-sm font-medium text-zinc-500">No projects yet</p>
-                <Link
-                  href="/projects"
-                  className="mt-1 inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Create your first project
-                </Link>
-              </div>
+              <EmptyState
+                icon={FolderKanban}
+                title="No projects yet"
+                message="Create a project to start tracking issues with your team."
+                action={{ label: "Create your first project", href: "/projects" }}
+              />
             ) : (
               projects.map((project) => (
                 <Link
                   key={project.id}
                   href={`/projects/${project.key}`}
-                  className="flex items-center justify-between p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
+                  className="flex items-center justify-between p-3 rounded-lg hover:bg-surface-active transition-colors group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded bg-primary flex items-center justify-center flex-shrink-0">
                       <span className="text-xs font-bold text-primary-foreground">{project.key.slice(0, 2)}</span>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-900 dark:group-hover:text-white">{project.name}</p>
-                      <p className="text-xs text-zinc-500">{project._count.members} members · {project._count.issues} issues</p>
+                      <p className="text-sm font-medium text-foreground group-hover:text-primary">{project.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {project._count.members} members · {project._count.issues} issues
+                      </p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-xs border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400">
-                    {project.key}
-                  </Badge>
+                  <span className="text-xs font-mono text-muted-foreground">{project.key}</span>
                 </Link>
               ))
             )}
           </CardContent>
         </Card>
 
-        {/* Assigned to You */}
-        <Card className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+        {/* Recent activity */}
+        <Card className="bg-surface shadow-[var(--shadow-panel)]">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Assigned to You</CardTitle>
+            <CardTitle className="text-base font-semibold text-foreground">Recent Activity</CardTitle>
+            <p className="text-sm text-muted-foreground mt-0.5">Useful changes, without the noise</p>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {assignedIssues.length === 0 ? (
-              <p className="text-zinc-500 text-sm py-4 text-center">Nothing assigned to you</p>
-            ) : (
-              assignedIssues.map((issue) => {
-                const statusCfg = categoryStatusConfig[issue.projectStatus.category];
-                const priority = priorityConfig[issue.priority];
-                return (
-                  <Link
-                    key={issue.id}
-                    href={`/projects/${issue.project.key}/issues/${issue.key}`}
-                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-zinc-900 dark:text-zinc-100 truncate group-hover:text-primary/80">{issue.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-zinc-500">{issue.project.key}-{issue.key.split("-")[1]}</span>
-                        <span className={`text-xs px-1.5 py-0.5 rounded ${statusCfg.color}`}>{issue.projectStatus.name}</span>
-                        <span className={`text-xs px-1.5 py-0.5 rounded ${priority.color}`}>{priority.label}</span>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })
-            )}
+          <CardContent>
+            <ActivityFeed entries={recentActivity} showIssue />
           </CardContent>
         </Card>
       </div>
 
-      {/* Upcoming Due Dates */}
-      {upcomingDueDates.length > 0 && (
-        <Card className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-              <CalendarClock className="w-4 h-4 text-amber-500" />
-              Due Soon
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {upcomingDueDates.map((issue) => {
-              const due = new Date(issue.dueDate!);
-              const isOverdue = due < new Date();
-              return (
-                <Link
-                  key={issue.id}
-                  href={`/projects/${issue.project.key}/issues/${issue.key}`}
-                  className="flex items-center justify-between p-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-zinc-900 dark:text-zinc-100 truncate group-hover:text-primary/80">{issue.title}</p>
-                    <span className="text-xs text-zinc-500">{issue.project.key}-{issue.key.split("-")[1]}</span>
-                  </div>
-                  <span className={`text-xs font-medium ml-3 whitespace-nowrap flex items-center gap-1 ${isOverdue ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
-                    {isOverdue && <AlertCircle className="w-3 h-3" />}
-                    {isOverdue ? "Overdue" : due.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                  </span>
-                </Link>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Recent Activity */}
-      <Card className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+      {/* Recent docs */}
+      <Card className="bg-surface shadow-[var(--shadow-panel)]">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Recent Activity</CardTitle>
+          <CardTitle className="text-base font-semibold text-foreground">Recent Docs</CardTitle>
+          <p className="text-sm text-muted-foreground mt-0.5">Continue where you left off</p>
         </CardHeader>
-        <CardContent>
-          <ActivityFeed entries={recentActivity} showIssue />
+        <CardContent className="space-y-1">
+          {recentDocs.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No docs yet"
+              message="Documentation your team writes will show up here."
+            />
+          ) : (
+            recentDocs.map((doc) => (
+              <Link
+                key={doc.id}
+                href={`/projects/${doc.docSpace.project.key.toLowerCase()}/docs/${doc.id}`}
+                className="flex items-center gap-3 p-3 rounded-lg hover:bg-surface-active transition-colors group"
+              >
+                <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate group-hover:text-primary">
+                    {doc.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {doc.docSpace.project.name} · edited by {doc.author.name}
+                  </p>
+                </div>
+                <span className="text-xs text-muted-foreground flex-shrink-0">
+                  {formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}
+                </span>
+              </Link>
+            ))
+          )}
         </CardContent>
       </Card>
     </div>
