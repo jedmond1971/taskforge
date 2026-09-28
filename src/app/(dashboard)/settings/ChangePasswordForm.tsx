@@ -40,13 +40,12 @@ export function ChangePasswordForm() {
     });
   }
 
-  const labelClass = "text-sm font-medium text-zinc-700 dark:text-zinc-300";
-  const inputClass = "bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100";
+  const labelClass = "text-sm font-medium text-foreground";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-sm">
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-600 dark:text-red-400 text-sm">
+        <div className="bg-danger-soft border border-danger/20 rounded-lg p-3 text-danger text-sm">
           {error}
         </div>
       )}
@@ -59,7 +58,6 @@ export function ChangePasswordForm() {
           onChange={(e) => setCurrent(e.target.value)}
           required
           autoComplete="current-password"
-          className={inputClass}
         />
       </div>
 
@@ -72,9 +70,8 @@ export function ChangePasswordForm() {
           required
           autoComplete="new-password"
           minLength={8}
-          className={inputClass}
         />
-        <p className="text-xs text-zinc-500">Minimum 8 characters</p>
+        <p className="text-xs text-muted-foreground">Minimum 8 characters</p>
       </div>
 
       <div className="space-y-1.5">
@@ -85,7 +82,6 @@ export function ChangePasswordForm() {
           onChange={(e) => setConfirm(e.target.value)}
           required
           autoComplete="new-password"
-          className={inputClass}
         />
       </div>
 
