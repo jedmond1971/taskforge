@@ -148,6 +148,7 @@ export function SearchPageClient({
               setFilterName(f.name);
               setFilterIsGlobal(f.isGlobal);
             }}
+            onCreateFilter={handleOpenSaveDialog}
           />
         </div>
 

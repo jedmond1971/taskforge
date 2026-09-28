@@ -2,7 +2,8 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, GitBranch } from "lucide-react";
+import { Users, GitBranch, Archive } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { reopenProject } from "../closed-actions";
 
 
@@ -49,7 +50,11 @@ export default async function ClosedProjectsPage() {
       </div>
 
       {projects.length === 0 ? (
-        <p className="text-zinc-500 text-sm">No closed projects.</p>
+        <EmptyState
+          icon={Archive}
+          title="No closed projects"
+          message="Projects you close will appear here."
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {projects.map((project) => {
