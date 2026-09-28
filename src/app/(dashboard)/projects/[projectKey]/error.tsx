@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default function ProjectError({
   error,
@@ -16,20 +17,17 @@ export default function ProjectError({
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center">
-      <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-        <AlertTriangle className="w-7 h-7 text-red-400" />
-      </div>
-      <div>
-        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">Something went wrong</h2>
-        <p className="text-sm text-zinc-500 max-w-sm">
-          {error.message || "An unexpected error occurred. Please try again."}
-        </p>
-      </div>
+      <EmptyState
+        icon={AlertTriangle}
+        title="Something went wrong"
+        message={error.message || "An unexpected error occurred. Please try again."}
+        iconClassName="text-danger"
+      />
       <div className="flex gap-3">
         <Button onClick={reset}>
           Try again
         </Button>
-        <Button variant="outline" onClick={() => window.history.back()} className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+        <Button variant="outline" onClick={() => window.history.back()}>
           Go back
         </Button>
       </div>

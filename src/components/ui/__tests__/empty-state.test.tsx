@@ -32,4 +32,11 @@ describe("EmptyState", () => {
     button?.click();
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it("applies iconClassName to the icon, overriding the default muted color", () => {
+    const { container } = render(<EmptyState icon={Inbox} title="Something went wrong" iconClassName="text-danger" />);
+    const svg = container.querySelector("svg");
+    expect(svg?.getAttribute("class")).toContain("text-danger");
+    expect(svg?.getAttribute("class")).not.toContain("text-muted-foreground");
+  });
 });
