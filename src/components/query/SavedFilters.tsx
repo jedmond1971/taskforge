@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, ListFilter } from "lucide-react";
 import { toast } from "sonner";
 import { deleteFilter } from "@/app/(dashboard)/search/filter-actions";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface SavedFilter {
   id: string;
@@ -24,6 +25,7 @@ interface SavedFiltersProps {
     query: string;
     isGlobal: boolean;
   }) => void;
+  onCreateFilter?: () => void;
 }
 
 const quickFilters = [
@@ -50,6 +52,7 @@ export function SavedFilters({
   currentUserId,
   onRunFilter,
   onEditFilter,
+  onCreateFilter,
 }: SavedFiltersProps) {
   const router = useRouter();
 
@@ -101,7 +104,13 @@ export function SavedFilters({
           My Filters
         </h3>
         {myFilters.length === 0 ? (
-          <p className="text-xs text-zinc-600 px-3">No saved filters yet</p>
+          <EmptyState
+            icon={ListFilter}
+            title="No saved filters yet"
+            message="Run a query, then save it to reuse it later."
+            action={onCreateFilter ? { label: "Save a filter", onClick: onCreateFilter } : undefined}
+            className="py-6"
+          />
         ) : (
           <div className="space-y-1">
             {myFilters.map((f) => (

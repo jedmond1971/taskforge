@@ -2,9 +2,10 @@
 
 import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
-import { FileText, File, Plus, X, Search } from "lucide-react";
+import { FileText, File, Plus, X, Search, FolderOpen } from "lucide-react";
 import { DocPageType } from "@prisma/client";
 import { linkDocPage, unlinkDocPage } from "@/app/(dashboard)/projects/[projectKey]/actions";
+import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 
 type LinkedPage = {
@@ -100,9 +101,21 @@ function LinkPickerDialog({
           {loading ? (
             <p className="text-center text-sm text-zinc-400 py-6">Loading…</p>
           ) : filtered.length === 0 ? (
-            <p className="text-center text-sm text-zinc-400 py-6">
-              {pages.length === 0 ? "No pages in this project yet." : "No matching pages."}
-            </p>
+            pages.length === 0 ? (
+              <EmptyState
+                icon={FolderOpen}
+                title="No pages in this project yet"
+                message="Create a doc page first, then link it here."
+                className="py-6"
+              />
+            ) : (
+              <EmptyState
+                icon={Search}
+                title="No matching pages"
+                message="Try a different search term."
+                className="py-6"
+              />
+            )
           ) : (
             filtered.map((page) => (
               <button
@@ -207,9 +220,13 @@ export function RelatedDocsSection({
 
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
           {links.length === 0 ? (
-            <p className="text-sm text-zinc-400 dark:text-zinc-600 italic px-3 py-3">
-              No related docs.{canEdit ? " Click \"Link a doc page\" to attach one." : ""}
-            </p>
+            <EmptyState
+              icon={FileText}
+              title="No related docs"
+              message={canEdit ? undefined : "No documentation has been linked to this issue yet."}
+              action={canEdit ? { label: "Link a doc page", onClick: () => setPickerOpen(true) } : undefined}
+              className="py-6"
+            />
           ) : (
             <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {links.map((link) => (

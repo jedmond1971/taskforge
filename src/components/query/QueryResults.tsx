@@ -8,6 +8,7 @@ import { PriorityBadge } from "@/components/issues/PriorityBadge";
 import { TYPE_CONFIG } from "@/lib/issue-utils";
 import { IssueTypeIcon } from "@/components/icons/IssueTypeIcon";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface QueryIssue {
   id: string;
@@ -63,20 +64,6 @@ function LoadingSkeleton() {
   );
 }
 
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <SearchX className="w-12 h-12 text-zinc-700 mb-4" />
-      <p className="text-zinc-400 text-sm font-medium">
-        No issues match your query
-      </p>
-      <p className="text-zinc-600 text-xs mt-1">
-        Try adjusting your search criteria
-      </p>
-    </div>
-  );
-}
-
 function formatDate(date: Date | string): string {
   return new Date(date).toLocaleDateString("en-US", {
     month: "short",
@@ -95,7 +82,13 @@ export function QueryResults({ results, isLoading }: QueryResultsProps) {
   }
 
   if (results.issues.length === 0) {
-    return <EmptyState />;
+    return (
+      <EmptyState
+        icon={SearchX}
+        title="No issues match your query"
+        message="Try adjusting your search criteria."
+      />
+    );
   }
 
   return (
