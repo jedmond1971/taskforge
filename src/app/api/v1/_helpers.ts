@@ -1,4 +1,4 @@
-import { IssuePriority, StatusCategory } from "@prisma/client";
+import { IssuePriority, IssueType, StatusCategory } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const PRIORITY_MAP: Record<string, IssuePriority> = {
@@ -7,6 +7,13 @@ export const PRIORITY_MAP: Record<string, IssuePriority> = {
   HIGH: IssuePriority.HIGH,
   CRITICAL: IssuePriority.CRITICAL,
   URGENT: IssuePriority.CRITICAL,
+};
+
+export const TYPE_MAP: Record<string, IssueType> = {
+  BUG: IssueType.BUG,
+  TASK: IssueType.TASK,
+  STORY: IssueType.STORY,
+  EPIC: IssueType.EPIC,
 };
 
 // Resolve a status string (name or legacy category key) to a ProjectStatus record.
@@ -51,6 +58,7 @@ export function formatIssue(issue: {
   statusId: string;
   projectStatus: { id: string; name: string; category: StatusCategory };
   priority: IssuePriority;
+  type: IssueType;
   projectId: string;
   assigneeId: string | null;
   reporterId: string;
@@ -72,6 +80,7 @@ export function formatIssue(issue: {
       category: issue.projectStatus.category,
     },
     priority: issue.priority,
+    type: issue.type,
     projectId: issue.projectId,
     projectName: issue.project?.name ?? null,
     assigneeId: issue.assigneeId,
