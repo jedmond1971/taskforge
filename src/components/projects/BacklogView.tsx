@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StatusBadge } from "@/components/issues/StatusBadge";
 import { PriorityBadge } from "@/components/issues/PriorityBadge";
 import { IssueTypeIcon } from "@/components/icons/IssueTypeIcon";
+import { MonoMeta } from "@/components/ui/mono-meta";
 import {
   createSprint,
   startSprint,
@@ -52,16 +53,16 @@ function IssueRowItem({
   action: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-2 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
+    <div className="flex items-center gap-3 px-3 py-2 border-b border-border-soft last:border-0">
       <IssueTypeIcon type={issue.type} size={16} />
-      <span className="text-xs font-mono text-zinc-500 flex-shrink-0">{issue.key}</span>
-      <span className="text-sm text-zinc-900 dark:text-zinc-100 truncate flex-1">{issue.title}</span>
+      <MonoMeta className="flex-shrink-0">{issue.key}</MonoMeta>
+      <span className="text-sm text-foreground truncate flex-1">{issue.title}</span>
       <PriorityBadge priority={issue.priority} />
       <StatusBadge status={issue.projectStatus} />
       {issue.assignee ? (
-        <span className="text-xs text-zinc-500 flex-shrink-0">{issue.assignee.name}</span>
+        <span className="text-xs text-muted-foreground flex-shrink-0">{issue.assignee.name}</span>
       ) : (
-        <span className="text-xs text-zinc-400 flex-shrink-0">Unassigned</span>
+        <span className="text-xs text-muted-foreground flex-shrink-0">Unassigned</span>
       )}
       {action}
     </div>
@@ -142,10 +143,10 @@ export function BacklogView({
 
   return (
     <>
-      <div className="rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="rounded-xl bg-surface shadow-[var(--shadow-panel)]">
         {!currentSprint && (
           <div className="p-4 space-y-3">
-            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Current Sprint</h2>
+            <h2 className="text-sm font-semibold text-foreground">Current Sprint</h2>
             {userCanManageSprint ? (
               <div className="space-y-2">
                 <Input
@@ -165,21 +166,21 @@ export function BacklogView({
                 </Button>
               </div>
             ) : (
-              <p className="text-sm text-zinc-500">No sprint has been created yet.</p>
+              <p className="text-sm text-muted-foreground">No sprint has been created yet.</p>
             )}
           </div>
         )}
 
         {currentSprint && (
           <div>
-            <div className="p-4 flex items-start justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800">
+            <div className="p-4 flex items-start justify-between gap-4 border-b border-border-soft">
               <div>
-                <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{currentSprint.name}</h2>
-                {currentSprint.goal && <p className="text-xs text-zinc-500 mt-0.5">{currentSprint.goal}</p>}
-                <p className="text-xs text-zinc-400 mt-1">
+                <h2 className="text-sm font-semibold text-foreground">{currentSprint.name}</h2>
+                {currentSprint.goal && <p className="text-xs text-muted-foreground mt-0.5">{currentSprint.goal}</p>}
+                <MonoMeta className="mt-1 block">
                   {currentSprint.status === "PLANNED" ? "Planned" : "Active"}
                   {currentSprint.startDate && ` • started ${new Date(currentSprint.startDate).toLocaleDateString()}`}
-                </p>
+                </MonoMeta>
               </div>
               {userCanManageSprint && currentSprint.status === "PLANNED" && (
                 <Button onClick={handleStartSprint} disabled={isPending}>
@@ -197,7 +198,7 @@ export function BacklogView({
               )}
             </div>
             {currentSprint.issues.length === 0 ? (
-              <p className="text-sm text-zinc-500 p-4">No issues in this sprint yet.</p>
+              <p className="text-sm text-muted-foreground p-4">No issues in this sprint yet.</p>
             ) : (
               <div>
                 {currentSprint.issues.map((issue) => (
@@ -224,14 +225,14 @@ export function BacklogView({
         )}
       </div>
 
-      <div className="rounded-lg border border-zinc-200 dark:border-zinc-800">
-        <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+      <div className="rounded-xl bg-surface shadow-[var(--shadow-panel)]">
+        <div className="p-4 border-b border-border-soft">
+          <h2 className="text-sm font-semibold text-foreground">
             Backlog ({backlogIssues.length})
           </h2>
         </div>
         {backlogIssues.length === 0 ? (
-          <p className="text-sm text-zinc-500 p-4">Backlog is empty.</p>
+          <p className="text-sm text-muted-foreground p-4">Backlog is empty.</p>
         ) : (
           <div>
             {backlogIssues.map((issue) => (
