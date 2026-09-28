@@ -47,22 +47,22 @@ function FieldRow({ field }: { field: LayoutField }) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900",
+        "flex items-center gap-2 px-3 py-2 rounded-lg border border-border-soft bg-surface",
         isDragging && "opacity-50 shadow-lg"
       )}
     >
       <button
         {...attributes}
         {...listeners}
-        className="text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 cursor-grab active:cursor-grabbing touch-none"
+        className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none"
         tabIndex={-1}
       >
         <GripVertical className="w-4 h-4" />
       </button>
-      <span className="flex-1 text-sm text-zinc-700 dark:text-zinc-300 truncate">
+      <span className="flex-1 text-sm text-foreground truncate">
         {field.name}
       </span>
-      <span className="text-xs text-zinc-400 dark:text-zinc-600">
+      <span className="text-xs text-muted-foreground">
         {TYPE_LABELS[field.type]}
       </span>
     </div>
@@ -109,7 +109,7 @@ export function ScreenLayoutSettings({ projectKey }: { projectKey: string }) {
     return (
       <div className="space-y-2 animate-pulse">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-10 bg-zinc-100 dark:bg-zinc-800 rounded-lg" />
+          <div key={i} className="h-10 bg-surface-active rounded-lg" />
         ))}
       </div>
     );
@@ -118,10 +118,10 @@ export function ScreenLayoutSettings({ projectKey }: { projectKey: string }) {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+        <h3 className="text-sm font-medium text-foreground mb-1">
           Custom field order
         </h3>
-        <p className="text-xs text-zinc-500 dark:text-zinc-500">
+        <p className="text-xs text-muted-foreground">
           Drag to arrange the order custom fields appear on this project&apos;s issue
           screen. Field definitions themselves are managed org-wide in the Custom
           Fields tab.
@@ -129,7 +129,7 @@ export function ScreenLayoutSettings({ projectKey }: { projectKey: string }) {
       </div>
 
       {fields.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-500 px-3 py-6 text-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg">
+        <p className="text-sm text-muted-foreground px-3 py-6 text-center border border-dashed border-border-soft rounded-lg">
           No custom fields apply to this project yet.
         </p>
       ) : (

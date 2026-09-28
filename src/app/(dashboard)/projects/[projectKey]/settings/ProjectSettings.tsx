@@ -14,6 +14,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { MonoMeta } from "@/components/ui/mono-meta";
 import { cn } from "@/lib/utils";
 import { Trash2, UserPlus, Search, UserRoundPlus } from "lucide-react";
 import { BoardSettings } from "./BoardSettings";
@@ -71,8 +72,8 @@ interface ProjectSettingsProps {
 
 const roleColors: Record<string, string> = {
   PROJECT_LEAD: "bg-primary/20 text-primary border border-primary/30",
-  TEAM_MEMBER: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30",
-  VIEWER: "bg-zinc-500/20 text-zinc-400 border border-zinc-500/30",
+  TEAM_MEMBER: "bg-success-soft text-success border border-success/20",
+  VIEWER: "bg-surface-active text-muted-foreground border border-border-soft",
 };
 
 const roleLabels: Record<string, string> = {
@@ -82,7 +83,7 @@ const roleLabels: Record<string, string> = {
 };
 
 const selectStyles =
-  "h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-primary";
+  "h-8 rounded-lg border border-border bg-surface-active px-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary";
 
 function getInitials(name: string | null): string {
   if (!name) return "?";
@@ -125,7 +126,7 @@ export function ProjectSettings({
   return (
     <div className="space-y-6">
       {/* Tab navigation */}
-      <nav className="flex gap-1 border-b border-zinc-200 dark:border-zinc-800">
+      <nav className="flex gap-1 border-b border-border-soft">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -134,7 +135,7 @@ export function ProjectSettings({
               "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
               activeTab === tab.id
                 ? "border-primary text-primary"
-                : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
             {tab.label}
@@ -218,43 +219,42 @@ function GeneralTab({
   return (
     <div className="max-w-xl space-y-6">
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        <label className="text-sm font-medium text-foreground">
           Project name
         </label>
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
         />
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Description</label>
+        <label className="text-sm font-medium text-foreground">Description</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+          className="w-full px-3 py-2 bg-surface-active border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
         />
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Project key</label>
-        <div className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-300/50 dark:border-zinc-700/50 rounded-lg text-sm text-zinc-500 dark:text-zinc-400 font-mono">
-          {project.key}
+        <label className="text-sm font-medium text-foreground">Project key</label>
+        <div className="px-3 py-2 bg-surface-active border border-border-soft rounded-lg text-sm text-muted-foreground">
+          <MonoMeta>{project.key}</MonoMeta>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
-          <p className="text-zinc-500">Created</p>
-          <p className="text-zinc-700 dark:text-zinc-300">
+          <p className="text-muted-foreground">Created</p>
+          <p className="text-foreground">
             {new Date(project.createdAt).toLocaleDateString()}
           </p>
         </div>
         <div>
-          <p className="text-zinc-500">Owner</p>
-          <p className="text-zinc-700 dark:text-zinc-300">{ownerName}</p>
+          <p className="text-muted-foreground">Owner</p>
+          <p className="text-foreground">{ownerName}</p>
         </div>
       </div>
 
@@ -331,10 +331,10 @@ function MembersTab({
     <div className="space-y-8">
       {/* Members list */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        <h3 className="text-sm font-medium text-foreground">
           Project members ({members.length})
         </h3>
-        <div className="divide-y divide-zinc-200 dark:divide-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+        <div className="divide-y divide-border-soft rounded-xl border border-border-soft overflow-hidden">
           {members.map((member) => {
             const isOwner = member.role === "PROJECT_LEAD";
             const isSelf = member.userId === currentUserId;
@@ -342,7 +342,7 @@ function MembersTab({
             return (
               <div
                 key={member.id}
-                className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-zinc-900"
+                className="flex items-center gap-3 px-4 py-3 bg-surface"
               >
                 <Avatar size="default">
                   {member.user.avatarUrl && (
@@ -354,13 +354,13 @@ function MembersTab({
                 </Avatar>
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                  <p className="text-sm font-medium text-foreground truncate">
                     {member.user.name ?? "Unnamed"}
                     {isSelf && (
-                      <span className="text-zinc-500 ml-1">(you)</span>
+                      <span className="text-muted-foreground ml-1">(you)</span>
                     )}
                   </p>
-                  <p className="text-xs text-zinc-500 truncate">
+                  <p className="text-xs text-muted-foreground truncate">
                     {member.user.email}
                   </p>
                 </div>
@@ -398,7 +398,7 @@ function MembersTab({
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => setMemberToRemove(member)}
-                    className="text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
+                    className="text-muted-foreground hover:text-danger hover:bg-danger-soft"
                   >
                     <Trash2 className="size-4" />
                   </Button>
@@ -421,12 +421,12 @@ function MembersTab({
           if (!open) setMemberToRemove(null);
         }}
       >
-        <DialogContent className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-zinc-900 dark:text-zinc-100">Remove member</DialogTitle>
-            <DialogDescription className="text-zinc-600 dark:text-zinc-400">
+            <DialogTitle>Remove member</DialogTitle>
+            <DialogDescription>
               Are you sure you want to remove{" "}
-              <span className="font-medium text-zinc-800 dark:text-zinc-200">
+              <span className="font-medium text-foreground">
                 {memberToRemove?.user.name ?? memberToRemove?.user.email}
               </span>{" "}
               from this project?
@@ -436,7 +436,6 @@ function MembersTab({
             <Button
               variant="outline"
               onClick={() => setMemberToRemove(null)}
-              className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
               Cancel
             </Button>
@@ -567,7 +566,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Add member</h3>
+        <h3 className="text-sm font-medium text-foreground">Add member</h3>
         <button
           onClick={() => setMode(mode === "search" ? "create" : "search")}
           className="text-xs text-primary hover:text-primary/80 transition-colors"
@@ -582,24 +581,24 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
         <div className="space-y-3">
           {/* Search input */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               placeholder="Search users by email..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
-              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 pl-9"
+              className="pl-9"
             />
           </div>
 
           {/* Search results dropdown */}
           {searchQuery.trim() && !selectedUser && (
-            <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="rounded-lg border border-border-soft bg-surface overflow-hidden">
               {searching ? (
-                <div className="px-4 py-3 text-sm text-zinc-500">
+                <div className="px-4 py-3 text-sm text-muted-foreground">
                   Searching...
                 </div>
               ) : searchResults.length === 0 ? (
-                <div className="px-4 py-3 text-sm text-zinc-500">
+                <div className="px-4 py-3 text-sm text-muted-foreground">
                   No users found
                 </div>
               ) : (
@@ -607,7 +606,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
                   <button
                     key={user.id}
                     onClick={() => setSelectedUser(user)}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-surface-active transition-colors"
                   >
                     <Avatar size="sm">
                       {user.avatarUrl && (
@@ -618,10 +617,10 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <p className="text-sm text-zinc-800 dark:text-zinc-200 truncate">
+                      <p className="text-sm text-foreground truncate">
                         {user.name ?? "Unnamed"}
                       </p>
-                      <p className="text-xs text-zinc-500 truncate">
+                      <p className="text-xs text-muted-foreground truncate">
                         {user.email}
                       </p>
                     </div>
@@ -633,7 +632,7 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
 
           {/* Selected user */}
           {selectedUser && (
-            <div className="flex items-center gap-3 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-border-soft bg-surface">
               <Avatar size="sm">
                 {selectedUser.avatarUrl && (
                   <AvatarImage src={selectedUser.avatarUrl} />
@@ -643,10 +642,10 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-zinc-800 dark:text-zinc-200 truncate">
+                <p className="text-sm text-foreground truncate">
                   {selectedUser.name ?? "Unnamed"}
                 </p>
-                <p className="text-xs text-zinc-500 truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   {selectedUser.email}
                 </p>
               </div>
@@ -675,26 +674,24 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
         /* Create user mode */
         <div className="space-y-3 max-w-md">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Name</label>
+            <label className="text-sm font-medium text-foreground">Name</label>
             <Input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Full name"
-              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Email</label>
+            <label className="text-sm font-medium text-foreground">Email</label>
             <Input
               type="email"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
               placeholder="user@example.com"
-              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label className="text-sm font-medium text-foreground">
               Password
             </label>
             <Input
@@ -702,11 +699,10 @@ function AddMemberSection({ projectKey }: { projectKey: string }) {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Temporary password"
-              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Role</label>
+            <label className="text-sm font-medium text-foreground">Role</label>
             <select
               value={createRole}
               onChange={(e) =>
@@ -782,11 +778,11 @@ function DangerZoneTab({
     <div className="max-w-xl space-y-4">
       {/* Private project toggle — Admin only */}
       {isAdmin && (
-        <div className="border border-zinc-500/30 rounded-xl p-6 bg-zinc-500/5">
-          <h3 className="text-lg font-semibold text-zinc-300 mb-2">
+        <div className="border border-border rounded-xl p-6 bg-surface-active">
+          <h3 className="text-lg font-semibold text-foreground mb-2">
             Project Visibility
           </h3>
-          <p className="text-sm text-zinc-400 mb-4">
+          <p className="text-sm text-muted-foreground mb-4">
             {project.isPrivate
               ? "This project is private — only members can see it."
               : "This project is public — all org members can find it."}
@@ -795,7 +791,6 @@ function DangerZoneTab({
             variant="outline"
             onClick={handlePrivacyToggle}
             disabled={togglingPrivacy}
-            className="border-zinc-500/40 text-zinc-300 hover:bg-zinc-500/10"
           >
             {togglingPrivacy
               ? "Updating..."
@@ -807,11 +802,11 @@ function DangerZoneTab({
       )}
 
       {/* Delete project */}
-      <div className="border border-red-500/30 rounded-xl p-6 bg-red-500/5">
-        <h3 className="text-lg font-semibold text-red-400 mb-2">
+      <div className="border border-danger/30 rounded-xl p-6 bg-danger-soft">
+        <h3 className="text-lg font-semibold text-danger mb-2">
           Delete Project
         </h3>
-        <p className="text-sm text-zinc-400 mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Once you delete a project, there is no going back. This will
           permanently delete the project and all associated data including
           issues, comments, activity logs, and member associations.
@@ -825,27 +820,27 @@ function DangerZoneTab({
       </div>
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-zinc-900 dark:text-zinc-100">
+            <DialogTitle>
               Delete project {project.key}?
             </DialogTitle>
-            <DialogDescription className="text-zinc-600 dark:text-zinc-400">
+            <DialogDescription>
               This action cannot be undone. All issues, comments, and data will
               be permanently deleted.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <label className="text-sm text-zinc-700 dark:text-zinc-300">
-                Type <span className="font-bold text-zinc-900 dark:text-zinc-100">{project.key}</span> to
+              <label className="text-sm text-foreground">
+                Type <span className="font-bold text-foreground">{project.key}</span> to
                 confirm
               </label>
               <Input
                 value={confirmInput}
                 onChange={(e) => setConfirmInput(e.target.value)}
                 placeholder={project.key}
-                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-mono"
+                className="font-mono"
               />
             </div>
             <div className="flex justify-end gap-2">
@@ -855,7 +850,6 @@ function DangerZoneTab({
                   setShowDeleteDialog(false);
                   setConfirmInput("");
                 }}
-                className="border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
                 Cancel
               </Button>

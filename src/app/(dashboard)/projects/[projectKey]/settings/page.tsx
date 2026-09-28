@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { ProjectSettings } from "./ProjectSettings";
 import { canManageCustomFields, canManageMembers, getUserGrants } from "@/lib/permissions";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ShieldOff } from "lucide-react";
 
 
 export default async function SettingsPage(
@@ -73,15 +75,12 @@ export default async function SettingsPage(
   const isProjectLead = currentMember?.role === "PROJECT_LEAD";
   if (!isProjectLead && !userCanManageCustomFields && !canManageMembersGrant) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <h2 className="text-lg font-semibold text-zinc-100 mb-2">
-            Access Denied
-          </h2>
-          <p className="text-sm text-zinc-500">
-            You don&apos;t have permission to access project settings.
-          </p>
-        </div>
+      <div className="py-20">
+        <EmptyState
+          icon={ShieldOff}
+          title="Access Denied"
+          message="You don't have permission to access project settings."
+        />
       </div>
     );
   }
