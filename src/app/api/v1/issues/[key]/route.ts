@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { resolveStatusForProject, PRIORITY_MAP, formatIssue } from "../../_helpers";
+import { resolveStatusForProject, PRIORITY_MAP, TYPE_MAP, formatIssue } from "../../_helpers";
 import { requireV1ApiKey } from "@/lib/v1-auth";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
@@ -112,6 +112,20 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ key
         );
       }
       updates.priority = p;
+    }
+
+    if ("type" in body) {
+      if (typeof body.type !== "string") {
+        return NextResponse.json({ error: "type must be a string" }, { status: 400 });
+      }
+      const t = TYPE_MAP[body.type];
+      if (!t) {
+        return NextResponse.json(
+          { error: `Invalid type: ${body.type}. Use BUG, TASK, STORY, or EPIC` },
+          { status: 400 }
+        );
+      }
+      updates.type = t;
     }
 
     if ("assigneeId" in body) {

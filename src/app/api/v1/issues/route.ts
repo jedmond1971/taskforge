@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateIssueKeyWithRetry } from "@/lib/issue-keys";
 import { IssuePriority, IssueType, Prisma } from "@prisma/client";
-import { resolveStatusForProject, PRIORITY_MAP, formatIssue } from "../_helpers";
+import { resolveStatusForProject, PRIORITY_MAP, TYPE_MAP, formatIssue } from "../_helpers";
 import { requireV1ApiKey } from "@/lib/v1-auth";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const authError = await requireV1ApiKey(request);
     if (authError) return authError;
     const body = (await request.json()) as Record<string, unknown>;
-    const { projectId, title, description, status, priority, assigneeId, reporterId } = body;
+    const { projectId, title, description, status, priority, type, assigneeId, reporterId } = body;
 
     if (!projectId || typeof projectId !== "string") {
       return NextResponse.json({ error: "projectId is required" }, { status: 400 });
@@ -115,6 +115,18 @@ export async function POST(request: NextRequest) {
       resolvedPriority = p;
     }
 
+    let resolvedType: IssueType = IssueType.TASK;
+    if (type && typeof type === "string") {
+      const t = TYPE_MAP[type];
+      if (!t) {
+        return NextResponse.json(
+          { error: `Invalid type: ${type}. Use BUG, TASK, STORY, or EPIC` },
+          { status: 400 }
+        );
+      }
+      resolvedType = t;
+    }
+
     let resolvedReporterId = typeof reporterId === "string" ? reporterId : null;
     if (!resolvedReporterId) {
       const firstMember = await prisma.projectMember.findFirst({
@@ -155,7 +167,7 @@ export async function POST(request: NextRequest) {
               description: typeof description === "string" ? sanitizeTipTapHtml(description) : null,
               statusId: resolvedStatusId,
               priority: resolvedPriority,
-              type: IssueType.TASK,
+              type: resolvedType,
               assigneeId: typeof assigneeId === "string" ? assigneeId : null,
               reporterId: resolvedReporterId,
               labels: [],

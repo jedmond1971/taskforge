@@ -119,6 +119,7 @@ Create a new issue.
   "description": "string (optional, markdown supported)",
   "statusId": "TODO | IN_PROGRESS | IN_REVIEW | DONE (optional, default: TODO)",
   "priority": "LOW | MEDIUM | HIGH | CRITICAL | URGENT (optional, default: MEDIUM)",
+  "type": "BUG | TASK | STORY | EPIC (optional, default: TASK)",
   "assigneeId": "user cuid (optional)",
   "reporterId": "user cuid (optional — defaults to first project member)"
 }
@@ -132,6 +133,7 @@ Create a new issue.
   "title": "...",
   "status": { "id": "TODO", "name": "To Do" },
   "priority": "MEDIUM",
+  "type": "TASK",
   "projectId": "cuid",
   "createdAt": "2024-01-01T00:00:00.000Z"
 }
@@ -158,6 +160,7 @@ Get a single issue by its key (e.g. `TF-42`). Key lookup is case-insensitive.
   "description": "...",
   "status": { "id": "IN_PROGRESS", "name": "In Progress" },
   "priority": "HIGH",
+  "type": "BUG",
   "projectId": "cuid",
   "projectName": "TaskForge",
   "assigneeId": "cuid or null",
@@ -186,6 +189,7 @@ Update an issue. All fields are optional; only provided fields are changed.
   "description": "string or null",
   "statusId": "TODO | IN_PROGRESS | IN_REVIEW | DONE",
   "priority": "LOW | MEDIUM | HIGH | CRITICAL | URGENT",
+  "type": "BUG | TASK | STORY | EPIC",
   "assigneeId": "user cuid or null"
 }
 ```
