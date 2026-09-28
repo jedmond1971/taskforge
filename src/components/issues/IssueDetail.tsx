@@ -10,7 +10,6 @@ import { Pencil, Trash2, Check, X, ChevronRight, Plus, Link2 } from "lucide-reac
 import { IssueTypeIcon } from "@/components/icons/IssueTypeIcon";
 import { LabelInput } from "@/components/issues/LabelInput";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CommentThread } from "@/components/comments/CommentThread";
 import { CommentForm } from "@/components/comments/CommentForm";
@@ -24,6 +23,9 @@ import { LinkedIssuesSection } from "@/components/issues/LinkedIssuesSection";
 import { ParentPicker, IssuePickerDialog, type PickerIssue } from "@/components/issues/ParentPicker";
 import { CustomFieldsPanel } from "@/components/issues/CustomFieldsPanel";
 import { AiChatPanel } from "@/components/ai/AiChatPanel";
+import { StatusChip, MetaChip } from "@/components/ui/badge";
+import { MonoMeta } from "@/components/ui/mono-meta";
+import { PropertyRow } from "@/components/ui/property-row";
 
 type User = { id: string; name: string; avatarUrl: string | null };
 type ActivityLog = {
@@ -147,23 +149,23 @@ function EditableTitle({ value, issueId, projectKey, onSaved, canEdit }: {
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="flex-1 text-xl font-bold bg-zinc-50 dark:bg-zinc-800 border border-primary rounded px-2 py-1 text-zinc-900 dark:text-zinc-100 focus:outline-none"
+          className="flex-1 text-2xl sm:text-3xl font-bold tracking-tight bg-surface-raised border border-primary rounded px-2 py-1 text-foreground focus:outline-none"
           onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") { setTitle(value); setEditing(false); } }}
           autoFocus
         />
-        <button onClick={save} disabled={isPending} className="p-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300"><Check className="w-4 h-4" /></button>
-        <button onClick={() => { setTitle(value); setEditing(false); }} className="p-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"><X className="w-4 h-4" /></button>
+        <button onClick={save} disabled={isPending} className="p-1 text-success hover:opacity-80"><Check className="w-4 h-4" /></button>
+        <button onClick={() => { setTitle(value); setEditing(false); }} className="p-1 text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
       </div>
     );
   }
 
   return (
     <div className="flex items-start gap-2 group">
-      <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex-1">{value}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex-1">{value}</h1>
       {canEdit && (
         <button
           onClick={() => setEditing(true)}
-          className="p-1 text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
+          className="p-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity mt-1"
         >
           <Pencil className="w-3.5 h-3.5" />
         </button>
@@ -172,7 +174,7 @@ function EditableTitle({ value, issueId, projectKey, onSaved, canEdit }: {
   );
 }
 
-const selectClass = "w-full px-2 py-1.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50";
+const selectClass = "w-full px-2 py-1.5 bg-surface-raised border border-border-soft rounded text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50";
 
 function InlineSelect<T extends string>({ label, value, options, issueId, projectKey, fieldKey, onSaved, disabled: extraDisabled = false }: {
   label: string;
@@ -196,19 +198,17 @@ function InlineSelect<T extends string>({ label, value, options, issueId, projec
   }
 
   return (
-    <div>
-      <p className="text-xs text-zinc-500 font-medium mb-1">{label}</p>
-      <select
-        value={value}
-        onChange={(e) => handleChange(e.target.value as T)}
-        disabled={isPending || extraDisabled}
-        className={selectClass + " min-h-[44px]"}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-    </div>
+    <select
+      aria-label={label}
+      value={value}
+      onChange={(e) => handleChange(e.target.value as T)}
+      disabled={isPending || extraDisabled}
+      className={selectClass + " min-h-[44px]"}
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>{o.label}</option>
+      ))}
+    </select>
   );
 }
 
@@ -335,35 +335,44 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
     />
     <div className="flex flex-col xl:flex-row xl:items-start gap-6">
     <div className="max-w-5xl min-w-0 flex-1">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-zinc-500 mb-4 flex-wrap">
-        <ParentPicker
-          issueId={issue.id}
-          projectKey={projectKey}
-          currentParent={issue.parent}
-          canEdit={canEdit}
-          onChanged={refresh}
-        />
-        {issue.parent && <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
-        <span className="flex items-center gap-1.5">
-          <IssueTypeIcon type={issue.type} size={20} />
-          <span className="font-mono text-primary">{issue.key}</span>
-        </span>
-        <span>·</span>
-        <span>{issue.project.name}</span>
+      {/* Hero */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 flex-wrap">
+          <ParentPicker
+            issueId={issue.id}
+            projectKey={projectKey}
+            currentParent={issue.parent}
+            canEdit={canEdit}
+            onChanged={refresh}
+          />
+          {issue.parent && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+          <span>{issue.project.name}</span>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <span className="mt-1.5 flex-shrink-0" title={TYPE_CONFIG[issue.type].label}>
+            <IssueTypeIcon type={issue.type} size={24} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              <MonoMeta className="text-sm">{issue.key}</MonoMeta>
+              <StatusChip category={issue.projectStatus.category} label={issue.projectStatus.name} />
+              <MetaChip priority={issue.priority} label={PRIORITY_CONFIG[issue.priority].label} />
+            </div>
+            <EditableTitle
+              value={issue.title}
+              issueId={issue.id}
+              projectKey={projectKey}
+              onSaved={refresh}
+              canEdit={canEdit}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
         {/* Main content */}
         <div className="space-y-6">
-          <EditableTitle
-            value={issue.title}
-            issueId={issue.id}
-            projectKey={projectKey}
-            onSaved={refresh}
-            canEdit={canEdit}
-          />
-
           {/* Description */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -483,12 +492,6 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
             canEdit={canEdit}
           />
 
-          {/* Labels */}
-          <div>
-            <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">Labels</h3>
-            <LabelInput labels={labels} onChange={handleLabelsChange} disabled={isPending || !canEdit} />
-          </div>
-
           {/* Attachments */}
           <div>
             <AttachmentsPanel
@@ -499,74 +502,67 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
             />
           </div>
 
-          {/* Comments */}
-          <div>
-            <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-4">
-              Comments
-              {issue.comments.length > 0 && (
-                <span className="ml-2 text-xs text-zinc-400 dark:text-zinc-600 bg-zinc-100 dark:bg-zinc-800 rounded px-1.5 py-0.5 font-mono">
-                  {issue.comments.length}
-                </span>
-              )}
-            </h3>
-            <div className="space-y-5 mb-5">
-              <CommentThread
-                comments={issue.comments}
+          {/* Activity timeline: comments + field-change history, sharing one panel */}
+          <div className="bg-surface rounded-[10px] shadow-[var(--shadow-panel)] p-4 space-y-5">
+            <div>
+              <h3 className="text-sm font-medium text-foreground mb-4">
+                Comments
+                {issue.comments.length > 0 && (
+                  <MonoMeta className="ml-2">{issue.comments.length}</MonoMeta>
+                )}
+              </h3>
+              <div className="space-y-5 mb-5">
+                <CommentThread
+                  comments={issue.comments}
+                  projectKey={projectKey}
+                  currentUserId={currentUserId}
+                />
+              </div>
+              <CommentForm
                 projectKey={projectKey}
-                currentUserId={currentUserId}
+                issueId={issue.id}
+                currentUserName={currentUserName}
+                currentUserInitial={currentUserInitial}
               />
             </div>
-            <CommentForm
-              projectKey={projectKey}
-              issueId={issue.id}
-              currentUserName={currentUserName}
-              currentUserInitial={currentUserInitial}
-            />
-          </div>
 
-          {/* Activity */}
-          <div>
-            <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-3">Activity</h3>
-            <ActivityFeed entries={issue.activityLogs} />
+            <div className="border-t border-border-soft pt-5">
+              <h3 className="text-sm font-medium text-foreground mb-3">History</h3>
+              <ActivityFeed entries={issue.activityLogs} />
+            </div>
           </div>
         </div>
 
-        {/* Sidebar */}
+        {/* Properties rail */}
         <div className="space-y-4">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-4">
-            <InlineSelect
-              label="Status"
-              value={issue.statusId}
-              options={statusOptions}
-              issueId={issue.id}
-              projectKey={projectKey}
-              fieldKey="statusId"
-              onSaved={refresh}
-              disabled={!canEdit}
-            />
-            <InlineSelect
-              label="Priority"
-              value={issue.priority}
-              options={priorityOptions}
-              issueId={issue.id}
-              projectKey={projectKey}
-              fieldKey="priority"
-              onSaved={refresh}
-              disabled={!canEdit}
-            />
-            <InlineSelect
-              label="Type"
-              value={issue.type}
-              options={typeOptions}
-              issueId={issue.id}
-              projectKey={projectKey}
-              fieldKey="type"
-              onSaved={refresh}
-              disabled={!canEdit}
-            />
-            <div>
-              <p className="text-xs text-zinc-500 font-medium mb-1">Assignee</p>
+          <div className="bg-surface rounded-[10px] shadow-[var(--shadow-panel)] p-4">
+            <PropertyRow label="Status">
+              <InlineSelect
+                label="Status"
+                value={issue.statusId}
+                options={statusOptions}
+                issueId={issue.id}
+                projectKey={projectKey}
+                fieldKey="statusId"
+                onSaved={refresh}
+                disabled={!canEdit}
+              />
+            </PropertyRow>
+            <PropertyRow label="Priority">
+              <InlineSelect
+                label="Priority"
+                value={issue.priority}
+                options={priorityOptions}
+                issueId={issue.id}
+                projectKey={projectKey}
+                fieldKey="priority"
+                onSaved={refresh}
+                disabled={!canEdit}
+              />
+            </PropertyRow>
+            <PropertyRow label="Assignee">
               <select
+                aria-label="Assignee"
                 value={issue.assigneeId ?? ""}
                 onChange={(e) => {
                   if (!canEdit) return;
@@ -583,10 +579,22 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
-            </div>
-            <div>
-              <p className="text-xs text-zinc-500 font-medium mb-1">Due Date</p>
+            </PropertyRow>
+            <PropertyRow label="Type">
+              <InlineSelect
+                label="Type"
+                value={issue.type}
+                options={typeOptions}
+                issueId={issue.id}
+                projectKey={projectKey}
+                fieldKey="type"
+                onSaved={refresh}
+                disabled={!canEdit}
+              />
+            </PropertyRow>
+            <PropertyRow label="Due Date">
               <input
+                aria-label="Due Date"
                 type="date"
                 value={dueDate}
                 onChange={(e) => {
@@ -609,12 +617,15 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
                 disabled={isPending || !canEdit}
                 className={selectClass}
               />
-            </div>
+            </PropertyRow>
+            <PropertyRow label="Labels">
+              <LabelInput labels={labels} onChange={handleLabelsChange} disabled={isPending || !canEdit} />
+            </PropertyRow>
           </div>
 
           {customFields.length > 0 && (
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
-              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-3">Custom Fields</p>
+            <div className="bg-surface rounded-[10px] shadow-[var(--shadow-panel)] p-4">
+              <p className="text-xs font-medium text-muted-foreground mb-3">Custom Fields</p>
               <CustomFieldsPanel
                 issueId={issue.id}
                 projectKey={projectKey}
@@ -626,32 +637,30 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
             </div>
           )}
 
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-3 text-xs">
+          <div className="px-1 space-y-2 text-xs">
             <div>
-              <p className="text-zinc-500">Reporter</p>
-              <p className="text-zinc-700 dark:text-zinc-300 mt-0.5">{issue.reporter.name}</p>
+              <p className="text-muted-foreground">Reporter</p>
+              <p className="text-muted-foreground/90 mt-0.5">{issue.reporter.name}</p>
             </div>
             <div>
-              <p className="text-zinc-500">Created</p>
-              <p className="text-zinc-700 dark:text-zinc-300 mt-0.5">{new Date(issue.createdAt).toLocaleString()}</p>
+              <p className="text-muted-foreground">Created</p>
+              <p className="text-muted-foreground/90 mt-0.5">{new Date(issue.createdAt).toLocaleString()}</p>
             </div>
             <div>
-              <p className="text-zinc-500">Updated</p>
-              <p className="text-zinc-700 dark:text-zinc-300 mt-0.5">{new Date(issue.updatedAt).toLocaleString()}</p>
+              <p className="text-muted-foreground">Updated</p>
+              <p className="text-muted-foreground/90 mt-0.5">{new Date(issue.updatedAt).toLocaleString()}</p>
             </div>
           </div>
 
           {canEdit && (
-            <Button
+            <button
               onClick={handleDelete}
-              variant="destructive"
-              size="sm"
               disabled={isPending}
-              className="w-full"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-danger transition-colors disabled:opacity-50"
             >
-              <Trash2 className="w-3.5 h-3.5 mr-1" />
+              <Trash2 className="w-3.5 h-3.5" />
               Delete Issue
-            </Button>
+            </button>
           )}
         </div>
       </div>
