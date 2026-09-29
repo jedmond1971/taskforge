@@ -3,7 +3,8 @@
 import { useState, useTransition, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Search, Plus, Pencil, Trash2, KeyRound, FolderPlus } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, KeyRound, FolderPlus, Users } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { UserRole } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -246,12 +247,12 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search users..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+            className="pl-9"
           />
         </div>
         <Button onClick={() => setCreateOpen(true)}>
@@ -261,37 +262,37 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm dark:shadow-none">
+      <div className="bg-surface shadow-[var(--shadow-panel)] rounded-xl overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-zinc-200 dark:border-zinc-800">
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+            <tr className="border-b border-border-soft">
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 User
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Role
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Projects
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Created
               </th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <tbody className="divide-y divide-border-soft">
             {users.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-zinc-500 text-sm">
-                  No users found.
+                <td colSpan={5}>
+                  <EmptyState icon={Users} title="No users found." />
                 </td>
               </tr>
             ) : (
               users.map((user) => (
-                <tr key={user.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                <tr key={user.id} className="hover:bg-surface-active transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <Avatar className="w-8 h-8">
@@ -301,8 +302,8 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{user.name}</p>
-                        <p className="text-xs text-zinc-500">{user.email}</p>
+                        <p className="text-sm font-medium text-foreground">{user.name}</p>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
                       </div>
                     </div>
                   </td>
@@ -311,31 +312,31 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
                       className={
                         user.role === "ADMIN"
                           ? "bg-primary/20 text-primary border-primary/30"
-                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700"
+                          : "bg-surface-active text-muted-foreground border-border-soft"
                       }
                     >
                       {user.role}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-sm text-zinc-400">
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
                     {user._count.projectMembers}
                   </td>
-                  <td className="px-4 py-3 text-sm text-zinc-500">
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon-sm" title="Reset password" onClick={() => openResetPassword(user)}>
-                        <KeyRound className="w-3.5 h-3.5 text-zinc-400" />
+                        <KeyRound className="w-3.5 h-3.5 text-muted-foreground" />
                       </Button>
                       <Button variant="ghost" size="icon-sm" title="Add to project" onClick={() => openAddToProject(user)}>
-                        <FolderPlus className="w-3.5 h-3.5 text-zinc-400" />
+                        <FolderPlus className="w-3.5 h-3.5 text-muted-foreground" />
                       </Button>
                       <Button variant="ghost" size="icon-sm" onClick={() => openEdit(user)}>
-                        <Pencil className="w-3.5 h-3.5 text-zinc-400" />
+                        <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                       </Button>
                       <Button variant="ghost" size="icon-sm" onClick={() => setDeleteUser(user)}>
-                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                        <Trash2 className="w-3.5 h-3.5 text-danger" />
                       </Button>
                     </div>
                   </td>
@@ -355,40 +356,37 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Name</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Name</label>
               <Input
                 placeholder="Full name"
                 value={createName}
                 onChange={(e) => setCreateName(e.target.value)}
-                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Email</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Email</label>
               <Input
                 type="email"
                 placeholder="user@example.com"
                 value={createEmail}
                 onChange={(e) => setCreateEmail(e.target.value)}
-                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Password</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Password</label>
               <Input
                 type="password"
                 placeholder="Minimum 8 characters"
                 value={createPassword}
                 onChange={(e) => setCreatePassword(e.target.value)}
-                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Role</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Role</label>
               <select
                 value={createRole}
                 onChange={(e) => setCreateRole(e.target.value as "ADMIN" | "TEAM_MEMBER")}
-                className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               >
                 <option value="TEAM_MEMBER">Team Member</option>
                 <option value="ADMIN">Admin</option>
@@ -415,30 +413,28 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Name</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Name</label>
               <Input
                 placeholder="Full name"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Email</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Email</label>
               <Input
                 type="email"
                 placeholder="user@example.com"
                 value={editEmail}
                 onChange={(e) => setEditEmail(e.target.value)}
-                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Role</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Role</label>
               <select
                 value={editRole}
                 onChange={(e) => setEditRole(e.target.value as "ADMIN" | "TEAM_MEMBER")}
-                className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               >
                 <option value="TEAM_MEMBER">Team Member</option>
                 <option value="ADMIN">Admin</option>
@@ -467,23 +463,21 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">New Password</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">New Password</label>
               <Input
                 type="password"
                 placeholder="Minimum 8 characters"
                 value={resetNewPassword}
                 onChange={(e) => setResetNewPassword(e.target.value)}
-                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Confirm Password</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Confirm Password</label>
               <Input
                 type="password"
                 placeholder="Re-enter password"
                 value={resetConfirmPassword}
                 onChange={(e) => setResetConfirmPassword(e.target.value)}
-                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
               />
             </div>
           </div>
@@ -509,16 +503,16 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Project</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Project</label>
               {projectOptionsLoading ? (
-                <p className="text-sm text-zinc-500">Loading projects...</p>
+                <p className="text-sm text-muted-foreground">Loading projects...</p>
               ) : projectOptions.length === 0 ? (
-                <p className="text-sm text-zinc-500">No projects available.</p>
+                <p className="text-sm text-muted-foreground">No projects available.</p>
               ) : (
                 <select
                   value={selectedProjectId}
                   onChange={(e) => setSelectedProjectId(e.target.value)}
-                  className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  className="w-full h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 >
                   {projectOptions.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -529,11 +523,11 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
               )}
             </div>
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Role</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Role</label>
               <select
                 value={selectedProjectRole}
                 onChange={(e) => setSelectedProjectRole(e.target.value as "PROJECT_LEAD" | "TEAM_MEMBER" | "VIEWER")}
-                className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               >
                 <option value="PROJECT_LEAD">Project Lead</option>
                 <option value="TEAM_MEMBER">Team Member</option>
@@ -564,7 +558,7 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
               Are you sure you want to delete {deleteUser?.name}?
             </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-muted-foreground">
             This will remove the user from all projects. This action cannot be undone.
           </p>
           <DialogFooter>
