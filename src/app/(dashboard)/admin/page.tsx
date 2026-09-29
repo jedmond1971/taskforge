@@ -69,14 +69,14 @@ export default async function AdminPage() {
           return (
             <div
               key={stat.label}
-              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex items-center gap-4 shadow-sm dark:shadow-none"
+              className="bg-surface shadow-[var(--shadow-panel)] rounded-xl p-4 flex items-center gap-4"
             >
               <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
                 <Icon className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{stat.value}</p>
-                <p className="text-sm text-zinc-500">{stat.label}</p>
+                <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                <p className="text-sm text-muted-foreground">{stat.label}</p>
               </div>
             </div>
           );
@@ -91,18 +91,18 @@ export default async function AdminPage() {
             <Link
               key={section.href}
               href={section.href}
-              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors group shadow-sm dark:shadow-none"
+              className="bg-surface shadow-[var(--shadow-panel)] rounded-xl p-6 hover:bg-surface-active transition-colors group"
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center">
                   <Icon className="w-5 h-5 text-primary" />
                 </div>
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-primary/80 transition-colors">
+                <h2 className="text-lg font-semibold text-foreground group-hover:text-primary/80 transition-colors">
                   {section.title}
                 </h2>
               </div>
-              <p className="text-sm text-zinc-500 mb-3">{section.description}</p>
-              <p className="text-xs text-zinc-600">{section.stat}</p>
+              <p className="text-sm text-muted-foreground mb-3">{section.description}</p>
+              <p className="font-mono text-xs text-muted-foreground">{section.stat}</p>
             </Link>
           );
         })}
