@@ -4,7 +4,8 @@ import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Search, ExternalLink, Trash2, Lock, Unlock } from "lucide-react";
+import { Search, ExternalLink, Trash2, Lock, Unlock, FolderKanban } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -110,93 +111,93 @@ export function AdminProjectsClient({
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search projects..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+            className="pl-9"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm dark:shadow-none">
+      <div className="bg-surface shadow-[var(--shadow-panel)] rounded-xl overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-zinc-200 dark:border-zinc-800">
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+            <tr className="border-b border-border-soft">
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Project
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Org
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Owner
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Members
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Issues
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Created
               </th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <tbody className="divide-y divide-border-soft">
             {projects.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-zinc-500 text-sm">
-                  No projects found.
+                <td colSpan={7}>
+                  <EmptyState icon={FolderKanban} title="No projects found." />
                 </td>
               </tr>
             ) : (
               projects.map((project) => (
-                <tr key={project.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                <tr key={project.id} className="hover:bg-surface-active transition-colors">
                   <td className="px-4 py-3">
                     <div>
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/admin/projects/${project.id}`}
-                          className="text-sm font-medium text-zinc-900 dark:text-zinc-100 hover:underline"
+                          className="text-sm font-medium text-foreground hover:underline"
                         >
                           {project.name}
                         </Link>
                         {project.isClosed && (
-                          <span className="text-xs font-medium text-red-500 bg-red-50 dark:bg-red-950/30 px-1.5 py-0.5 rounded">
+                          <span className="text-xs font-medium text-danger bg-danger-soft px-1.5 py-0.5 rounded">
                             Closed
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-zinc-500">{project.key}</p>
+                      <p className="text-xs text-muted-foreground">{project.key}</p>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-zinc-400">
-                    <Link href={`/admin/orgs/${project.org.id}`} className="hover:underline hover:text-zinc-600 dark:hover:text-zinc-300">
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
+                    <Link href={`/admin/orgs/${project.org.id}`} className="hover:underline hover:text-foreground">
                       {project.org.name}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-sm text-zinc-400">
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
                     {project.members[0]?.user.name ?? "No owner"}
                   </td>
-                  <td className="px-4 py-3 text-sm text-zinc-400">
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
                     {project._count.members}
                   </td>
-                  <td className="px-4 py-3 text-sm text-zinc-400">
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
                     {project._count.issues}
                   </td>
-                  <td className="px-4 py-3 text-sm text-zinc-500">
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
                     {new Date(project.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon-sm" render={<Link href={`/projects/${project.key}`} />}>
-                        <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+                        <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -206,9 +207,9 @@ export function AdminProjectsClient({
                         title={project.isClosed ? "Reopen project" : "Close project"}
                       >
                         {project.isClosed ? (
-                          <Unlock className="w-3.5 h-3.5 text-green-500" />
+                          <Unlock className="w-3.5 h-3.5 text-success" />
                         ) : (
-                          <Lock className="w-3.5 h-3.5 text-amber-400" />
+                          <Lock className="w-3.5 h-3.5 text-warning" />
                         )}
                       </Button>
                       <Button
@@ -216,7 +217,7 @@ export function AdminProjectsClient({
                         size="icon-sm"
                         onClick={() => openDelete(project)}
                       >
-                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                        <Trash2 className="w-3.5 h-3.5 text-danger" />
                       </Button>
                     </div>
                   </td>
@@ -238,15 +239,14 @@ export function AdminProjectsClient({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Type <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">{deleteProject?.key}</span> to
+            <p className="text-sm text-muted-foreground">
+              Type <span className="font-mono font-semibold text-foreground">{deleteProject?.key}</span> to
               confirm deletion.
             </p>
             <Input
               placeholder={deleteProject?.key}
               value={confirmKey}
               onChange={(e) => setConfirmKey(e.target.value)}
-              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
             />
           </div>
           <DialogFooter>
