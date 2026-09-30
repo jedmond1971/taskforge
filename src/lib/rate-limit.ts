@@ -167,6 +167,8 @@ export const LIMITS = {
   inviteExistingUserPerUser: { maxAttempts: 10, windowMs: 15 * MINUTE },
   changePasswordFailuresPerUser: { maxAttempts: 5, windowMs: 15 * MINUTE },
   apiKeyCreatePerUserOrg: { maxAttempts: 10, windowMs: 60 * MINUTE },
+  // SECH-117: one delivery drill per admin per 10 minutes. Each drill sends one email per rule.
+  alertDrillPerUser: { maxAttempts: 1, windowMs: 10 * MINUTE },
   externalApiPerKey: { maxAttempts: 100, windowMs: 1 * MINUTE },
   externalApiAuthFailuresPerIp: { maxAttempts: 20, windowMs: 15 * MINUTE },
 } satisfies Record<string, RateLimitConfig>;

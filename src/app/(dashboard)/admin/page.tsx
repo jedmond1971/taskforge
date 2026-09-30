@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
-import { Users, FolderKanban, CircleDot, Building2, Mail, ScrollText } from "lucide-react";
+import { Users, FolderKanban, CircleDot, Building2, Mail, ScrollText, BellRing } from "lucide-react";
 
 
 export default async function AdminPage() {
@@ -58,6 +58,13 @@ export default async function AdminPage() {
       icon: ScrollText,
       stat: "Admin writes only",
     },
+    {
+      href: "/admin/alerting",
+      title: "Owner Alerting",
+      description: "Check alert configuration and send a test alert for every rule.",
+      icon: BellRing,
+      stat: "Delivery drill",
+    },
   ];
 
   return (
@@ -84,7 +91,7 @@ export default async function AdminPage() {
       </div>
 
       {/* Navigation Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
         {sections.map((section) => {
           const Icon = section.icon;
           return (
