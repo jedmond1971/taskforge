@@ -137,19 +137,19 @@ export function AiChatPanel({ issueId, collapsed, onToggleCollapse }: AiChatPane
     <div
       ref={panelRef}
       className={cn(
-        "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col",
+        "bg-surface shadow-[var(--shadow-panel)] rounded-xl p-4 flex flex-col",
         collapsed && "2xl:p-2 2xl:items-center"
       )}
     >
       <div className={cn("flex items-center gap-2 mb-3", collapsed && "2xl:mb-0")}>
         <Bot className={cn("w-4 h-4 text-primary shrink-0", collapsed && "2xl:hidden")} />
-        <p className={cn("text-xs font-medium text-zinc-500 dark:text-zinc-400 flex-1", collapsed && "2xl:hidden")}>
+        <p className={cn("text-xs font-medium text-muted-foreground flex-1", collapsed && "2xl:hidden")}>
           Ask AI about this issue
         </p>
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
-            className="hidden 2xl:flex p-1.5 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors flex-shrink-0"
+            className="hidden 2xl:flex p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-active rounded-lg transition-colors flex-shrink-0"
             aria-label={collapsed ? "Expand AI chat panel" : "Collapse AI chat panel"}
             title={collapsed ? "Expand AI chat panel" : "Collapse AI chat panel"}
           >
@@ -163,9 +163,9 @@ export function AiChatPanel({ issueId, collapsed, onToggleCollapse }: AiChatPane
         className={cn("flex-1 min-h-0 overflow-y-auto space-y-3 mb-3 pr-1", collapsed && "2xl:hidden")}
       >
         {isHydrating ? (
-          <p className="text-xs text-zinc-400 dark:text-zinc-600">Loading…</p>
+          <p className="text-xs text-muted-foreground">Loading…</p>
         ) : messages.length === 0 ? (
-          <p className="text-xs text-zinc-400 dark:text-zinc-600">
+          <p className="text-xs text-muted-foreground">
             Ask a question about this issue, or ask Claude to create a related sub-issue or doc page.
           </p>
         ) : (
@@ -177,7 +177,7 @@ export function AiChatPanel({ issueId, collapsed, onToggleCollapse }: AiChatPane
                     {m.toolCalls.map((call, j) => (
                       <span
                         key={j}
-                        className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                        className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-surface-active text-muted-foreground"
                         title={call.resultSummary}
                       >
                         <Wrench className="w-2.5 h-2.5" />
@@ -190,7 +190,7 @@ export function AiChatPanel({ issueId, collapsed, onToggleCollapse }: AiChatPane
                   className={`rounded-lg px-3 py-2 text-xs whitespace-pre-wrap ${
                     m.role === "user"
                       ? "bg-primary text-primary-foreground"
-                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                      : "bg-surface-active text-foreground"
                   }`}
                 >
                   {m.content}
@@ -201,8 +201,8 @@ export function AiChatPanel({ issueId, collapsed, onToggleCollapse }: AiChatPane
         )}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="rounded-lg px-3 py-2 bg-zinc-100 dark:bg-zinc-800">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-500" />
+            <div className="rounded-lg px-3 py-2 bg-surface-active">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
             </div>
           </div>
         )}
@@ -217,7 +217,7 @@ export function AiChatPanel({ issueId, collapsed, onToggleCollapse }: AiChatPane
           onKeyDown={handleKeyDown}
           placeholder="Ask a question… (Shift+Enter for a new line)"
           disabled={isLoading}
-          className="flex-1 min-w-0 max-h-40 resize-none overflow-y-auto text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+          className="flex-1 min-w-0 max-h-40 resize-none overflow-y-auto text-xs rounded-lg border border-input bg-transparent text-foreground placeholder:text-muted-foreground px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
         />
         <Button type="submit" size="sm" disabled={isLoading || !input.trim()}>
           <Send className="w-3.5 h-3.5" />
