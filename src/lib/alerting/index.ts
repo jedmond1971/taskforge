@@ -91,7 +91,9 @@ export async function dispatch(rule: AlertRule, subject: string, ctx: DispatchCo
     suppressed = claim.suppressed;
   }
 
-  const result = await sendAlertEmailWithRetry(messageFor(rule, subject, ctx, suppressed), ctx.to);
+  // A drill is a diagnostic: one attempt, so a bad key fails in seconds instead of minutes.
+  const send = ctx.drill ? sendAlertEmail : sendAlertEmailWithRetry;
+  const result = await send(messageFor(rule, subject, ctx, suppressed), ctx.to);
   if (!result.success) {
     // Otherwise a failed send would silence this rule for its whole cooldown.
     if (rule.cooldownMs > 0) await store.backdateClaim(rule.id, subject, rule.cooldownMs, RETRY_AFTER_FAILURE_MS);

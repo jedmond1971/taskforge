@@ -117,7 +117,23 @@ checks `https://www.jedforge.com/login` and emails the owner directly. Set up ma
 
 ## Delivery drill
 
-Added in Phase 2 — see this section once that PR lands.
+`/admin/alerting` (platform ADMIN only, card on `/admin`) runs `adminSendAlertDrill` → `runDrill()`
+in `src/lib/alerting/index.ts`. It proves delivery end to end and is what "test alerts reach the
+owner" means for the release gate.
+
+- Shows three checks (`ALERTING_ENABLED`, `ALERT_EMAIL_TO`, `RESEND_API_KEY`) as booleans only — the
+  address and key never reach the client. Unconfigured, it sends nothing and says what is missing.
+- Per rule it writes threshold-many synthetic observations under a `drill:<runId>` subject, then runs
+  the **real** count → `dispatch()` path, so counting, cooldown, rendering and Resend are all
+  exercised. Real counters are untouched (different subject), the global cap is skipped, no `_sent`
+  ledger row is written, and the synthetic rows are deleted afterwards. Emails are subject-prefixed
+  `[DRILL]`.
+- **One send attempt per rule** (no 2 s / 10 s retries): a diagnostic should fail in seconds. With
+  retries a bad key took 75 s across the six rules.
+- Rate limit: 1 per 10 min per admin (`alertDrillPerUser`).
+- Site-down is not covered (it is the external monitor) — test that from the monitor's own
+  "send test notification".
+- It stands in for staging until SECH-110 exists; **re-run it there once staging is provisioned**.
 
 ## Tests
 

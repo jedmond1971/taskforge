@@ -18,6 +18,7 @@ Named limits live in `LIMITS` in `rate-limit.ts`. **Any new sensitive endpoint s
 | `acceptInviteExistingUser` | `invite-user:<userId>` | attempts | 10 / 15 min | same message |
 | `changePassword` | `pw-change:<userId>` (wrong current password) | failures | 5 / 15 min. Stops a hijacked session brute-forcing its way to an account takeover | same message |
 | `createApiKey` | `apikey-create:<userId>:<orgId>` | attempts | 10 / hour | same message |
+| `adminSendAlertDrill` (SECH-117) | `alert-drill:<userId>` | attempts | 1 / 10 min — each drill sends one email per alert rule | same message |
 | External org API (`external-api-auth.ts`) | `extapi:<apiKeyId>` **and** `extapi-auth-ip:<ip>` (missing, unknown or revoked key) | attempts / failures | 100 / min per key; 20 / 15 min bad keys per IP | 429 + `Retry-After` |
 | `/api/csp-report` | in-memory per-IP sampler (log-noise control only, not security) | — | — | 204 |
 

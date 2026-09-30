@@ -78,6 +78,7 @@ describe("adminSendAlertDrill", () => {
     try {
       const res = await adminActions.adminSendAlertDrill();
       expect(res.success && res.result.results.every((r) => !r.sent && r.reason === "send_failed" && r.error === "domain not verified")).toBe(true);
+      expect(h.send).toHaveBeenCalledTimes(ALERT_RULES.length); // no retries: a drill must answer quickly
     } finally { warn.mockRestore(); }
   });
 
