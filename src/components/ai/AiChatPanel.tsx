@@ -5,6 +5,7 @@ import { Bot, Send, Wrench, Loader2, PanelRightClose, PanelRightOpen } from "luc
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { AiMarkdown } from "./AiMarkdown";
 
 type ToolCall = {
   name: string;
@@ -187,13 +188,13 @@ export function AiChatPanel({ issueId, collapsed, onToggleCollapse }: AiChatPane
                   </div>
                 )}
                 <div
-                  className={`rounded-lg px-3 py-2 text-xs whitespace-pre-wrap ${
+                  className={`rounded-lg px-3 py-2 text-xs ${
                     m.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-surface-active text-foreground"
+                      ? "bg-primary text-primary-foreground whitespace-pre-wrap"
+                      : "bg-surface-active text-foreground break-words"
                   }`}
                 >
-                  {m.content}
+                  {m.role === "user" ? m.content : <AiMarkdown content={m.content} />}
                 </div>
               </div>
             </div>
