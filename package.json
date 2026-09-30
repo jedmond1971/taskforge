@@ -48,6 +48,8 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-file-icon": "^1.6.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "resend": "^6.17.1",
     "shadcn": "^4.1.1",
     "sharp": "^0.35.4",
