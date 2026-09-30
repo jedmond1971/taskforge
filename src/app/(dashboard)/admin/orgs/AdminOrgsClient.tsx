@@ -4,7 +4,8 @@ import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Search, Plus, Users, Trash2, UserMinus } from "lucide-react";
+import { Search, Plus, Users, Trash2, UserMinus, Building2 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -210,12 +211,12 @@ export function AdminOrgsClient({
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search organizations..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+            className="pl-9"
           />
         </div>
         <Button onClick={() => setCreateOpen(true)}>
@@ -225,55 +226,57 @@ export function AdminOrgsClient({
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm dark:shadow-none">
+      <div className="bg-surface shadow-[var(--shadow-panel)] rounded-xl overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-zinc-200 dark:border-zinc-800">
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Organization</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Owner</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Plan</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Members</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Projects</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Created</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</th>
+            <tr className="border-b border-border-soft">
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Organization</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Owner</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Plan</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Members</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Projects</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Created</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <tbody className="divide-y divide-border-soft">
             {orgs.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-zinc-500 text-sm">No organizations found.</td>
+                <td colSpan={7}>
+                  <EmptyState icon={Building2} title="No organizations found." />
+                </td>
               </tr>
             ) : (
               orgs.map((org) => (
-                <tr key={org.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                <tr key={org.id} className="hover:bg-surface-active transition-colors">
                   <td className="px-4 py-3">
                     <Link
                       href={`/admin/orgs/${org.id}`}
-                      className="text-sm font-medium text-zinc-900 dark:text-zinc-100 hover:underline"
+                      className="text-sm font-medium text-foreground hover:underline"
                     >
                       {org.name}
                     </Link>
-                    <p className="text-xs text-zinc-500">{org.slug}</p>
+                    <p className="text-xs text-muted-foreground">{org.slug}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-sm text-zinc-400">{org.owner.name}</p>
-                    <p className="text-xs text-zinc-500">{org.owner.email}</p>
+                    <p className="text-sm text-muted-foreground">{org.owner.name}</p>
+                    <p className="text-xs text-muted-foreground">{org.owner.email}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge className="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700">
+                    <Badge className="bg-surface-active text-muted-foreground border-border-soft">
                       {PLAN_LABELS[org.plan]}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-sm text-zinc-400">{org._count.members}</td>
-                  <td className="px-4 py-3 text-sm text-zinc-400">{org._count.projects}</td>
-                  <td className="px-4 py-3 text-sm text-zinc-500">{new Date(org.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{org._count.members}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{org._count.projects}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{new Date(org.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon-sm" onClick={() => openManageMembers(org)} title="Manage members">
-                        <Users className="w-3.5 h-3.5 text-zinc-400" />
+                        <Users className="w-3.5 h-3.5 text-muted-foreground" />
                       </Button>
                       <Button variant="ghost" size="icon-sm" onClick={() => { setDeleteOrg(org); setConfirmName(""); }}>
-                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                        <Trash2 className="w-3.5 h-3.5 text-danger" />
                       </Button>
                     </div>
                   </td>
@@ -293,29 +296,27 @@ export function AdminOrgsClient({
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Name</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Name</label>
               <Input
                 placeholder="Acme Corp"
                 value={createName}
                 onChange={(e) => setCreateName(e.target.value)}
-                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Slug</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Slug</label>
               <Input
                 placeholder="acme-corp"
                 value={createSlug}
                 onChange={(e) => setCreateSlug(e.target.value)}
-                className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Plan</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Plan</label>
               <select
                 value={createPlan}
                 onChange={(e) => setCreatePlan(e.target.value as Plan)}
-                className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               >
                 <option value="FREE">Free</option>
                 <option value="PRO">Pro</option>
@@ -323,11 +324,11 @@ export function AdminOrgsClient({
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1 block">Owner</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Owner</label>
               <select
                 value={createOwnerId}
                 onChange={(e) => setCreateOwnerId(e.target.value)}
-                className="w-full h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               >
                 {allUsers.map((u) => (
                   <option key={u.id} value={u.id}>{u.name} — {u.email}</option>
@@ -353,9 +354,9 @@ export function AdminOrgsClient({
           {/* Current members list */}
           <div className="space-y-1 max-h-56 overflow-y-auto">
             {membersLoading ? (
-              <p className="text-sm text-zinc-500 py-2">Loading...</p>
+              <p className="text-sm text-muted-foreground py-2">Loading...</p>
             ) : members.length === 0 ? (
-              <p className="text-sm text-zinc-500 py-2">No members yet.</p>
+              <p className="text-sm text-muted-foreground py-2">No members yet.</p>
             ) : (
               members.map((m) => (
                 <div key={m.user.id} className="flex items-center justify-between gap-3 py-1.5">
@@ -367,8 +368,8 @@ export function AdminOrgsClient({
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{m.user.name}</p>
-                      <p className="text-xs text-zinc-500">{m.user.email}</p>
+                      <p className="text-sm font-medium text-foreground">{m.user.name}</p>
+                      <p className="text-xs text-muted-foreground">{m.user.email}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -376,8 +377,8 @@ export function AdminOrgsClient({
                       m.role === "OWNER"
                         ? "bg-primary/20 text-primary border-primary/30"
                         : m.role === "ADMIN"
-                        ? "bg-amber-600/20 text-amber-400 border-amber-600/30"
-                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700"
+                        ? "bg-warning-soft text-warning border-warning/20"
+                        : "bg-surface-active text-muted-foreground border-border-soft"
                     }>
                       {ROLE_LABELS[m.role]}
                     </Badge>
@@ -388,7 +389,7 @@ export function AdminOrgsClient({
                         onClick={() => handleRemoveMember(m.user.id)}
                         disabled={removingUserId === m.user.id}
                       >
-                        <UserMinus className="w-3.5 h-3.5 text-red-400" />
+                        <UserMinus className="w-3.5 h-3.5 text-danger" />
                       </Button>
                     )}
                   </div>
@@ -399,13 +400,13 @@ export function AdminOrgsClient({
 
           {/* Add member */}
           {availableUsers.length > 0 && (
-            <div className="border-t border-zinc-200 dark:border-zinc-800 pt-3 space-y-2">
-              <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Add member</p>
+            <div className="border-t border-border-soft pt-3 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Add member</p>
               <div className="flex gap-2">
                 <select
                   value={addUserId}
                   onChange={(e) => setAddUserId(e.target.value)}
-                  className="flex-1 h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  className="flex-1 h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 >
                   <option value="">Select user...</option>
                   {availableUsers.map((u) => (
@@ -415,7 +416,7 @@ export function AdminOrgsClient({
                 <select
                   value={addRole}
                   onChange={(e) => setAddRole(e.target.value as OrgRole)}
-                  className="w-28 h-8 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  className="w-28 h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 >
                   <option value="MEMBER">Member</option>
                   <option value="ADMIN">Admin</option>
@@ -443,14 +444,13 @@ export function AdminOrgsClient({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Type <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">{deleteOrg?.name}</span> to confirm.
+            <p className="text-sm text-muted-foreground">
+              Type <span className="font-mono font-semibold text-foreground">{deleteOrg?.name}</span> to confirm.
             </p>
             <Input
               placeholder={deleteOrg?.name}
               value={confirmName}
               onChange={(e) => setConfirmName(e.target.value)}
-              className="bg-zinc-50 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
             />
           </div>
           <DialogFooter>
