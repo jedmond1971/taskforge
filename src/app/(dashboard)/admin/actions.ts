@@ -11,6 +11,8 @@ import { logAdminAction } from "@/lib/audit-log";
 import { revokeOAuthTokensForUser, revokeApiKeysForUser } from "@/lib/credential-revocation";
 import { securityEvent } from "@/lib/security-events";
 import { logError } from "@/lib/security-events";
+import { runDrill, type DrillResult } from "@/lib/alerting";
+import { consumeRateLimit, LIMITS, tooManyAttemptsMessage } from "@/lib/rate-limit";
 
 // Discriminated union returned by all admin mutation actions.
 // Expected validation failures return { success: false, error } instead of throwing,
@@ -863,4 +865,16 @@ export async function getAdminAuditLog(search?: string) {
     orderBy: { createdAt: "desc" },
     take: 200,
   });
+}
+
+// ─── Owner alerting drill (SECH-117) ─────────────────────────────────────────
+
+// Sends one synthetic alert per rule through the real delivery path. Admin-only.
+export async function adminSendAlertDrill(): Promise<
+  { success: true; result: DrillResult } | { success: false; error: string }
+> {
+  const { userId } = await requireAdmin();
+  const limit = await consumeRateLimit(`alert-drill:${userId}`, LIMITS.alertDrillPerUser);
+  if (!limit.allowed) return { success: false, error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
+  return { success: true, result: await runDrill() };
 }

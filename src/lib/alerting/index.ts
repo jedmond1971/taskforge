@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { getAlertConfig } from "./config";
 import {
   ALERT_RULES,
@@ -145,6 +146,54 @@ export async function observe(record: AlertableRecord): Promise<void> {
   } finally {
     if (admitted) inFlight--;
   }
+}
+
+export interface DrillRuleResult {
+  rule: string;
+  sent: boolean;
+  reason?: string;
+  error?: string;
+}
+export interface DrillResult {
+  enabled: boolean;
+  configured: boolean;
+  missing: string[];
+  results: DrillRuleResult[];
+}
+
+/**
+ * Prove the delivery path (SECH-117 definition of done; stands in for staging until SECH-110).
+ *
+ * Per rule it injects threshold-many synthetic observations under a `drill:<runId>` subject,
+ * then runs the REAL count → dispatch path, so counting, cooldown, rendering and Resend are
+ * all exercised. Real counters are untouched (different subject), the cap is skipped, and the
+ * synthetic rows are removed afterwards.
+ */
+export async function runDrill(): Promise<DrillResult> {
+  const cfg = getAlertConfig();
+  if (!cfg.ready || !cfg.to) return { enabled: cfg.enabled, configured: false, missing: cfg.missing, results: [] };
+
+  const subject = `drill:${randomUUID().slice(0, 8)}`;
+  const results: DrillRuleResult[] = [];
+  try {
+    for (const rule of ALERT_RULES) {
+      if (rule.threshold) {
+        for (let i = 0; i < rule.threshold.count; i++) {
+          await store.recordObservation(rule.id, subject, rule.distinctBy ? `drill-${i}` : undefined, rule.threshold.windowMs);
+        }
+        const count = await store.countInWindow(rule.id, subject, rule.threshold.windowMs, !!rule.distinctBy, rule.threshold.count);
+        if (!isTripped(rule, count)) {
+          results.push({ rule: rule.id, sent: false, reason: "threshold_not_reached" });
+          continue;
+        }
+      }
+      const r = await dispatch(rule, subject, { to: cfg.to, drill: true, count: rule.threshold?.count });
+      results.push({ rule: rule.id, sent: r.sent, reason: r.reason, error: r.error });
+    }
+  } finally {
+    await store.deleteDrillRows(subject).catch((err) => alertingFailure("drill_cleanup_failed", err));
+  }
+  return { enabled: cfg.enabled, configured: true, missing: [], results };
 }
 
 export { ALERT_RULES };

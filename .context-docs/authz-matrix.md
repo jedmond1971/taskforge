@@ -88,6 +88,7 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | `adminCreateUser` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
 | `adminUpdateUser` | `requireAdmin()` (permissions.ts) | target user id | platform ADMIN; role change bumps `sessionVersion` |
 | `adminResetUserPassword` | `requireAdmin()` (permissions.ts) | target user id | platform ADMIN; bumps `sessionVersion` |
+| `adminSendAlertDrill` | `requireAdmin()` (permissions.ts) | none — sends synthetic alerts to the configured owner address only | platform ADMIN; rate-limited 1 per 10 min per admin (`alertDrillPerUser`) |
 | `adminAddUserToProject` | `requireAdmin()` (permissions.ts) | upserts `OrgMember` first (tenancy invariant 8) | platform ADMIN |
 | `adminGetProjectsForSelect` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
 | `adminDeleteUser` | `requireAdmin()` (permissions.ts) | target user id | platform ADMIN; pre-flights every ON DELETE RESTRICT relation (owned orgs, issues reported, attachments, doc pages/revisions, links, invites, API keys) and refuses with a message |

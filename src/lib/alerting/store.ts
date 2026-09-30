@@ -156,3 +156,9 @@ export async function prune(): Promise<void> {
   await alertingDb.alertEvent.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - STALE_EVENT_MS) } } });
   await alertingDb.alertState.deleteMany({ where: { lastSentAt: { lt: new Date(Date.now() - STALE_STATE_MS) } } });
 }
+
+/** Remove a drill run's synthetic observations and cooldown rows. Real subjects never start with "drill:". */
+export async function deleteDrillRows(subject: string): Promise<void> {
+  await alertingDb.alertEvent.deleteMany({ where: { subject } });
+  await alertingDb.alertState.deleteMany({ where: { subject } });
+}
