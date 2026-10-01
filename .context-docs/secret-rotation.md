@@ -11,7 +11,7 @@ Staging does not exist yet (SECH-110). When it does, it must get its **own** val
 | Name | Purpose | Where it lives | Share across envs? |
 |---|---|---|---|
 | `AUTH_SECRET` | Auth.js v5 key that encrypts/signs the JWT session cookie | Railway; local `.env` | **Never.** Local value was committed in early git history — never reuse it anywhere |
-| `NEXTAUTH_SECRET` | Legacy name of the same secret (still in `.env.example`; Auth.js falls back to it) | Railway; local `.env` | Never; keep equal to `AUTH_SECRET` |
+| `NEXTAUTH_SECRET` | **Dead.** Legacy name; `next-auth` 5.0.0-beta.32 reads `AUTH_SECRET ?? NEXTAUTH_SECRET`, so it only matters if `AUTH_SECRET` is unset. Nothing in `src/` reads it (only the log-redaction list). Production holds a *different* value from `AUTH_SECRET` (checked 2026-10-01) | Railway; local `.env` | Never. Safe to delete from Railway; it still looks like a live secret to anyone auditing, and a future change that makes it live would silently change the signing key |
 | `V1_API_KEY` | Shared secret for `/api/v1/*` (Claude Code's tracker) and `/api/internal/cleanup-orphaned-attachments` | Railway; local `.env`; **GitHub Actions secret** (daily cleanup cron) | Intentionally the same value on all three; never in staging |
 | `DATABASE_URL` | Postgres connection string (Railway internal network). Also read by `alerting/store.ts` and Prisma | Railway (reference to the Postgres service); local `.env` (Docker, localhost) | Never. Integration tests refuse any non-localhost host |
 | `RAILWAY_BUCKET_ACCESS_KEY_ID` / `RAILWAY_BUCKET_SECRET_ACCESS_KEY` | S3-compatible credentials for attachments, avatars, editor images, doc files | Railway | Never (a staging bucket needs its own) |
@@ -51,7 +51,7 @@ Setting a Railway variable (dashboard or `variableUpsert`, see [local-dev-toolin
 
 ### `AUTH_SECRET` / `NEXTAUTH_SECRET`
 - **Impact:** every logged-in user is logged out (session cookies no longer decrypt) and must sign in again. No data loss. OAuth/MCP tokens and API keys are unaffected (opaque DB-hashed tokens, not derived from this secret).
-- **Steps:** 1) generate one value; 2) set **both** variables to it in Railway; 3) wait for the deploy; 4) confirm an old session lands on `/login` and a fresh login works; 5) local `.env` needs its own, different value.
+- **Steps:** 1) generate one value; 2) set `AUTH_SECRET` in Railway (`NEXTAUTH_SECRET` is not read, don't bother keeping it in sync); 3) wait for the deploy; 4) confirm an old session lands on `/login` and a fresh login works; 5) local `.env` needs its own, different value. Zero-logout rotation via `AUTH_SECRET_1`: `@auth/core` supports extra secrets, but `next-auth`'s wrapper sets `config.secret` to a string first, which likely bypasses it — untested, don't rely on it.
 - **When:** immediately if exposed. Otherwise no scheduled rotation (it invalidates all sessions); `User.sessionVersion` handles per-user invalidation without this.
 
 ### `V1_API_KEY`
@@ -89,14 +89,15 @@ Setting a Railway variable (dashboard or `variableUpsert`, see [local-dev-toolin
 
 ## Rotation log
 
-"Never rotated" means no rotation is recorded anywhere in the repo, the memory notes or CI. It is **not** proof the value is old — Jamie should confirm creation dates in each provider's dashboard and fix this table.
+"Unknown — treat as never rotated" means the provider's dashboard shows no creation date and no rotation is recorded in the repo, memory notes or CI. Railway shows no per-variable, bucket-credential, Postgres-password or token creation dates at all (confirmed 2026-10-01); Resend and Anthropic do. Record a date here the first time one is rotated, so the next review has a real baseline.
 
 | Secret | Last rotated | Note |
 |---|---|---|
-| `AUTH_SECRET` / `NEXTAUTH_SECRET` | never recorded | Local value was committed in early history; production value unknown |
-| `V1_API_KEY` | never recorded | Rehearsal pending |
-| Bucket credentials | never recorded | |
-| `RESEND_API_KEY` | never recorded | |
-| `ANTHROPIC_API_KEY` | never recorded | |
-| `DATABASE_URL` / Postgres password | never recorded | |
-| `RAILWAY_API_TOKEN` | never recorded | |
+| `AUTH_SECRET` | unknown — treat as never rotated | Railway shows no per-variable dates. Local value was committed in early history; production value unknown |
+| `NEXTAUTH_SECRET` | unknown |  Dead variable (see inventory); differs from `AUTH_SECRET` in prod |
+| `V1_API_KEY` | 2026-10-01 | Rehearsal run by Jamie (Claude Code's classifier blocks secret-store writes). Railway deploy `SUCCESS`, new key `200` / no key `401`, manual cleanup-cron run green. Whole procedure took ~10 min; old-key 401 was not directly checked (backup file removed early) |
+| Bucket credentials | unknown — treat as never rotated | Railway shows no creation date (checked 2026-10-01) |
+| `RESEND_API_KEY` | created ~July 2026 (Resend dashboard shows "3 months ago" on 2026-10-01; exact date not shown) | Never rotated since creation, ~3 months old |
+| `ANTHROPIC_API_KEY` | created 2026-07-31 (Anthropic console) | Never rotated since creation, ~2 months old |
+| `DATABASE_URL` / Postgres password | unknown — treat as never rotated | Railway shows no creation date (checked 2026-10-01) |
+| `RAILWAY_API_TOKEN` | unknown — treat as never rotated | Railway shows no creation date (checked 2026-10-01) |
