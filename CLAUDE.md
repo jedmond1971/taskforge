@@ -321,6 +321,7 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 - .context-docs/security-events.md — structured security-event catalog, severity map, denial classification (why two denials are deliberately silent), the emit() seam for SECH-115/117, request-ID propagation and the /api/auth matcher gap (SECH-114)
 - .context-docs/alerting.md — owner alerting (SECH-117): rules/thresholds, Postgres cooldown claim, global cap, config, never-list, how to add a rule, external site-down monitor
 - .context-docs/secret-scanning.md — gitleaks CI job (full history, self-test canary, allowlist rules), exact-value history search, 2026-09-22 baseline incl. the historical committed `.env` (SECH-112)
+- .context-docs/kill-switches.md — `OAUTH_MCP_ENABLED` / `UPLOADS_ENABLED` / `EXTERNAL_API_ENABLED` (default on; `false` → 503 from middleware), how to flip in Railway, what stays readable, how to add a surface (SECH-118)
 - .context-docs/release-controls.md — branch protection on main, PR ship flow, adding required checks, break-glass (SECH-102)
 - .context-docs/sprints.md — all 10 Sprint workflow rules (workflowMode lock, board scoping, one-active-sprint DB constraint, sprintScopeId)
 - .context-docs/docs-invariants.md — all 13 Docs module rules (DocSpace, roles, revisions, file lifecycle, delete UI, status, recently-viewed, TOC extraction)

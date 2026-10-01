@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
+import { blockedBySwitch } from "@/lib/kill-switches";
 import { REQUEST_ID_HEADER, normalizeRequestId } from "@/lib/request-id";
 
 const { auth } = NextAuth(authConfig);
@@ -25,6 +26,26 @@ export default auth((req) => {
     res.headers.set(REQUEST_ID_HEADER, requestId);
     return res;
   };
+
+  // SECH-118: operator kill switches. Answered before auth and before any handler, so a
+  // disabled surface has no side effects. 503 (not 404) because the routes do exist.
+  const blocked = blockedBySwitch(nextUrl.pathname, req.method);
+  if (blocked) {
+    if (isApiRoute || nextUrl.pathname.startsWith("/.well-known/")) {
+      return withRequestId(
+        NextResponse.json(
+          { error: "This feature is temporarily disabled.", code: "feature_disabled" },
+          { status: 503, headers: { "Retry-After": "300", "Cache-Control": "no-store" } },
+        ),
+      );
+    }
+    return withRequestId(
+      new NextResponse("This feature is temporarily disabled.", {
+        status: 503,
+        headers: { "Retry-After": "300", "Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8" },
+      }),
+    );
+  }
 
   if (isApiRoute) return withRequestId(NextResponse.next({ request: { headers: requestHeaders } }));
 
