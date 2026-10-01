@@ -89,15 +89,15 @@ Setting a Railway variable (dashboard or `variableUpsert`, see [local-dev-toolin
 
 ## Rotation log
 
-"Never rotated" means no rotation is recorded anywhere in the repo, the memory notes or CI. It is **not** proof the value is old — Jamie should confirm creation dates in each provider's dashboard and fix this table.
+"Unknown — treat as never rotated" means the provider's dashboard shows no creation date and no rotation is recorded in the repo, memory notes or CI. Railway shows no per-variable, bucket-credential, Postgres-password or token creation dates at all (confirmed 2026-10-01); Resend and Anthropic do. Record a date here the first time one is rotated, so the next review has a real baseline.
 
 | Secret | Last rotated | Note |
 |---|---|---|
-| `AUTH_SECRET` | never recorded | Local value was committed in early history; production value unknown |
-| `NEXTAUTH_SECRET` | never recorded | Dead variable (see inventory); differs from `AUTH_SECRET` in prod |
+| `AUTH_SECRET` | unknown — treat as never rotated | Railway shows no per-variable dates. Local value was committed in early history; production value unknown |
+| `NEXTAUTH_SECRET` | unknown |  Dead variable (see inventory); differs from `AUTH_SECRET` in prod |
 | `V1_API_KEY` | 2026-10-01 | Rehearsal run by Jamie (Claude Code's classifier blocks secret-store writes). Railway deploy `SUCCESS`, new key `200` / no key `401`, manual cleanup-cron run green. Whole procedure took ~10 min; old-key 401 was not directly checked (backup file removed early) |
-| Bucket credentials | never recorded | |
+| Bucket credentials | unknown — treat as never rotated | Railway shows no creation date (checked 2026-10-01) |
 | `RESEND_API_KEY` | created ~July 2026 (Resend dashboard shows "3 months ago" on 2026-10-01; exact date not shown) | Never rotated since creation, ~3 months old |
 | `ANTHROPIC_API_KEY` | created 2026-07-31 (Anthropic console) | Never rotated since creation, ~2 months old |
-| `DATABASE_URL` / Postgres password | never recorded | |
-| `RAILWAY_API_TOKEN` | never recorded | |
+| `DATABASE_URL` / Postgres password | unknown — treat as never rotated | Railway shows no creation date (checked 2026-10-01) |
+| `RAILWAY_API_TOKEN` | unknown — treat as never rotated | Railway shows no creation date (checked 2026-10-01) |
