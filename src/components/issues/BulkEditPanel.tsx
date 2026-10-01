@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { StatusCategory, IssuePriority, IssueType } from "@prisma/client";
 import { PRIORITY_CONFIG, TYPE_CONFIG } from "@/lib/issue-utils";
 import { LabelInput } from "@/components/issues/LabelInput";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import { IssuePickerDialog, type PickerIssue } from "@/components/issues/ParentPicker";
+import { IssueTypeIcon } from "@/components/icons/IssueTypeIcon";
 import { bulkUpdateIssueFields, type BulkIssueUpdates } from "@/app/(dashboard)/projects/[projectKey]/actions";
 
 type ProjectStatus = { id: string; name: string; category: StatusCategory };
@@ -69,6 +71,12 @@ export function BulkEditPanel({ projectKey, selectedIds, statuses, members, onSu
   const [changeDueDate, setChangeDueDate] = useState(false);
   const [dueDate, setDueDate] = useState<string>("");
 
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  const [changeParent, setChangeParent] = useState(false);
+  const [parent, setParent] = useState<PickerIssue | null>(null);
+  const [parentPickerOpen, setParentPickerOpen] = useState(false);
+
   const [addLabelsChecked, setAddLabelsChecked] = useState(false);
   const [addLabels, setAddLabels] = useState<string[]>([]);
 
@@ -89,7 +97,7 @@ export function BulkEditPanel({ projectKey, selectedIds, statuses, members, onSu
   const labelConflict = hasAddLabels && hasRemoveLabels && addLabels.some((l) => removeLabels.includes(l));
 
   const anyFieldChecked =
-    changeStatus || changePriority || changeType || changeAssignee || changeDueDate || hasAddLabels || hasRemoveLabels;
+    changeStatus || changePriority || changeType || changeAssignee || changeDueDate || changeParent || hasAddLabels || hasRemoveLabels;
   const submitDisabled = selectedIds.length === 0 || !anyFieldChecked || labelConflict;
 
   function buildSummary(): string {
@@ -105,16 +113,18 @@ export function BulkEditPanel({ projectKey, selectedIds, statuses, members, onSu
       parts.push(`assignee → ${assigneeId ? m?.name ?? "—" : "Unassigned"}`);
     }
     if (changeDueDate) parts.push(`due date → ${dueDate ? new Date(dueDate).toLocaleDateString() : "cleared"}`);
+    if (changeParent) parts.push(`parent → ${parent ? parent.key : "none (cleared)"}`);
     if (hasAddLabels) parts.push(`add label${addLabels.length > 1 ? "s" : ""} ${addLabels.map((l) => `"${l}"`).join(", ")}`);
     if (hasRemoveLabels) parts.push(`remove label${removeLabels.length > 1 ? "s" : ""} ${removeLabels.map((l) => `"${l}"`).join(", ")}`);
 
-    const fieldNames = ["Status", "Priority", "Type", "Assignee", "Due date"];
+    const fieldNames = ["Status", "Priority", "Type", "Assignee", "Due date", "Parent"];
     const checkedFieldNames = [
       changeStatus && "Status",
       changePriority && "Priority",
       changeType && "Type",
       changeAssignee && "Assignee",
       changeDueDate && "Due date",
+      changeParent && "Parent",
     ].filter(Boolean) as string[];
     const unchanged = fieldNames.filter((f) => !checkedFieldNames.includes(f));
 
@@ -133,6 +143,7 @@ export function BulkEditPanel({ projectKey, selectedIds, statuses, members, onSu
       if (changeType) updates.type = type;
       if (changeAssignee) updates.assigneeId = assigneeId || null;
       if (changeDueDate) updates.dueDate = dueDate ? new Date(dueDate) : null;
+      if (changeParent) updates.parentId = parent?.id ?? null;
       if (hasAddLabels) updates.addLabels = addLabels;
       if (hasRemoveLabels) updates.removeLabels = removeLabels;
 
@@ -225,6 +236,57 @@ export function BulkEditPanel({ projectKey, selectedIds, statuses, members, onSu
           )}
         </div>
       </FieldRow>
+
+      <FieldRow checked={changeParent} onCheckedChange={setChangeParent} label="Parent Issue">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setParentPickerOpen(true)}
+              disabled={!changeParent}
+              className={`${selectClass} flex items-center gap-2 text-left`}
+            >
+              {parent ? (
+                <>
+                  <IssueTypeIcon type={parent.type} size={16} />
+                  <span className="font-mono text-xs">{parent.key}</span>
+                  <span className="truncate">{parent.title}</span>
+                </>
+              ) : (
+                <span>Select parent issue…</span>
+              )}
+            </button>
+            {parent && changeParent && (
+              <button
+                type="button"
+                onClick={() => setParent(null)}
+                className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {changeParent && (
+            <p className="text-xs text-zinc-400 dark:text-zinc-600">
+              Leave unselected to remove the parent from the selected issues.
+            </p>
+          )}
+        </div>
+      </FieldRow>
+
+      {parentPickerOpen && (
+        <IssuePickerDialog
+          projectKey={projectKey}
+          excludeIssueId=""
+          excludeIds={selectedIdSet}
+          title="Select parent issue"
+          onSelect={(issue) => {
+            setParent(issue);
+            setParentPickerOpen(false);
+          }}
+          onClose={() => setParentPickerOpen(false)}
+        />
+      )}
 
       <FieldRow checked={addLabelsChecked} onCheckedChange={setAddLabelsChecked} label="Add Labels">
         <LabelInput labels={addLabels} onChange={setAddLabels} placeholder="Label to add..." disabled={!addLabelsChecked} />
