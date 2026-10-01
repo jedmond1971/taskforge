@@ -97,7 +97,7 @@ Setting a Railway variable (dashboard or `variableUpsert`, see [local-dev-toolin
 | `NEXTAUTH_SECRET` | never recorded | Dead variable (see inventory); differs from `AUTH_SECRET` in prod |
 | `V1_API_KEY` | 2026-10-01 | Rehearsal run by Jamie (Claude Code's classifier blocks secret-store writes). Railway deploy `SUCCESS`, new key `200` / no key `401`, manual cleanup-cron run green. Whole procedure took ~10 min; old-key 401 was not directly checked (backup file removed early) |
 | Bucket credentials | never recorded | |
-| `RESEND_API_KEY` | never recorded | |
-| `ANTHROPIC_API_KEY` | never recorded | |
+| `RESEND_API_KEY` | created ~July 2026 (Resend dashboard shows "3 months ago" on 2026-10-01; exact date not shown) | Never rotated since creation, ~3 months old |
+| `ANTHROPIC_API_KEY` | created 2026-07-31 (Anthropic console) | Never rotated since creation, ~2 months old |
 | `DATABASE_URL` / Postgres password | never recorded | |
 | `RAILWAY_API_TOKEN` | never recorded | |
