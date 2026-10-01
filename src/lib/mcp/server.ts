@@ -13,6 +13,7 @@ import { getObjectBuffer } from "@/lib/s3";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
 import { notificationService } from "@/lib/notifications";
 import { parse, validate, executeQuery, ParseError } from "@/lib/query";
+import { wouldCreateCycle } from "@/lib/issue-hierarchy";
 import type { OAuthTokenContext } from "@/lib/oauth/require-oauth-token";
 import type { OAuthScope } from "@/lib/oauth/scopes";
 
@@ -117,6 +118,53 @@ async function requireIssueMembership(issueKey: string, ctx: OAuthTokenContext) 
   return { issue, role: member.role };
 }
 
+// Resolves a parent issue key for `childProjectId`. `childId` is null when the child
+// doesn't exist yet (create_issue), in which case no cycle is possible.
+async function resolveParent(
+  parentKey: string,
+  childProjectId: string,
+  childId: string | null,
+  ctx: OAuthTokenContext
+): Promise<{ id: string; key: string } | { error: string }> {
+  const candidate = await requireIssueMembership(parentKey, ctx);
+  if (!candidate) return { error: `Parent issue not found or you are not a member: ${parentKey}` };
+  if (candidate.issue.id === childId) return { error: "An issue cannot be its own parent" };
+  if (candidate.issue.projectId !== childProjectId) return { error: "Parent issue must be in the same project" };
+  if (childId && (await wouldCreateCycle(candidate.issue.id, [childId]))) {
+    return { error: "Cannot set parent — this would create a circular hierarchy" };
+  }
+  return { id: candidate.issue.id, key: candidate.issue.key };
+}
+
+const MAX_CHILD_KEYS = 50;
+
+// parentKey / childCount / childKeys for a set of issues, so MCP clients can read the
+// hierarchy back without a separate call. childKeys is capped; childCount is exact.
+async function hierarchyFor(ids: string[]) {
+  const rows = ids.length
+    ? await prisma.issue.findMany({
+        where: { id: { in: ids } },
+        select: {
+          id: true,
+          parent: { select: { key: true } },
+          _count: { select: { children: true } },
+          children: { select: { key: true }, orderBy: { createdAt: "asc" }, take: MAX_CHILD_KEYS },
+        },
+      })
+    : [];
+  return new Map(
+    rows.map((r) => [
+      r.id,
+      { parentKey: r.parent?.key ?? null, childCount: r._count.children, childKeys: r.children.map((c) => c.key) },
+    ])
+  );
+}
+
+async function withHierarchy<T extends { id: string }>(issue: T) {
+  const h = (await hierarchyFor([issue.id])).get(issue.id);
+  return { ...issue, parentKey: h?.parentKey ?? null, childCount: h?.childCount ?? 0, childKeys: h?.childKeys ?? [] };
+}
+
 export function createMcpServer(ctx: OAuthTokenContext): McpServer {
   const server = new McpServer({ name: "jedforge", version: "1.0.0" });
 
@@ -151,7 +199,16 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
       if (memberProjectIds.length === 0) return textResult({ issues: [], total: 0 });
 
       const result = await executeQuery(parsed, { userId: ctx.userId, memberProjectIds }, 50);
-      return textResult(result);
+      const hierarchy = await hierarchyFor(result.issues.map((i) => i.id));
+      return textResult({
+        ...result,
+        issues: result.issues.map((i) => ({
+          ...i,
+          parentKey: hierarchy.get(i.id)?.parentKey ?? null,
+          childCount: hierarchy.get(i.id)?.childCount ?? 0,
+          childKeys: hierarchy.get(i.id)?.childKeys ?? [],
+        })),
+      });
     }
   );
 
@@ -166,14 +223,22 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
         description: z.string().optional().describe("Plain text or TipTap HTML"),
         type: z.enum(["TASK", "BUG", "STORY", "EPIC"]).optional(),
         priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).optional(),
+        parentIssueKey: z.string().optional().describe("Key of an issue in the same project to create this one beneath, e.g. JFR-103"),
       },
     },
-    async ({ projectKey, title, description, type, priority }) => {
+    async ({ projectKey, title, description, type, priority, parentIssueKey }) => {
       if (!hasScope(ctx, "issues:write")) return errorResult("Missing scope: issues:write");
 
       const membership = await requireProjectMembership(projectKey, ctx);
       if (!membership) return errorResult(`Project not found or you are not a member: ${projectKey}`);
       const { project } = membership;
+
+      let parentId: string | null = null;
+      if (parentIssueKey) {
+        const parent = await resolveParent(parentIssueKey, project.id, null, ctx);
+        if ("error" in parent) return errorResult(parent.error);
+        parentId = parent.id;
+      }
 
       const defaultStatus = await prisma.projectStatus.findFirst({
         where: { projectId: project.id, category: "TODO", isDefault: true },
@@ -200,6 +265,7 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
                 statusId: defaultStatus.id,
                 priority: resolvedPriority,
                 type: resolvedType,
+                parentId,
                 reporterId: ctx.userId,
                 labels: [],
                 position,
@@ -220,7 +286,7 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
       if (!issue) return errorResult("Could not generate a unique issue key");
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return textResult(formatIssue(issue as any));
+      return textResult(await withHierarchy(formatIssue(issue as any)));
     }
   );
 
@@ -406,9 +472,10 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
         assigneeId: z.string().nullable().optional().describe("User ID, or null to unassign"),
         labels: z.array(z.string()).optional(),
         dueDate: z.string().nullable().optional().describe("ISO date string, or null to clear"),
+        parentIssueKey: z.string().nullable().optional().describe("Issue key to set as parent, or null to remove the parent"),
       },
     },
-    async ({ issueKey, title, description, status, priority, assigneeId, labels, dueDate }) => {
+    async ({ issueKey, title, description, status, priority, assigneeId, labels, dueDate, parentIssueKey }) => {
       if (!hasScope(ctx, "issues:write")) return errorResult("Missing scope: issues:write");
 
       const membership = await requireIssueMembership(issueKey, ctx);
@@ -472,6 +539,17 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
         }
       }
 
+      let newParentKey: string | null | undefined;
+      if (parentIssueKey === null) {
+        newParentKey = null;
+        updates.parentId = null;
+      } else if (parentIssueKey !== undefined) {
+        const parent = await resolveParent(parentIssueKey, issue.projectId, issue.id, ctx);
+        if ("error" in parent) return errorResult(parent.error);
+        newParentKey = parent.key;
+        updates.parentId = parent.id;
+      }
+
       if (Object.keys(updates).length === 0) return errorResult("No valid fields to update");
 
       // Log each changed field the same way the board/list UI's updateIssue action
@@ -493,6 +571,10 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
           const newValue = Array.isArray(newRaw) ? (newRaw as string[]).join(", ") : String(newRaw ?? "");
           if (oldValue !== newValue) logs.push({ field: label, oldValue, newValue });
         }
+      }
+
+      if (newParentKey !== undefined && newParentKey !== (issue.parent?.key ?? null)) {
+        logs.push({ field: "parent", oldValue: issue.parent?.key ?? "", newValue: newParentKey ?? "" });
       }
 
       const statusChanging = typeof updates.statusId === "string" && updates.statusId !== issue.statusId;
@@ -549,7 +631,7 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return textResult(formatIssue(updated as any));
+      return textResult(await withHierarchy(formatIssue(updated as any)));
     }
   );
 
@@ -720,30 +802,10 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
       let newParentId: string | null = null;
       let newParentKey: string | null = null;
       if (parentIssueKey) {
-        const candidate = await requireIssueMembership(parentIssueKey, ctx);
-        if (!candidate) return errorResult(`Parent issue not found or you are not a member: ${parentIssueKey}`);
-        if (candidate.issue.id === issue.id) return errorResult("An issue cannot be its own parent");
-        if (candidate.issue.projectId !== issue.projectId) {
-          return errorResult("Parent issue must be in the same project");
-        }
-
-        // Walk up the candidate's ancestor chain to guard against a cycle.
-        let cursor: string | null = candidate.issue.parentId;
-        let depth = 0;
-        while (cursor && depth < 50) {
-          if (cursor === issue.id) {
-            return errorResult("Cannot set parent — this would create a circular hierarchy");
-          }
-          const next: { parentId: string | null } | null = await prisma.issue.findUnique({
-            where: { id: cursor },
-            select: { parentId: true },
-          });
-          cursor = next?.parentId ?? null;
-          depth++;
-        }
-
-        newParentId = candidate.issue.id;
-        newParentKey = candidate.issue.key;
+        const parent = await resolveParent(parentIssueKey, issue.projectId, issue.id, ctx);
+        if ("error" in parent) return errorResult(parent.error);
+        newParentId = parent.id;
+        newParentKey = parent.key;
       }
 
       await prisma.issue.update({ where: { id: issue.id }, data: { parentId: newParentId } });
@@ -759,7 +821,7 @@ export function createMcpServer(ctx: OAuthTokenContext): McpServer {
         },
       });
 
-      return textResult({ issueKey: issue.key, parentIssueKey: newParentKey });
+      return textResult({ issueKey: issue.key, parentIssueKey: newParentKey, ...(await hierarchyFor([issue.id])).get(issue.id) });
     }
   );
 
