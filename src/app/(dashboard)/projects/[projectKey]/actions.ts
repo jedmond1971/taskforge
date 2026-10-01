@@ -19,6 +19,7 @@ import { notificationService } from "@/lib/notifications";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
 import { deleteObject, deleteObjectsWithPrefix } from "@/lib/s3";
 import { lockProjectForPositionWrite, nextPositionInStatus } from "@/lib/issue-position";
+import { wouldCreateCycle } from "@/lib/issue-hierarchy";
 import { logError } from "@/lib/security-events";
 
 // Helper: verify user is a project member, returns { userId, projectId }.
@@ -317,6 +318,7 @@ export type BulkIssueUpdates = Partial<{
   type: IssueType;
   assigneeId: string | null;
   dueDate: Date | null;
+  parentId: string | null;
   addLabels: string[];
   removeLabels: string[];
 }>;
@@ -339,7 +341,7 @@ export async function bulkUpdateIssueFields(
 
   const addLabels = updates.addLabels ?? [];
   const removeLabels = updates.removeLabels ?? [];
-  const hasFieldUpdate = (["statusId", "priority", "type", "assigneeId", "dueDate"] as const).some(
+  const hasFieldUpdate = (["statusId", "priority", "type", "assigneeId", "dueDate", "parentId"] as const).some(
     (field) => field in updates && updates[field] !== undefined
   );
   if (!hasFieldUpdate && addLabels.length === 0 && removeLabels.length === 0) {
@@ -353,6 +355,20 @@ export async function bulkUpdateIssueFields(
       where: { userId_projectId: { userId: updates.assigneeId, projectId } },
     });
     if (!assigneeMember) throw new Error("Assignee is not a member of this project");
+  }
+
+  // parentId comes straight from the client: it must be an issue in this project, and
+  // must not be (or descend from) one of the issues being re-parented.
+  let targetParent: { id: string; key: string } | null = null;
+  if (updates.parentId) {
+    targetParent = await prisma.issue.findFirst({
+      where: { id: updates.parentId, projectId },
+      select: { id: true, key: true },
+    });
+    if (!targetParent) throw new Error("Parent issue not found in this project");
+    if (await wouldCreateCycle(targetParent.id, issueIds)) {
+      throw new Error("Cannot set parent — this would create a circular hierarchy");
+    }
   }
 
   let targetStatus: { id: string; name: string } | null = null;
@@ -384,6 +400,8 @@ export async function bulkUpdateIssueFields(
       labels: true,
       dueDate: true,
       reporterId: true,
+      parentId: true,
+      parent: { select: { key: true } },
     },
   });
   if (targetIssues.length !== issueIds.length) {
@@ -418,6 +436,12 @@ export async function bulkUpdateIssueFields(
         activityEntries.push({ field: "due date", oldValue: String(issue.dueDate ?? ""), newValue: String(updates.dueDate ?? "") });
         hasChange = true;
       }
+    }
+
+    if ("parentId" in updates && updates.parentId !== undefined && updates.parentId !== issue.parentId) {
+      updateData.parentId = updates.parentId;
+      activityEntries.push({ field: "parent", oldValue: issue.parent?.key ?? "", newValue: targetParent?.key ?? "" });
+      hasChange = true;
     }
 
     let statusChanging = false;
