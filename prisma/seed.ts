@@ -1,9 +1,17 @@
 import { PrismaClient, IssuePriority, IssueType, UserRole, ProjectMemberRole, Plan } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { checkSeedTarget } from "./seed-guard";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  // SECH-110: this script deletes all users/orgs/projects — never run it blind against a remote DB.
+  const target = checkSeedTarget(process.env);
+  if (!target.ok) {
+    console.error(target.error);
+    process.exit(1);
+  }
+
   // Cleanup — order respects FK constraints
   await prisma.activityLog.deleteMany();
   await prisma.comment.deleteMany();
@@ -19,7 +27,7 @@ async function main() {
   await prisma.user.deleteMany();
 
   // Users
-  const hashedPassword = await bcrypt.hash("password123", 12);
+  const hashedPassword = await bcrypt.hash(target.password, 12);
 
   const alice = await prisma.user.create({
     data: { email: "admin@jedforge.dev", name: "Alice Chen", passwordHash: hashedPassword, role: UserRole.ADMIN },
