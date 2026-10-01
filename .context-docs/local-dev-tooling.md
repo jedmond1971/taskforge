@@ -69,3 +69,47 @@
 
 - **`pkill -f "next start -p 3100"` kills its own shell (exit 144)** because the pattern matches the bash command line that contains it — later commands in the same call never run. To stop a background `next start`, kill by port instead (`fuser -k 3100/tcp`) or in a separate call. Verifying env-var behaviour on a production build (`npm run build`, then `PORT=3100 VAR=… npx next start -p 3100`, curl) works locally with the repo `.env` and proved Edge middleware reads non-`NEXT_PUBLIC` vars at runtime, not build time (SECH-118).
 - **Browser pane `form_input` on a checkbox changes the DOM only, not React state (confirmed 2026-10-01, JFR-166 bulk edit).** The box looks ticked but the controlled `onChange` never fires, so dependent controls stay `disabled` and counters like "Apply to 0 issues" do not move. Use a real `computer` `left_click` by coordinate instead; if a `form_input` already ticked it, click twice (untick, retick) to sync state. `form_input` on text inputs and selects is not known to have this problem.
+
+## Staging environment (SECH-110)
+
+Purpose: a deployment target that is not production, so a known commit can be exercised (smoke checks, kill-switch flips, alert drill, rotation rehearsals) without touching real data. **Nothing is shared with production** — separate Postgres, bucket, `AUTH_SECRET`, `V1_API_KEY`, Resend key.
+
+**Status: provisioning checklist below — fill in the IDs table once the environment exists.**
+
+### Provision (Railway dashboard — Jamie; Claude Code can't write secrets, see the classifier note above)
+Create a **new, empty** environment named `staging` in the existing Railway project. **Do not use "duplicate environment"**: it copies production's literal variables (bucket credentials, `AUTH_SECRET`, `V1_API_KEY`) into an environment that may deploy at once, and a staging app holding production's bucket credentials could write to the production bucket.
+1. **Postgres:** add a new Postgres service in `staging`.
+2. **Bucket:** add a new bucket in `staging`; its five `RAILWAY_BUCKET_*` values are its own.
+3. **App service:** add a service from the GitHub repo `jedmond1971/taskforge`, **branch `staging`**, and turn **auto-deploy off** (deploy on manual trigger only). It picks up `railway.toml`, so the same `preDeployCommand = "npx prisma migrate deploy"` runs the migrations.
+4. **Variables (set before the first deploy):** `DATABASE_URL` as a reference to the *staging* Postgres service, `AUTH_SECRET` (fresh, `openssl rand -base64 32`), `V1_API_KEY` (fresh, different from production's), `NEXTAUTH_URL` (the staging public URL, no trailing slash — the smoke check fails if the OAuth issuer disagrees), the five `RAILWAY_BUCKET_*`, and a **separate `RESEND_API_KEY`**. Optional: `ALERTING_ENABLED=true` + `ALERT_EMAIL_TO` to rehearse alerts.
+5. **Do not set** `AI_CHAT_ENABLED`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `NEXTAUTH_SECRET` (dead, see [secret-rotation.md](secret-rotation.md)) or `ADMIN_PASSWORD`.
+6. **Domain:** generate a Railway public domain for the app service.
+7. OAuth client registrations need no provisioning — clients register themselves through `/api/oauth/register` at runtime.
+8. Staging sends real email through Resend: invite only addresses you own.
+
+### Deploy a known commit
+```bash
+git push --force origin <sha>:refs/heads/staging   # the staging branch is throwaway; main stays protected
+```
+Then trigger the deploy in the dashboard (or `serviceInstanceDeploy` with an explicit `commitSha`, see above) and confirm `meta.commitHash` of the top deployment equals `<sha>` with `status: SUCCESS` — same check as production. A migration failure fails the deploy.
+
+### Seed with fixtures only — never a copy of production data
+`prisma/seed.ts` **deletes all users, orgs and projects**, so since SECH-110 it refuses any non-local database unless you name the host and give a real password (`prisma/seed-guard.ts`). Use the staging Postgres' *public* URL (the Postgres service's public networking tab; fetching it is blocked for Claude Code, Jamie runs this):
+```bash
+DATABASE_URL='<staging public url>' SEED_ALLOW_REMOTE='<that url's host>' SEED_PASSWORD='<16+ random chars>' npx prisma db seed
+```
+**Check the host is the staging database's before running** — the guard confirms you named the host you typed, not that it isn't production. Seeded logins are `admin@jedforge.dev` etc. with the `SEED_PASSWORD` you chose; local runs keep the `password123` default.
+
+### Smoke checks
+```bash
+node scripts/smoke-check.mjs https://<staging-domain> --ai off
+```
+Unauthenticated only (headers, auth rejections, OAuth issuer matches the URL, AI chat 404). It also passes against production (`https://www.jedforge.com`, without `--ai off` since AI chat is on there) — run it after every production deploy too.
+
+### IDs (fill in after provisioning)
+| Item | Value |
+|---|---|
+| Environment ID (`staging`) | _TBD_ |
+| App service ID | _TBD_ |
+| Postgres service ID | _TBD_ |
+| Public URL | _TBD_ |
