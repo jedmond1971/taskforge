@@ -94,7 +94,7 @@ Setting a Railway variable (dashboard or `variableUpsert`, see [local-dev-toolin
 | Secret | Last rotated | Note |
 |---|---|---|
 | `AUTH_SECRET` / `NEXTAUTH_SECRET` | never recorded | Local value was committed in early history; production value unknown |
-| `V1_API_KEY` | never recorded | Rehearsal pending |
+| `V1_API_KEY` | 2026-10-01 | Rehearsal run by Jamie (Claude Code's classifier blocks secret-store writes). Railway deploy `SUCCESS`, new key `200` / no key `401`, manual cleanup-cron run green. Whole procedure took ~10 min; old-key 401 was not directly checked (backup file removed early) |
 | Bucket credentials | never recorded | |
 | `RESEND_API_KEY` | never recorded | |
 | `ANTHROPIC_API_KEY` | never recorded | |
