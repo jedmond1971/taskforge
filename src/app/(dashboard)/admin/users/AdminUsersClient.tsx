@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback, useEffect } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Search, Plus, Pencil, Trash2, KeyRound, FolderPlus, Users } from "lucide-react";
@@ -18,15 +18,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  getAdminUsers,
-  adminCreateUser,
-  adminUpdateUser,
-  adminDeleteUser,
-  adminResetUserPassword,
-  adminAddUserToProject,
-  adminGetProjectsForSelect,
-} from "../actions";
+import { getAdminUsers, adminCreateUser } from "../actions";
+import { UserActionDialogs, type UserAction } from "./UserActionDialogs";
 
 type AdminUser = {
   id: string;
@@ -37,8 +30,6 @@ type AdminUser = {
   createdAt: Date;
   _count: { projectMembers: number };
 };
-
-type ProjectOption = { id: string; name: string; key: string };
 
 function getInitials(name: string): string {
   return name
@@ -57,8 +48,9 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
 
   // Dialogs
   const [createOpen, setCreateOpen] = useState(false);
-  const [editUser, setEditUser] = useState<AdminUser | null>(null);
-  const [deleteUser, setDeleteUser] = useState<AdminUser | null>(null);
+  const [actionUser, setActionUser] = useState<AdminUser | null>(null);
+  const [action, setAction] = useState<UserAction | null>(null);
+  const openAction = (user: AdminUser, a: UserAction) => { setActionUser(user); setAction(a); };
 
   // Create form
   const [createName, setCreateName] = useState("");
@@ -66,29 +58,6 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
   const [createPassword, setCreatePassword] = useState("");
   const [createRole, setCreateRole] = useState<"ADMIN" | "TEAM_MEMBER">("TEAM_MEMBER");
   const [creating, setCreating] = useState(false);
-
-  // Edit form
-  const [editName, setEditName] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editRole, setEditRole] = useState<"ADMIN" | "TEAM_MEMBER">("TEAM_MEMBER");
-  const [editing, setEditing] = useState(false);
-
-  // Delete
-  const [deleting, setDeleting] = useState(false);
-
-  // Reset password
-  const [resetPasswordUser, setResetPasswordUser] = useState<AdminUser | null>(null);
-  const [resetNewPassword, setResetNewPassword] = useState("");
-  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
-  const [resettingPassword, setResettingPassword] = useState(false);
-
-  // Add to project
-  const [addToProjectUser, setAddToProjectUser] = useState<AdminUser | null>(null);
-  const [projectOptions, setProjectOptions] = useState<ProjectOption[]>([]);
-  const [projectOptionsLoading, setProjectOptionsLoading] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState("");
-  const [selectedProjectRole, setSelectedProjectRole] = useState<"PROJECT_LEAD" | "TEAM_MEMBER" | "VIEWER">("TEAM_MEMBER");
-  const [addingToProject, setAddingToProject] = useState(false);
 
   // Debounced search
   useEffect(() => {
@@ -109,13 +78,6 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
   useEffect(() => {
     setUsers(initialUsers);
   }, [initialUsers]);
-
-  const openEdit = useCallback((user: AdminUser) => {
-    setEditUser(user);
-    setEditName(user.name);
-    setEditEmail(user.email);
-    setEditRole(user.role === "ADMIN" ? "ADMIN" : "TEAM_MEMBER");
-  }, []);
 
   const handleCreate = async () => {
     if (!createName || !createEmail || !createPassword) {
@@ -142,103 +104,6 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
       toast.error("Something went wrong");
     } finally {
       setCreating(false);
-    }
-  };
-
-  const handleEdit = async () => {
-    if (!editUser) return;
-    setEditing(true);
-    try {
-      const result = await adminUpdateUser(editUser.id, {
-        name: editName,
-        email: editEmail,
-        role: editRole,
-      });
-      if (!result.success) { toast.error(result.error); return; }
-      toast.success("User updated successfully");
-      setEditUser(null);
-      router.refresh();
-    } catch {
-      toast.error("Something went wrong");
-    } finally {
-      setEditing(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteUser) return;
-    setDeleting(true);
-    try {
-      const result = await adminDeleteUser(deleteUser.id);
-      if (!result.success) { toast.error(result.error); return; }
-      toast.success("User deleted successfully");
-      setDeleteUser(null);
-      router.refresh();
-    } catch {
-      toast.error("Something went wrong");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const openResetPassword = useCallback((user: AdminUser) => {
-    setResetPasswordUser(user);
-    setResetNewPassword("");
-    setResetConfirmPassword("");
-  }, []);
-
-  const handleResetPassword = async () => {
-    if (!resetPasswordUser) return;
-    if (resetNewPassword.length < 8) {
-      toast.error("Password must be at least 8 characters");
-      return;
-    }
-    if (resetNewPassword !== resetConfirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-    setResettingPassword(true);
-    try {
-      const result = await adminResetUserPassword(resetPasswordUser.id, resetNewPassword);
-      if (!result.success) { toast.error(result.error); return; }
-      toast.success("Password reset successfully");
-      setResetPasswordUser(null);
-    } catch {
-      toast.error("Something went wrong");
-    } finally {
-      setResettingPassword(false);
-    }
-  };
-
-  const openAddToProject = useCallback(async (user: AdminUser) => {
-    setAddToProjectUser(user);
-    setSelectedProjectId("");
-    setSelectedProjectRole("TEAM_MEMBER");
-    setProjectOptionsLoading(true);
-    try {
-      const projects = await adminGetProjectsForSelect();
-      setProjectOptions(projects);
-      if (projects.length > 0) setSelectedProjectId(projects[0].id);
-    } catch {
-      toast.error("Failed to load projects");
-    } finally {
-      setProjectOptionsLoading(false);
-    }
-  }, []);
-
-  const handleAddToProject = async () => {
-    if (!addToProjectUser || !selectedProjectId) return;
-    setAddingToProject(true);
-    try {
-      const result = await adminAddUserToProject(addToProjectUser.id, selectedProjectId, selectedProjectRole);
-      if (!result.success) { toast.error(result.error); return; }
-      toast.success(`${addToProjectUser.name} added to project`);
-      setAddToProjectUser(null);
-      router.refresh();
-    } catch {
-      toast.error("Something went wrong");
-    } finally {
-      setAddingToProject(false);
     }
   };
 
@@ -326,16 +191,16 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon-sm" title="Reset password" onClick={() => openResetPassword(user)}>
+                      <Button variant="ghost" size="icon-sm" title="Reset password" onClick={() => openAction(user, "reset")}>
                         <KeyRound className="w-3.5 h-3.5 text-muted-foreground" />
                       </Button>
-                      <Button variant="ghost" size="icon-sm" title="Add to project" onClick={() => openAddToProject(user)}>
+                      <Button variant="ghost" size="icon-sm" title="Add to project" onClick={() => openAction(user, "addToProject")}>
                         <FolderPlus className="w-3.5 h-3.5 text-muted-foreground" />
                       </Button>
-                      <Button variant="ghost" size="icon-sm" onClick={() => openEdit(user)}>
+                      <Button variant="ghost" size="icon-sm" title="Edit user" aria-label="Edit user" onClick={() => openAction(user, "edit")}>
                         <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                       </Button>
-                      <Button variant="ghost" size="icon-sm" onClick={() => setDeleteUser(user)}>
+                      <Button variant="ghost" size="icon-sm" title="Delete user" aria-label="Delete user" onClick={() => openAction(user, "delete")}>
                         <Trash2 className="w-3.5 h-3.5 text-danger" />
                       </Button>
                     </div>
@@ -404,173 +269,12 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
         </DialogContent>
       </Dialog>
 
-      {/* Edit User Dialog */}
-      <Dialog open={!!editUser} onOpenChange={(open) => !open && setEditUser(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>Update user details and role.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Name</label>
-              <Input
-                placeholder="Full name"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Email</label>
-              <Input
-                type="email"
-                placeholder="user@example.com"
-                value={editEmail}
-                onChange={(e) => setEditEmail(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Role</label>
-              <select
-                value={editRole}
-                onChange={(e) => setEditRole(e.target.value as "ADMIN" | "TEAM_MEMBER")}
-                className="w-full h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-              >
-                <option value="TEAM_MEMBER">Team Member</option>
-                <option value="ADMIN">Admin</option>
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditUser(null)} disabled={editing}>
-              Cancel
-            </Button>
-            <Button onClick={handleEdit} disabled={editing}>
-              {editing ? "Saving..." : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reset Password Dialog */}
-      <Dialog open={!!resetPasswordUser} onOpenChange={(open) => !open && setResetPasswordUser(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Reset Password</DialogTitle>
-            <DialogDescription>
-              Set a new password for {resetPasswordUser?.name}. No current password required.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">New Password</label>
-              <Input
-                type="password"
-                placeholder="Minimum 8 characters"
-                value={resetNewPassword}
-                onChange={(e) => setResetNewPassword(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Confirm Password</label>
-              <Input
-                type="password"
-                placeholder="Re-enter password"
-                value={resetConfirmPassword}
-                onChange={(e) => setResetConfirmPassword(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setResetPasswordUser(null)} disabled={resettingPassword}>
-              Cancel
-            </Button>
-            <Button onClick={handleResetPassword} disabled={resettingPassword}>
-              {resettingPassword ? "Saving..." : "Reset Password"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add to Project Dialog */}
-      <Dialog open={!!addToProjectUser} onOpenChange={(open) => !open && setAddToProjectUser(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add to Project</DialogTitle>
-            <DialogDescription>
-              Add {addToProjectUser?.name} to a project. If they aren&apos;t already in the project&apos;s organization, they will be joined automatically.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Project</label>
-              {projectOptionsLoading ? (
-                <p className="text-sm text-muted-foreground">Loading projects...</p>
-              ) : projectOptions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No projects available.</p>
-              ) : (
-                <select
-                  value={selectedProjectId}
-                  onChange={(e) => setSelectedProjectId(e.target.value)}
-                  className="w-full h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                >
-                  {projectOptions.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.key})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Role</label>
-              <select
-                value={selectedProjectRole}
-                onChange={(e) => setSelectedProjectRole(e.target.value as "PROJECT_LEAD" | "TEAM_MEMBER" | "VIEWER")}
-                className="w-full h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-              >
-                <option value="PROJECT_LEAD">Project Lead</option>
-                <option value="TEAM_MEMBER">Team Member</option>
-                <option value="VIEWER">Viewer</option>
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddToProjectUser(null)} disabled={addingToProject}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddToProject}
-              disabled={addingToProject || projectOptionsLoading || !selectedProjectId}
-            >
-              {addingToProject ? "Adding..." : "Add to Project"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete User Dialog */}
-      <Dialog open={!!deleteUser} onOpenChange={(open) => !open && setDeleteUser(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete {deleteUser?.name}?
-            </DialogDescription>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            This will remove the user from all projects. This action cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteUser(null)} disabled={deleting}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Deleting..." : "Delete User"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <UserActionDialogs
+        user={actionUser}
+        action={action}
+        onClose={() => setAction(null)}
+        onDone={() => router.refresh()}
+      />
     </div>
   );
 }
