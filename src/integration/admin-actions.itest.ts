@@ -52,6 +52,7 @@ function everyAdminAction(): Array<[string, () => Promise<unknown>]> {
   const a = w.A, u = w.users;
   return [
     ["getAdminUsers", () => adminActions.getAdminUsers()],
+    ["getAdminUserDetail", () => adminActions.getAdminUserDetail(u.aMember.id)],
     ["adminCreateUser", () => adminActions.adminCreateUser({ name: "x", email: `${w.tag}-made@itest.local`, password: "password123", role: "ADMIN" })],
     ["adminUpdateUser", () => adminActions.adminUpdateUser(u.aMember.id, { role: "ADMIN" })],
     ["adminResetUserPassword", () => adminActions.adminResetUserPassword(u.aOwner.id, "hijacked123")],
@@ -115,6 +116,27 @@ describe("every platform-admin action refuses non-admins", () => {
     // into a null session (SECH-86) — the "no session" case above.
     actAs({ ...w.users.aAdmin, role: "TEAM_MEMBER" });
     await expect(adminActions.getAdminUsers()).rejects.toThrow(DENIED);
+  });
+});
+
+describe("getAdminUserDetail", () => {
+  it("returns memberships across orgs for an admin, never credential material", async () => {
+    actAs(w.users.aAdmin);
+    const key = await prisma.apiKey.create({
+      data: { orgId: w.orgA.id, name: "detail-key", keyPrefix: "abcd1234", hashedKey: `${w.tag}-detail-hash`, createdById: w.users.aMember.id },
+    });
+    try {
+      const d = await adminActions.getAdminUserDetail(w.users.aMember.id);
+      expect(d).not.toBeNull();
+      expect(d!.orgMembers.map((m) => m.org.id)).toEqual([w.orgA.id]);
+      expect(d!.projectMembers.map((m) => m.project.id)).toEqual([w.A.project.id]);
+      expect(d!.apiKeys.map((k) => k.name)).toEqual(["detail-key"]);
+      const json = JSON.stringify(d);
+      expect(json).not.toMatch(/passwordHash|hashedKey|keyPrefix|sessionVersion|abcd1234/);
+      expect(await adminActions.getAdminUserDetail("does-not-exist")).toBeNull();
+    } finally {
+      await prisma.apiKey.delete({ where: { id: key.id } });
+    }
   });
 });
 
