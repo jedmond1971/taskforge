@@ -7,6 +7,7 @@ import { Plus, ChevronRight } from "lucide-react";
 import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { UserMenu } from "./UserMenu";
 import { usePageTitle } from "./PageTitleContext";
 
 function segmentLabel(segment: string): string {
@@ -124,6 +125,7 @@ export function Header() {
             <span className="hidden sm:inline">Create Issue</span>
           </button>
         )}
+        <UserMenu />
       </div>
     </header>
   );
