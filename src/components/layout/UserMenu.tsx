@@ -12,9 +12,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Retarget to /profile once the self-service profile page exists (JFR-169).
-const PROFILE_HREF = "/settings";
-
 export function UserMenu() {
   const { data: session } = useSession();
   const user = session?.user;
@@ -48,7 +45,7 @@ export function UserMenu() {
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="cursor-pointer p-0">
-          <Link href={PROFILE_HREF} className="flex items-center w-full px-2 py-1.5">
+          <Link href="/profile" className="flex items-center w-full px-2 py-1.5">
             <User className="w-4 h-4 mr-2" />
             My Profile
           </Link>
