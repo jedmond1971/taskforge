@@ -85,6 +85,7 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | Action | Guard | Tenant scope | Minimum role |
 |---|---|---|---|
 | `getAdminUsers` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
+| `getAdminUserDetail` | `requireAdmin()` (permissions.ts) | target user id; read-only; explicit select (no `passwordHash`, `sessionVersion`, API key hash/prefix) | platform ADMIN |
 | `adminCreateUser` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
 | `adminUpdateUser` | `requireAdmin()` (permissions.ts) | target user id | platform ADMIN; role change bumps `sessionVersion` |
 | `adminResetUserPassword` | `requireAdmin()` (permissions.ts) | target user id | platform ADMIN; bumps `sessionVersion` |

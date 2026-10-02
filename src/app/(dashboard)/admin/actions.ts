@@ -47,6 +47,51 @@ export async function getAdminUsers(search?: string) {
   });
 }
 
+// Full read-only profile for the admin user-detail page (JFR-171). Explicit select: never
+// passwordHash, sessionVersion, or API key hashes/prefixes. Returns null for an unknown id.
+export async function getAdminUserDetail(userId: string) {
+  await requireAdmin();
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatarUrl: true,
+      role: true,
+      createdAt: true,
+      orgMembers: {
+        select: { role: true, createdAt: true, org: { select: { id: true, name: true } } },
+        orderBy: { createdAt: "asc" },
+      },
+      projectMembers: {
+        select: {
+          role: true,
+          project: { select: { id: true, key: true, name: true, isClosed: true, org: { select: { id: true, name: true } } } },
+        },
+        orderBy: { project: { name: "asc" } },
+      },
+      groupMemberships: {
+        select: { group: { select: { id: true, name: true, org: { select: { id: true, name: true } } } } },
+      },
+      apiKeys: {
+        select: { id: true, name: true, lastUsedAt: true, revokedAt: true, createdAt: true, org: { select: { id: true, name: true } } },
+        orderBy: { createdAt: "desc" },
+      },
+      _count: { select: { assignedIssues: true, reportedIssues: true, comments: true } },
+    },
+  });
+  if (!user) return null;
+
+  const lastActivity = await prisma.activityLog.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+
+  return { ...user, lastActivityAt: lastActivity?.createdAt ?? null };
+}
+
 // Create a new user
 export async function adminCreateUser(data: {
   name: string;
