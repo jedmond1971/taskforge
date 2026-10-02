@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Search, Plus, Pencil, Trash2, KeyRound, FolderPlus, Users } from "lucide-react";
@@ -159,7 +160,7 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
               users.map((user) => (
                 <tr key={user.id} className="hover:bg-surface-active transition-colors">
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
+                    <Link href={`/admin/users/${user.id}`} className="flex items-center gap-3 group w-fit">
                       <Avatar className="w-8 h-8">
                         <AvatarImage src={user.avatarUrl ?? undefined} />
                         <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
@@ -167,10 +168,10 @@ export function AdminUsersClient({ initialUsers }: { initialUsers: AdminUser[] }
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="text-sm font-medium text-foreground">{user.name}</p>
+                        <p className="text-sm font-medium text-foreground group-hover:underline">{user.name}</p>
                         <p className="text-xs text-muted-foreground">{user.email}</p>
                       </div>
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-4 py-3">
                     <Badge
