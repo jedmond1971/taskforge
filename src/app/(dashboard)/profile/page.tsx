@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { AvatarUpload } from "@/components/settings/AvatarUpload";
 import { PageHeader } from "@/components/ui/page-header";
 import { MonoMeta } from "@/components/ui/mono-meta";
+import { EditNameForm } from "./EditNameForm";
 import { ChangePasswordForm } from "../settings/ChangePasswordForm";
 
 function label(role: string): string {
@@ -64,9 +65,8 @@ export default async function ProfilePage() {
 
       <Panel title="Profile">
         <AvatarUpload currentImage={user.avatarUrl} userName={user.name} />
+        <EditNameForm initialName={user.name} />
         <dl className="grid grid-cols-[8rem_1fr] gap-y-2 text-sm">
-          <dt className="text-muted-foreground">Name</dt>
-          <dd className="text-foreground">{user.name}</dd>
           <dt className="text-muted-foreground">Email</dt>
           <dd className="text-foreground break-all">{user.email}</dd>
           <dt className="text-muted-foreground">Platform role</dt>

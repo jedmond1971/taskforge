@@ -96,7 +96,7 @@ const nextAuth = NextAuth({
       if (token.id) {
         const fresh = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { sessionVersion: true },
+          select: { sessionVersion: true, name: true },
         });
 
         if (!fresh || fresh.sessionVersion !== token.sessionVersion) {
@@ -111,6 +111,8 @@ const nextAuth = NextAuth({
         if (trigger === "update" && fresh) {
           token.sessionVersion = fresh.sessionVersion;
           token.invalidated = false;
+          // Name comes from the DB, not the client-supplied update() payload (JFR-170).
+          token.name = fresh.name;
         }
       } else {
         token.invalidated = false;

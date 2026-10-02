@@ -495,3 +495,31 @@ describe("POST /api/oauth/register (public by spec)", () => {
     expect(await prisma.oAuthAccessToken.count({ where: { clientId: client_id } })).toBe(0);
   });
 });
+
+// ─── Self-service profile (JFR-170) ───────────────────────────────────────────
+
+describe("updateOwnProfile", () => {
+  it("renames only the caller, ignores any other field, and rejects bad names", async () => {
+    const { updateOwnProfile } = await import("@/app/(dashboard)/settings/actions");
+    const me = w.users.aMember;
+    const other = await prisma.user.findUniqueOrThrow({ where: { id: w.users.aOwner.id } });
+    actAs(me);
+    try {
+      // Extra keys (a mass-assignment attempt) are never read.
+      const res = await updateOwnProfile({ name: "  New \n Name ", id: other.id, role: "ADMIN" } as never);
+      expect(res).toEqual({ success: true });
+      const after = await prisma.user.findUniqueOrThrow({ where: { id: me.id } });
+      expect(after.name).toBe("New Name");
+      expect(after.role).toBe("TEAM_MEMBER");
+      expect((await prisma.user.findUniqueOrThrow({ where: { id: other.id } })).name).toBe(other.name);
+
+      expect(await updateOwnProfile({ name: "   " })).toMatchObject({ success: false });
+      expect(await updateOwnProfile({ name: "x".repeat(101) })).toMatchObject({ success: false });
+
+      actAsNobody();
+      expect(await updateOwnProfile({ name: "Nope" })).toEqual({ success: false, error: "Unauthorized" });
+    } finally {
+      await prisma.user.update({ where: { id: me.id }, data: { name: me.name } });
+    }
+  });
+});
