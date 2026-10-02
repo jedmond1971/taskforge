@@ -91,7 +91,7 @@ export default async function AdminOrgDetailPage(
                 org.members.map((m) => (
                   <tr key={m.user.id} className="hover:bg-surface-active transition-colors">
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                      <Link href={`/admin/users/${m.user.id}`} className="flex items-center gap-2 group w-fit">
                         <Avatar className="w-7 h-7">
                           <AvatarImage src={m.user.avatarUrl ?? undefined} />
                           <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
@@ -99,10 +99,10 @@ export default async function AdminOrgDetailPage(
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="text-sm font-medium text-foreground">{m.user.name}</p>
+                          <p className="text-sm font-medium text-foreground group-hover:underline">{m.user.name}</p>
                           <p className="text-xs text-muted-foreground">{m.user.email}</p>
                         </div>
-                      </div>
+                      </Link>
                     </td>
                     <td className="px-4 py-3">
                       <Badge className={
