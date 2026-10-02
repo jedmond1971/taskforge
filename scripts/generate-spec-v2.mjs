@@ -340,7 +340,7 @@ const sections = [
   h2('4.1  Authentication & Account Management'),
   para('Accounts are created manually by an Admin. There is no self-registration or public sign-up flow. The /register route returns a 403 and the register page redirects authenticated users away.'),
   bullet('Login: email + password (bcryptjs hashing). JWT session via NextAuth v5.'),
-  bullet('User profile settings: name, email, and password change at /settings.'),
+  bullet('Self-service profile at /profile, reachable from the user menu in the top-right of every screen: avatar upload, editable display name (name only; email is admin-managed), read-only platform role, organizations, projects and groups with roles, and password change. /settings keeps avatar and password change.'),
   bullet('Avatar upload: users can upload a profile photo via /api/avatar (multipart POST). The avatar is stored in Railway S3 and proxied through the application to avoid exposing presigned URLs. Session is refreshed after upload to reflect the new avatarUrl.'),
   note('GitHub OAuth login is planned but not yet implemented. Only Credentials login is currently active.'),
   h3('Session Invalidation'),
@@ -523,7 +523,8 @@ const sections = [
   bullet('Within a project, a ProjectNav tab bar provides access to Board, Issues, Docs, Activity, and Settings.'),
   bullet('Global Docs page at /docs shows a cross-project document browser.'),
   bullet('Search page at /search — full FQL query interface with saved filters.'),
-  bullet('User settings at /settings — profile, password change, avatar upload.'),
+  bullet('Account menu (avatar, top-right of the header on every screen): My Profile, Settings, Sign out.'),
+  bullet('User settings at /settings — password change, avatar upload; full profile at /profile.'),
 
   // 4.12 Project & Admin
   h2('4.12  Project Management & Admin'),
@@ -535,6 +536,7 @@ const sections = [
   h3('Global Admin Panel'),
   bullet('Admin-only panel at /admin with three sub-views: Users, Projects, Organizations.'),
   bullet('Admins can create, edit, and delete users, projects, and organizations.'),
+  bullet('Each user in the Users list (and in an organization\'s member table) links to a read-only detail page at /admin/users/[userId]: identity and role, activity counts, organization/project/group memberships with roles, and API keys the user created (name, organization, last used, revoked — never key material). Edit, reset password, add to project and delete are available from that page.'),
   bullet('Admin add-user-to-project upserts an OrgMember row then creates ProjectMember — the only bypass of the org-membership pre-check.'),
   bullet('Org deletion is blocked if the org has any projects.'),
   bullet('OrgMember removal is blocked if the user has ProjectMember rows in that org.'),
