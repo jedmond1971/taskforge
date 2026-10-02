@@ -250,6 +250,7 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 
 | Action | Guard | Tenant scope | Minimum role |
 |---|---|---|---|
+| `updateOwnProfile` | `auth()` | own user only (id from session); only `name` is written, trimmed, 1–100 chars | any authenticated user |
 | `changePassword` | `auth()` | own user only | any authenticated user; bumps `sessionVersion`; wrong-password failures rate-limited per user (SECH-107) |
 
 ## Findings from the SECH-85 audit

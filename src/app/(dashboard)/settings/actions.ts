@@ -9,6 +9,29 @@ import { securityEvent } from "@/lib/security-events";
 
 type ActionResult = { success: true } | { success: false; error: string };
 
+const MAX_NAME_LENGTH = 100;
+
+/**
+ * Self-service display-name change. Only `name` is writable and only on the caller's own row —
+ * the target id comes from the session, never from the client (no mass assignment).
+ */
+export async function updateOwnProfile(input: { name: string }): Promise<ActionResult> {
+  const session = await auth();
+  if (!session?.user) return { success: false, error: "Unauthorized" };
+
+  // Collapse whitespace and drop control characters so a name can't smuggle newlines into logs/emails.
+  const name = String(input?.name ?? "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!name) return { success: false, error: "Name is required" };
+  if (name.length > MAX_NAME_LENGTH)
+    return { success: false, error: `Name must be ${MAX_NAME_LENGTH} characters or fewer` };
+
+  await prisma.user.update({ where: { id: session.user.id }, data: { name } });
+  return { success: true };
+}
+
 export async function changePassword(
   currentPassword: string,
   newPassword: string
