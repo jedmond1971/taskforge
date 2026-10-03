@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "ghsa": "GHSA-vfj7-8cjw-p6xm",
+    "riskId": "R-16",
+    "severity": "high",
+    "expires": "2026-12-31",
+    "reason": "braces stack-exhaustion DoS via deeply nested brace patterns. Reached only through shadcn -> fast-glob -> micromatch, a CLI/build-time path: the app imports only shadcn/tailwind.css (a stylesheet) and no runtime code passes user input to micromatch or braces. No fix exists short of a major shadcn downgrade; re-check for a patched braces before expiry."
+  }
+]
