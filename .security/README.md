@@ -35,5 +35,6 @@ dependency tree (`npm audit --omit=dev`). Moderates and below are reported by
 the weekly audit workflow but never block a merge — the 29 moderate TipTap
 advisories (R-01, SECH-124) are the standing example.
 
-The list is currently empty: as of 2026-09-23 the production tree has no high
-or critical advisories.
+Current entries: R-16 (`braces` GHSA-vfj7-8cjw-p6xm, accepted by Jamie 2026-10-03,
+expires 2026-12-31). As of 2026-09-23 the production tree had no high or
+critical advisories.
