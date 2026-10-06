@@ -1,6 +1,24 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { IssuePriority, IssueType, StatusCategory, SprintStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
@@ -9,12 +27,13 @@ import { StatusBadge } from "@/components/issues/StatusBadge";
 import { PriorityBadge } from "@/components/issues/PriorityBadge";
 import { IssueTypeIcon } from "@/components/icons/IssueTypeIcon";
 import { MonoMeta } from "@/components/ui/mono-meta";
-import { CreateSprintDialog } from "@/components/projects/CreateSprintDialog";
+import { SprintDialog } from "@/components/projects/SprintDialog";
 import {
   startSprint,
   completeSprint,
   addIssueToSprint,
   removeIssueFromSprint,
+  reorderSprints,
 } from "@/app/(dashboard)/projects/[projectKey]/sprint-actions";
 
 type IssueRow = {
@@ -76,17 +95,75 @@ function IssueRowItem({
   );
 }
 
+function SortableSprint({
+  id,
+  draggable,
+  children,
+}: {
+  id: string;
+  draggable: boolean;
+  children: (handle: React.ReactNode) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled: !draggable,
+  });
+  const handle = draggable ? (
+    <button
+      type="button"
+      ref={setActivatorNodeRef}
+      {...attributes}
+      {...listeners}
+      aria-label="Drag to reorder sprint"
+      className="cursor-grab touch-none text-muted-foreground hover:text-foreground"
+    >
+      <GripVertical size={16} />
+    </button>
+  ) : null;
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={isDragging ? "relative z-10 opacity-80" : undefined}
+    >
+      {children(handle)}
+    </div>
+  );
+}
+
 export function BacklogView({
   projectKey,
-  sprints,
+  sprints: serverSprints,
   backlogIssues,
   canManageSprint: userCanManageSprint,
   canEditIssues: userCanEditIssues,
 }: BacklogViewProps) {
   const [isPending, startTransition] = useTransition();
-  const [createOpen, setCreateOpen] = useState(false);
+  // `null` = closed, `"new"` = create dialog, otherwise the sprint being edited.
+  const [dialogSprint, setDialogSprint] = useState<SprintRow | "new" | null>(null);
+  // Optimistic so a dropped sprint stays put while the save is in flight; if the save
+  // fails the transition ends and this falls back to the server order.
+  const [sprints, setOptimisticSprints] = useOptimistic(serverSprints);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
   const [completeTarget, setCompleteTarget] = useState<SprintRow | null>(null);
   const hasActiveSprint = sprints.some((s) => s.status === "ACTIVE");
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const from = sprints.findIndex((s) => s.id === active.id);
+    const to = sprints.findIndex((s) => s.id === over.id);
+    if (from === -1 || to === -1) return;
+    const reordered = arrayMove(sprints, from, to);
+    startTransition(async () => {
+      setOptimisticSprints(reordered);
+      const result = await reorderSprints(projectKey, reordered.map((s) => s.id));
+      if (!result.success) toast.error(result.error);
+    });
+  }
 
   function handleStartSprint(sprintId: string) {
     startTransition(async () => {
@@ -133,7 +210,7 @@ export function BacklogView({
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground">Sprints</h2>
         {userCanManageSprint && (
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Button size="sm" onClick={() => setDialogSprint("new")}>
             Create sprint
           </Button>
         )}
@@ -147,59 +224,73 @@ export function BacklogView({
         </div>
       )}
 
-      {sprints.map((sprint) => (
-        <div key={sprint.id} className="rounded-xl bg-surface shadow-[var(--shadow-panel)]">
-          <div className="p-4 flex items-start justify-between gap-4 border-b border-border-soft">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">{sprint.name}</h2>
-              {sprint.goal && <p className="text-xs text-muted-foreground mt-0.5">{sprint.goal}</p>}
-              <MonoMeta className="mt-1 block">
-                {sprint.status === "PLANNED" ? "Planned" : "Active"}
-                {sprint.startDate && ` • ${formatSprintDate(sprint.startDate)}`}
-                {sprint.endDate && ` – ${formatSprintDate(sprint.endDate)}`}
-              </MonoMeta>
-            </div>
-            {userCanManageSprint && sprint.status === "PLANNED" && (
-              <Button
-                onClick={() => handleStartSprint(sprint.id)}
-                disabled={isPending || hasActiveSprint}
-                title={hasActiveSprint ? "Complete the active sprint before starting another" : undefined}
-              >
-                Start Sprint
-              </Button>
-            )}
-            {userCanManageSprint && sprint.status === "ACTIVE" && (
-              <Button variant="outline" onClick={() => setCompleteTarget(sprint)} disabled={isPending}>
-                Complete Sprint
-              </Button>
-            )}
-          </div>
-          {sprint.issues.length === 0 ? (
-            <p className="text-sm text-muted-foreground p-4">No issues in this sprint yet.</p>
-          ) : (
-            <div>
-              {sprint.issues.map((issue) => (
-                <IssueRowItem
-                  key={issue.id}
-                  issue={issue}
-                  action={
-                    userCanEditIssues ? (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleRemoveFromSprint(issue.id)}
-                        disabled={isPending}
-                      >
-                        Remove
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={sprints.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+          {sprints.map((sprint) => (
+            <SortableSprint key={sprint.id} id={sprint.id} draggable={userCanManageSprint && sprints.length > 1}>
+              {(handle) => (
+                <div className="rounded-xl bg-surface shadow-[var(--shadow-panel)]">
+                  <div className="p-4 flex items-start justify-between gap-4 border-b border-border-soft">
+                    {handle}
+                    <div className="flex-1">
+                      <h2 className="text-sm font-semibold text-foreground">{sprint.name}</h2>
+                      {sprint.goal && <p className="text-xs text-muted-foreground mt-0.5">{sprint.goal}</p>}
+                      <MonoMeta className="mt-1 block">
+                        {sprint.status === "PLANNED" ? "Planned" : "Active"}
+                        {sprint.startDate && ` • ${formatSprintDate(sprint.startDate)}`}
+                        {sprint.endDate && ` – ${formatSprintDate(sprint.endDate)}`}
+                      </MonoMeta>
+                    </div>
+                    {userCanManageSprint && (
+                      <Button variant="ghost" onClick={() => setDialogSprint(sprint)} disabled={isPending}>
+                        Edit
                       </Button>
-                    ) : null
-                  }
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
+                    )}
+                    {userCanManageSprint && sprint.status === "PLANNED" && (
+                      <Button
+                        onClick={() => handleStartSprint(sprint.id)}
+                        disabled={isPending || hasActiveSprint}
+                        title={hasActiveSprint ? "Complete the active sprint before starting another" : undefined}
+                      >
+                        Start Sprint
+                      </Button>
+                    )}
+                    {userCanManageSprint && sprint.status === "ACTIVE" && (
+                      <Button variant="outline" onClick={() => setCompleteTarget(sprint)} disabled={isPending}>
+                        Complete Sprint
+                      </Button>
+                    )}
+                  </div>
+                  {sprint.issues.length === 0 ? (
+                    <p className="text-sm text-muted-foreground p-4">No issues in this sprint yet.</p>
+                  ) : (
+                    <div>
+                      {sprint.issues.map((issue) => (
+                        <IssueRowItem
+                          key={issue.id}
+                          issue={issue}
+                          action={
+                            userCanEditIssues ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRemoveFromSprint(issue.id)}
+                                disabled={isPending}
+                              >
+                                Remove
+                              </Button>
+                            ) : null
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+                )}
+            </SortableSprint>
+          ))}
+        </SortableContext>
+      </DndContext>
 
       <div className="rounded-xl bg-surface shadow-[var(--shadow-panel)]">
         <div className="p-4 border-b border-border-soft">
@@ -240,7 +331,13 @@ export function BacklogView({
         )}
       </div>
 
-      <CreateSprintDialog projectKey={projectKey} open={createOpen} onOpenChange={setCreateOpen} />
+      <SprintDialog
+        projectKey={projectKey}
+        open={dialogSprint !== null}
+        onOpenChange={(open) => !open && setDialogSprint(null)}
+        sprint={dialogSprint === "new" ? null : dialogSprint}
+        sprints={sprints}
+      />
 
       <ConfirmDialog
         open={!!completeTarget}

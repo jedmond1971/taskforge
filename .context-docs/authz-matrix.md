@@ -221,6 +221,8 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | Action | Guard | Tenant scope | Minimum role |
 |---|---|---|---|
 | `createSprint` | `requireProjectRole(canManageSprint)` + SPRINT-mode check | sprint by `{id, projectId}` | PROJECT_LEAD (or `SPRINT_MANAGE` grant) |
+| `updateSprint` | `requireProjectRole(canManageSprint)` + SPRINT-mode check | sprint by `{id, projectId}`; following sprints are re-read server-side from the project's own open sprints, never taken from the client (JFR-190) | PROJECT_LEAD (or `SPRINT_MANAGE` grant) |
+| `reorderSprints` | `requireProjectRole(canManageSprint)` + SPRINT-mode check | id list must equal the project's open sprint ids exactly, else nothing is written (JFR-190) | PROJECT_LEAD (or `SPRINT_MANAGE` grant) |
 | `startSprint` | `requireProjectRole(canManageSprint)` + SPRINT-mode check | sprint by `{id, projectId}` | PROJECT_LEAD (or `SPRINT_MANAGE` grant) |
 | `completeSprint` | `requireProjectRole(canManageSprint)` + SPRINT-mode check | sprint by `{id, projectId}` | PROJECT_LEAD (or `SPRINT_MANAGE` grant) |
 | `addIssueToSprint` | `requireProjectRole(canEditIssues)` + SPRINT-mode check | sprint and issue both by `{id, projectId}` | TEAM_MEMBER+ |
