@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus, ChevronRight } from "lucide-react";
+import { Plus, ChevronRight, Search } from "lucide-react";
 import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { UserMenu } from "./UserMenu";
 import { usePageTitle } from "./PageTitleContext";
+import { OPEN_PALETTE_EVENT } from "./CommandPalette";
 
 function segmentLabel(segment: string): string {
   // Issue keys like TF-1, MYPROJECT-42 — preserve as-is
@@ -68,6 +69,12 @@ export function Header() {
   const title = getPageTitle(pathname);
   const projectKey = getProjectKey(pathname);
   const [dialogOpen, setDialogOpen] = useState(false);
+  // Platform is unknown during SSR; the server snapshot keeps hydration stable.
+  const shortcutHint = useSyncExternalStore(
+    () => () => {},
+    () => (/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘K" : "Ctrl K"),
+    () => "Ctrl K"
+  );
 
   return (
     <header className="h-[58px] border-b border-border-soft bg-surface/80 backdrop-blur supports-[backdrop-filter]:bg-surface/60 flex items-center justify-between px-3 sm:px-6 flex-shrink-0 gap-2">
@@ -99,6 +106,16 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2">
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent(OPEN_PALETTE_EVENT))}
+          aria-label="Open command palette"
+          aria-keyshortcuts="Control+K Meta+K"
+          className="inline-flex items-center justify-center gap-2 h-11 w-11 sm:h-8 sm:w-auto sm:px-2.5 rounded-lg text-muted-foreground hover:text-foreground sm:border sm:border-border-soft hover:bg-surface-active transition-colors"
+        >
+          <Search className="w-4 h-4" />
+          <span className="hidden sm:inline text-xs">Search</span>
+          <kbd className="hidden sm:inline text-[0.65rem] font-sans text-muted-foreground">{shortcutHint}</kbd>
+        </button>
         <NotificationBell />
         <ThemeToggle />
         {projectKey ? (

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createWorld, destroyWorld, type World } from "./fixtures";
 import { actAs, actAsNobody } from "./session";
 import * as searchActions from "@/app/(dashboard)/search/actions";
+import { paletteSearch as paletteSearchAction } from "@/app/(dashboard)/command-palette-actions";
 
 /**
  * SECH-97: the query-language search (runQuery) and its autocomplete. The user writes the WHERE
@@ -102,5 +103,51 @@ describe("autocomplete suggestions never reveal another org's values", () => {
     actAs(w.users.aMember);
     expect((await suggest("project = ")).suggestions).toContain(`"${w.keyA}"`);
     expect((await suggest("labels = ")).suggestions).toContain(`"${LABEL()}"`);
+  });
+});
+
+describe("paletteSearch (JFR-176) is tenant- and closed-project-scoped", () => {
+  async function search(q: string) {
+    const res = await paletteSearchAction(q);
+    if (!res.ok) throw new Error(`palette search failed: ${res.error}`);
+    return res;
+  }
+
+  it("Org B cannot find Org A's issue by exact key, title, or its docs by title", async () => {
+    actAs(w.users.bMember);
+    expect((await search(w.A.issue.key)).issues).toEqual([]);
+    expect((await search(w.A.issue.key.toLowerCase())).issues).toEqual([]);
+    // Both orgs have a "... secret issue" / "... secret page"; only B's may come back.
+    const secret = await search("secret");
+    expect(secret.issues.length).toBeGreaterThan(0);
+    expect(secret.issues.every((i) => i.projectKey === w.keyB)).toBe(true);
+    expect(secret.docs.length).toBeGreaterThan(0);
+    expect(secret.docs.every((d) => d.projectKey === w.keyB)).toBe(true);
+    expect((await search(w.keyA)).projects).toEqual([]);
+  });
+
+  it("control: the rightful member finds them", async () => {
+    actAs(w.users.aViewer);
+    expect((await search(w.A.issue.key)).issues[0]?.key).toBe(w.A.issue.key);
+    expect((await search(w.keyA)).projects.map((p) => p.key)).toEqual([w.keyA]);
+    expect((await search("secret")).docs.map((d) => d.id)).toContain(w.A.page.id);
+  });
+
+  it("a closed project's issues, docs and the project itself return nothing, even to its members", async () => {
+    await prisma.project.update({ where: { id: w.A.project.id }, data: { isClosed: true } });
+    try {
+      actAs(w.users.aOwner);
+      const byKey = await search(w.A.issue.key);
+      expect(byKey.issues).toEqual([]);
+      expect((await search("secret")).docs.map((d) => d.id)).not.toContain(w.A.page.id);
+      expect((await search(w.keyA)).projects).toEqual([]);
+    } finally {
+      await prisma.project.update({ where: { id: w.A.project.id }, data: { isClosed: false } });
+    }
+  });
+
+  it("no session is unauthorized", async () => {
+    actAsNobody();
+    expect(await paletteSearchAction("secret")).toEqual({ ok: false, error: "unauthorized" });
   });
 });

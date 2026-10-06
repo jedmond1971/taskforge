@@ -238,6 +238,12 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | `runQuery` | `auth()` | query executes only over the caller's `ProjectMember` project ids | any authenticated user |
 | `getAutocompleteSuggestions` | `auth()` | query executes only over the caller's `ProjectMember` project ids | any authenticated user |
 
+### `(dashboard)/command-palette-actions.ts`
+
+| Action | Guard | Tenant scope | Minimum role |
+|---|---|---|---|
+| `paletteSearch` | `getCurrentUser()` (null for invalidated sessions → `{ ok: false, error: "unauthorized" }`) | every query ANDs `project: { members: { some: { userId } }, isClosed: false }`; no lookup by key alone; public docspaces of non-member projects deliberately excluded | any project member (VIEWER+) |
+
 ### `(dashboard)/search/filter-actions.ts`
 
 | Action | Guard | Tenant scope | Minimum role |
