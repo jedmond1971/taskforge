@@ -214,6 +214,7 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 |---|---|---|---|
 | `getProjectFieldLayout` | `requireProjectRole(canManageProject)` | fields by `{id in, orgId}` and applicable to the project | PROJECT_LEAD |
 | `reorderProjectFieldLayout` | `requireProjectRole(canManageProject)` | fields by `{id in, orgId}` and applicable to the project | PROJECT_LEAD |
+| `setProjectFieldHidden` | `requireProjectRole(canManageProject)` | field by `{id, orgId}` and applicable to the project (JFR-188) | PROJECT_LEAD |
 
 ### `(dashboard)/projects/[projectKey]/sprint-actions.ts`
 

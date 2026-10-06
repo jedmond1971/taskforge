@@ -8,9 +8,9 @@ import { getOrderedApplicableCustomFields } from "@/lib/custom-field-layout";
 export async function getProjectFieldLayout(projectKey: string) {
   const { projectId, orgId } = await requireProjectRole(projectKey, canManageProject);
 
-  const fields = await getOrderedApplicableCustomFields(orgId, projectId);
+  const fields = await getOrderedApplicableCustomFields(orgId, projectId, { includeHidden: true });
 
-  return fields.map(({ id, name, type }) => ({ id, name, type }));
+  return fields.map(({ id, name, type, hidden }) => ({ id, name, type, hidden }));
 }
 
 export async function reorderProjectFieldLayout(
@@ -35,6 +35,7 @@ export async function reorderProjectFieldLayout(
   );
   if (inapplicable) throw new Error("Custom field is not applicable to this project");
 
+  // Reordering never changes visibility: `hidden` is left out of `update`.
   await prisma.$transaction(
     updates.map((u) =>
       prisma.projectCustomFieldLayout.upsert({
@@ -46,5 +47,44 @@ export async function reorderProjectFieldLayout(
   );
 
   revalidatePath(`/projects/${projectKey}/settings`);
+  return { success: true };
+}
+
+// JFR-188: remove a field from (or re-add it to) this project's screen layout.
+// Only the per-project layout row changes — the org-wide CustomField, its
+// project restrictions and any stored issue values are left alone.
+export async function setProjectFieldHidden(
+  projectKey: string,
+  customFieldId: string,
+  hidden: boolean
+) {
+  const { projectId, orgId } = await requireProjectRole(projectKey, canManageProject);
+
+  const field = await prisma.customField.findFirst({
+    where: { id: customFieldId, orgId },
+    include: { projectRestrictions: { select: { projectId: true } } },
+  });
+  if (!field) throw new Error("Custom field not found");
+  if (
+    field.projectRestrictions.length > 0 &&
+    !field.projectRestrictions.some((r) => r.projectId === projectId)
+  ) {
+    throw new Error("Custom field is not applicable to this project");
+  }
+
+  const last = await prisma.projectCustomFieldLayout.aggregate({
+    where: { projectId },
+    _max: { position: true },
+  });
+
+  await prisma.projectCustomFieldLayout.upsert({
+    where: { projectId_customFieldId: { projectId, customFieldId } },
+    // A field with no row yet goes to the end of the arranged fields.
+    create: { projectId, customFieldId, hidden, position: (last._max.position ?? -1) + 1 },
+    update: { hidden },
+  });
+
+  revalidatePath(`/projects/${projectKey}/settings`);
+  revalidatePath(`/projects/${projectKey}`, "layout");
   return { success: true };
 }

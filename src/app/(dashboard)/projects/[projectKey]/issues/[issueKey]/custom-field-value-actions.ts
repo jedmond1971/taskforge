@@ -78,6 +78,11 @@ export async function setCustomFieldValue(
   ) {
     throw new Error("Custom field is not applicable to this project");
   }
+  const layoutRow = await prisma.projectCustomFieldLayout.findUnique({
+    where: { projectId_customFieldId: { projectId, customFieldId } },
+    select: { hidden: true },
+  });
+  if (layoutRow?.hidden) throw new Error("Custom field is not applicable to this project");
 
   const isClearing =
     value === null ||
