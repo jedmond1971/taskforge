@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireProjectRole, canManageSprint, canEditIssues } from "@/lib/permissions";
 import { Prisma, Sprint } from "@prisma/client";
 import { logError } from "@/lib/security-events";
+import { SPRINT_DURATIONS, SprintDurationKey, isWeekend, parseDateOnly, sprintEndDate } from "@/lib/sprint-dates";
 
 type SprintResult<T extends object = object> =
   | ({ success: true } & T)
@@ -20,7 +21,15 @@ async function assertSprintMode(projectId: string): Promise<string | null> {
 
 export async function createSprint(
   projectKey: string,
-  data: { name: string; goal?: string }
+  data: {
+    name: string;
+    goal?: string;
+    duration: SprintDurationKey;
+    /** `YYYY-MM-DD` */
+    startDate: string;
+    /** `YYYY-MM-DD`; required for `custom`, ignored (recomputed) for the presets. */
+    endDate?: string;
+  }
 ): Promise<SprintResult<{ sprint: Sprint }>> {
   const { projectId } = await requireProjectRole(projectKey, canManageSprint);
 
@@ -30,14 +39,26 @@ export async function createSprint(
   const name = data.name.trim();
   if (!name) return { success: false, error: "Sprint name cannot be empty." };
 
-  const existingOpen = await prisma.sprint.findFirst({
-    where: { projectId, status: { in: ["PLANNED", "ACTIVE"] } },
-    select: { id: true },
-  });
-  if (existingOpen) return { success: false, error: "This project already has an open sprint." };
+  const startDate = parseDateOnly(data.startDate);
+  if (!startDate) return { success: false, error: "Enter a valid start date." };
 
+  let endDate: Date;
+  if (data.duration === "custom") {
+    const parsedEnd = data.endDate ? parseDateOnly(data.endDate) : null;
+    if (!parsedEnd) return { success: false, error: "Enter a valid end date." };
+    if (parsedEnd < startDate) return { success: false, error: "The end date cannot be before the start date." };
+    endDate = parsedEnd;
+  } else {
+    // Own-property check: the key comes from the client, and "constructor" etc.
+    // would otherwise resolve on the prototype.
+    if (!Object.hasOwn(SPRINT_DURATIONS, data.duration)) return { success: false, error: "Choose a sprint duration." };
+    if (isWeekend(startDate)) return { success: false, error: "A sprint must start on a weekday." };
+    endDate = sprintEndDate(startDate, SPRINT_DURATIONS[data.duration].businessDays);
+  }
+
+  // Any number of sprints may be planned; only one may be ACTIVE (see startSprint).
   const sprint = await prisma.sprint.create({
-    data: { projectId, name, goal: data.goal?.trim() || null, status: "PLANNED" },
+    data: { projectId, name, goal: data.goal?.trim() || null, status: "PLANNED", startDate, endDate },
   });
 
   revalidatePath(`/projects/${projectKey}/backlog`);

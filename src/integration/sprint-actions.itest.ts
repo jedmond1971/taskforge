@@ -40,7 +40,7 @@ describe("Org B cannot run sprint actions on Org A's project", () => {
     const before = await snapshotA();
     const k = w.keyA;
     const attempts: Array<[string, () => Promise<unknown>]> = [
-      ["createSprint", () => sprintActions.createSprint(k, { name: "pwn" })],
+      ["createSprint", () => sprintActions.createSprint(k, { name: "pwn", duration: "2w", startDate: "2026-10-05" })],
       ["startSprint", () => sprintActions.startSprint(k, sprintA.id)],
       ["completeSprint", () => sprintActions.completeSprint(k, sprintA.id)],
       ["addIssueToSprint", () => sprintActions.addIssueToSprint(k, w.A.issue.id, sprintA.id)],
@@ -73,7 +73,7 @@ describe("Org B cannot run sprint actions on Org A's project", () => {
 
   it("no session rejects every sprint action", async () => {
     actAsNobody();
-    await expect(sprintActions.createSprint(w.keyA, { name: "anon" })).rejects.toThrow(DENIED);
+    await expect(sprintActions.createSprint(w.keyA, { name: "anon", duration: "2w", startDate: "2026-10-05" })).rejects.toThrow(DENIED);
     await expect(sprintActions.addIssueToSprint(w.keyA, w.A.issue.id, sprintA.id)).rejects.toThrow(DENIED);
     await expect(sprintActions.removeIssueFromSprint(w.keyA, w.A.issue.id)).rejects.toThrow(DENIED);
     expect(await prisma.sprint.count({ where: { projectId: w.A.project.id } })).toBe(1);
@@ -84,7 +84,7 @@ describe("sprint roles inside a tenant", () => {
   it("a TEAM_MEMBER can add/remove issues but cannot create, start or complete sprints", async () => {
     actAs(w.users.aMember);
     const before = await snapshotA();
-    await expect(sprintActions.createSprint(w.keyA, { name: "member sprint" })).rejects.toThrow(DENIED);
+    await expect(sprintActions.createSprint(w.keyA, { name: "member sprint", duration: "2w", startDate: "2026-10-05" })).rejects.toThrow(DENIED);
     await expect(sprintActions.startSprint(w.keyA, sprintA.id)).rejects.toThrow(DENIED);
     await expect(sprintActions.completeSprint(w.keyA, sprintA.id)).rejects.toThrow(DENIED);
     expect(await snapshotA()).toEqual(before);
@@ -113,11 +113,12 @@ describe("sprint roles inside a tenant", () => {
       await prisma.groupMember.create({ data: { groupId: group.id, userId: w.users.aMember.id } });
       await prisma.groupPermission.create({ data: { groupId: group.id, permission: "SPRINT_MANAGE", projectId: w.A.project.id } });
       actAs(w.users.aMember);
-      // An open (PLANNED) sprint already exists, so creation is refused on the business rule —
-      // i.e. the grant got the member past the role check.
-      await failed(sprintActions.createSprint(w.keyA, { name: "granted" }), /already has an open sprint/i);
+      // The grant gets a plain member past the role check — and a second open sprint is fine (JFR-189).
+      const created = await sprintActions.createSprint(w.keyA, { name: "granted", duration: "2w", startDate: "2026-10-05" });
+      expect(created.success).toBe(true);
+      if (created.success) await prisma.sprint.delete({ where: { id: created.sprint.id } });
       // The grant does nothing for a project the member doesn't belong to.
-      await expect(sprintActions.createSprint(w.keyB, { name: "granted elsewhere" })).rejects.toThrow(DENIED);
+      await expect(sprintActions.createSprint(w.keyB, { name: "granted elsewhere", duration: "2w", startDate: "2026-10-05" })).rejects.toThrow(DENIED);
       expect(await prisma.sprint.count({ where: { projectId: w.B.project.id } })).toBe(1);
     } finally {
       await prisma.group.delete({ where: { id: group.id } });
@@ -153,7 +154,7 @@ describe("mode and closed-project guards", () => {
     await prisma.project.update({ where: { id: w.B.project.id }, data: { workflowMode: "KANBAN" } });
     try {
       actAs(w.users.bOwner);
-      await failed(sprintActions.createSprint(w.keyB, { name: "x" }), /not in sprint mode/i);
+      await failed(sprintActions.createSprint(w.keyB, { name: "x", duration: "2w", startDate: "2026-10-05" }), /not in sprint mode/i);
       await failed(sprintActions.startSprint(w.keyB, sprintB.id), /not in sprint mode/i);
       await failed(sprintActions.addIssueToSprint(w.keyB, w.B.issue.id, sprintB.id), /not in sprint mode/i);
       expect((await prisma.sprint.findUniqueOrThrow({ where: { id: sprintB.id } })).status).toBe("PLANNED");

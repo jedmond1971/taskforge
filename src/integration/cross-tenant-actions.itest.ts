@@ -79,7 +79,7 @@ describe("Org B user cannot touch Org A's project (foreign project key)", () => 
       ["createUserAndAddToProject", () => issueActions.createUserAndAddToProject(k, { name: "x", email: `${w.tag}-evil@itest.local`, password: "password123", role: "PROJECT_LEAD" })],
       ["linkDocPage", () => issueActions.linkDocPage(k, a.issue.id, a.page.id)],
       ["unlinkDocPage", () => issueActions.unlinkDocPage(k, a.issue.id, a.page.id)],
-      ["createSprint", () => sprintActions.createSprint(k, { name: "pwn" })],
+      ["createSprint", () => sprintActions.createSprint(k, { name: "pwn", duration: "2w", startDate: "2026-10-05" })],
       ["createProjectStatus", () => boardActions.createProjectStatus(k, { name: "pwn", category: "TODO" })],
       ["renameProjectStatus", () => boardActions.renameProjectStatus(k, a.statuses.todo.id, "pwn")],
       ["deleteProjectStatus", () => boardActions.deleteProjectStatus(k, a.statuses.prog.id)],
@@ -233,7 +233,7 @@ describe("role enforcement inside a tenant", () => {
     await denied(issueActions.addProjectMember(w.keyA, w.users.aViewer.id, "PROJECT_LEAD"));
     await denied(issueActions.changeMemberRole(w.keyA, w.A.memberships[w.users.aViewer.id].id, "PROJECT_LEAD"));
     await denied(boardActions.createProjectStatus(w.keyA, { name: "pwn", category: "TODO" }));
-    await denied(sprintActions.createSprint(w.keyA, { name: "pwn" }));
+    await denied(sprintActions.createSprint(w.keyA, { name: "pwn", duration: "2w", startDate: "2026-10-05" }));
     expect((await prisma.project.findUnique({ where: { id: w.A.project.id } }))?.name).toBe(`Itest ${w.keyA}`);
   });
 

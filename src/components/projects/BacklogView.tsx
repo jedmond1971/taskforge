@@ -4,14 +4,13 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { IssuePriority, IssueType, StatusCategory, SprintStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StatusBadge } from "@/components/issues/StatusBadge";
 import { PriorityBadge } from "@/components/issues/PriorityBadge";
 import { IssueTypeIcon } from "@/components/icons/IssueTypeIcon";
 import { MonoMeta } from "@/components/ui/mono-meta";
+import { CreateSprintDialog } from "@/components/projects/CreateSprintDialog";
 import {
-  createSprint,
   startSprint,
   completeSprint,
   addIssueToSprint,
@@ -28,18 +27,26 @@ type IssueRow = {
   assignee: { id: string; name: string; avatarUrl: string | null } | null;
 };
 
-type CurrentSprint = {
+type SprintRow = {
   id: string;
   name: string;
   goal: string | null;
   status: SprintStatus;
   startDate: string | null;
+  endDate: string | null;
   issues: IssueRow[];
-} | null;
+};
+
+// Sprint dates are calendar days stored at UTC midnight, so format them in UTC
+// or a western timezone would show the previous day.
+function formatSprintDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, { timeZone: "UTC" });
+}
 
 interface BacklogViewProps {
   projectKey: string;
-  currentSprint: CurrentSprint;
+  /** Open (planned + active) sprints, the active one first. */
+  sprints: SprintRow[];
   backlogIssues: IssueRow[];
   canManageSprint: boolean;
   canEditIssues: boolean;
@@ -71,37 +78,19 @@ function IssueRowItem({
 
 export function BacklogView({
   projectKey,
-  currentSprint,
+  sprints,
   backlogIssues,
   canManageSprint: userCanManageSprint,
   canEditIssues: userCanEditIssues,
 }: BacklogViewProps) {
   const [isPending, startTransition] = useTransition();
-  const [name, setName] = useState("");
-  const [goal, setGoal] = useState("");
-  const [confirmCompleteOpen, setConfirmCompleteOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [completeTarget, setCompleteTarget] = useState<SprintRow | null>(null);
+  const hasActiveSprint = sprints.some((s) => s.status === "ACTIVE");
 
-  function handleCreateSprint() {
-    if (!name.trim()) {
-      toast.error("Sprint name cannot be empty");
-      return;
-    }
+  function handleStartSprint(sprintId: string) {
     startTransition(async () => {
-      const result = await createSprint(projectKey, { name, goal: goal || undefined });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      setName("");
-      setGoal("");
-      toast.success("Sprint created");
-    });
-  }
-
-  function handleStartSprint() {
-    if (!currentSprint) return;
-    startTransition(async () => {
-      const result = await startSprint(projectKey, currentSprint.id);
+      const result = await startSprint(projectKey, sprintId);
       if (!result.success) {
         toast.error(result.error);
         return;
@@ -110,10 +99,9 @@ export function BacklogView({
     });
   }
 
-  function handleCompleteSprint() {
-    if (!currentSprint) return;
+  function handleCompleteSprint(sprintId: string) {
     startTransition(async () => {
-      const result = await completeSprint(projectKey, currentSprint.id);
+      const result = await completeSprint(projectKey, sprintId);
       if (!result.success) {
         toast.error(result.error);
         return;
@@ -126,10 +114,9 @@ export function BacklogView({
     });
   }
 
-  function handleAddToSprint(issueId: string) {
-    if (!currentSprint) return;
+  function handleAddToSprint(issueId: string, sprintId: string) {
     startTransition(async () => {
-      const result = await addIssueToSprint(projectKey, issueId, currentSprint.id);
+      const result = await addIssueToSprint(projectKey, issueId, sprintId);
       if (!result.success) toast.error(result.error);
     });
   }
@@ -143,87 +130,76 @@ export function BacklogView({
 
   return (
     <>
-      <div className="rounded-xl bg-surface shadow-[var(--shadow-panel)]">
-        {!currentSprint && (
-          <div className="p-4 space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">Current Sprint</h2>
-            {userCanManageSprint ? (
-              <div className="space-y-2">
-                <Input
-                  placeholder="Sprint name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="max-w-sm"
-                />
-                <Input
-                  placeholder="Goal (optional)"
-                  value={goal}
-                  onChange={(e) => setGoal(e.target.value)}
-                  className="max-w-sm"
-                />
-                <Button onClick={handleCreateSprint} disabled={isPending}>
-                  Create Sprint
-                </Button>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No sprint has been created yet.</p>
-            )}
-          </div>
-        )}
-
-        {currentSprint && (
-          <div>
-            <div className="p-4 flex items-start justify-between gap-4 border-b border-border-soft">
-              <div>
-                <h2 className="text-sm font-semibold text-foreground">{currentSprint.name}</h2>
-                {currentSprint.goal && <p className="text-xs text-muted-foreground mt-0.5">{currentSprint.goal}</p>}
-                <MonoMeta className="mt-1 block">
-                  {currentSprint.status === "PLANNED" ? "Planned" : "Active"}
-                  {currentSprint.startDate && ` • started ${new Date(currentSprint.startDate).toLocaleDateString()}`}
-                </MonoMeta>
-              </div>
-              {userCanManageSprint && currentSprint.status === "PLANNED" && (
-                <Button onClick={handleStartSprint} disabled={isPending}>
-                  Start Sprint
-                </Button>
-              )}
-              {userCanManageSprint && currentSprint.status === "ACTIVE" && (
-                <Button
-                  variant="outline"
-                  onClick={() => setConfirmCompleteOpen(true)}
-                  disabled={isPending}
-                >
-                  Complete Sprint
-                </Button>
-              )}
-            </div>
-            {currentSprint.issues.length === 0 ? (
-              <p className="text-sm text-muted-foreground p-4">No issues in this sprint yet.</p>
-            ) : (
-              <div>
-                {currentSprint.issues.map((issue) => (
-                  <IssueRowItem
-                    key={issue.id}
-                    issue={issue}
-                    action={
-                      userCanEditIssues ? (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleRemoveFromSprint(issue.id)}
-                          disabled={isPending}
-                        >
-                          Remove
-                        </Button>
-                      ) : null
-                    }
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">Sprints</h2>
+        {userCanManageSprint && (
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            Create sprint
+          </Button>
         )}
       </div>
+
+      {sprints.length === 0 && (
+        <div className="rounded-xl bg-surface shadow-[var(--shadow-panel)] p-4">
+          <p className="text-sm text-muted-foreground">
+            {userCanManageSprint ? "No sprints yet. Create one to start planning." : "No sprint has been created yet."}
+          </p>
+        </div>
+      )}
+
+      {sprints.map((sprint) => (
+        <div key={sprint.id} className="rounded-xl bg-surface shadow-[var(--shadow-panel)]">
+          <div className="p-4 flex items-start justify-between gap-4 border-b border-border-soft">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">{sprint.name}</h2>
+              {sprint.goal && <p className="text-xs text-muted-foreground mt-0.5">{sprint.goal}</p>}
+              <MonoMeta className="mt-1 block">
+                {sprint.status === "PLANNED" ? "Planned" : "Active"}
+                {sprint.startDate && ` • ${formatSprintDate(sprint.startDate)}`}
+                {sprint.endDate && ` – ${formatSprintDate(sprint.endDate)}`}
+              </MonoMeta>
+            </div>
+            {userCanManageSprint && sprint.status === "PLANNED" && (
+              <Button
+                onClick={() => handleStartSprint(sprint.id)}
+                disabled={isPending || hasActiveSprint}
+                title={hasActiveSprint ? "Complete the active sprint before starting another" : undefined}
+              >
+                Start Sprint
+              </Button>
+            )}
+            {userCanManageSprint && sprint.status === "ACTIVE" && (
+              <Button variant="outline" onClick={() => setCompleteTarget(sprint)} disabled={isPending}>
+                Complete Sprint
+              </Button>
+            )}
+          </div>
+          {sprint.issues.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-4">No issues in this sprint yet.</p>
+          ) : (
+            <div>
+              {sprint.issues.map((issue) => (
+                <IssueRowItem
+                  key={issue.id}
+                  issue={issue}
+                  action={
+                    userCanEditIssues ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleRemoveFromSprint(issue.id)}
+                        disabled={isPending}
+                      >
+                        Remove
+                      </Button>
+                    ) : null
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
 
       <div className="rounded-xl bg-surface shadow-[var(--shadow-panel)]">
         <div className="p-4 border-b border-border-soft">
@@ -241,15 +217,21 @@ export function BacklogView({
                 issue={issue}
                 action={
                   userCanEditIssues ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleAddToSprint(issue.id)}
-                      disabled={isPending || !currentSprint || currentSprint.status === "COMPLETED"}
-                      title={!currentSprint ? "Create a sprint first" : undefined}
+                    <select
+                      aria-label={`Add ${issue.key} to a sprint`}
+                      className="h-7 rounded-lg border border-input bg-transparent px-2 text-xs text-foreground disabled:opacity-50"
+                      value=""
+                      disabled={isPending || sprints.length === 0}
+                      title={sprints.length === 0 ? "Create a sprint first" : undefined}
+                      onChange={(e) => e.target.value && handleAddToSprint(issue.id, e.target.value)}
                     >
-                      Add to sprint
-                    </Button>
+                      <option value="">Add to sprint…</option>
+                      {sprints.map((sprint) => (
+                        <option key={sprint.id} value={sprint.id}>
+                          {sprint.name}
+                        </option>
+                      ))}
+                    </select>
                   ) : null
                 }
               />
@@ -258,14 +240,16 @@ export function BacklogView({
         )}
       </div>
 
+      <CreateSprintDialog projectKey={projectKey} open={createOpen} onOpenChange={setCreateOpen} />
+
       <ConfirmDialog
-        open={confirmCompleteOpen}
-        onOpenChange={setConfirmCompleteOpen}
+        open={!!completeTarget}
+        onOpenChange={(open) => !open && setCompleteTarget(null)}
         title="Complete this sprint?"
         description="Issues not marked Done will be moved back to the backlog."
         confirmLabel="Complete Sprint"
         variant="destructive"
-        onConfirm={handleCompleteSprint}
+        onConfirm={() => completeTarget && handleCompleteSprint(completeTarget.id)}
       />
     </>
   );
