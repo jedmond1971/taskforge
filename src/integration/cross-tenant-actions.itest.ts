@@ -87,6 +87,7 @@ describe("Org B user cannot touch Org A's project (foreign project key)", () => 
       ["getCustomFieldValues", () => fieldValueActions.getCustomFieldValues(k, a.issue.id)],
       ["setCustomFieldValue", () => fieldValueActions.setCustomFieldValue(k, a.issue.id, w.customFieldA.id, "pwn")],
       ["getProjectFieldLayout", () => fieldLayoutActions.getProjectFieldLayout(k)],
+      ["setProjectFieldHidden", () => fieldLayoutActions.setProjectFieldHidden(k, w.customFieldA.id, true)],
     ];
     for (const [name, attempt] of attempts) {
       await expect(attempt(), name).rejects.toThrow(DENIED);

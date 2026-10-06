@@ -4,7 +4,14 @@ import { prisma } from "@/lib/prisma";
 // has been arranged, but keep their relative order (org-wide CustomField.position).
 const UNARRANGED_GAP = 100_000;
 
-export async function getOrderedApplicableCustomFields(orgId: string, projectId: string) {
+// Hidden fields (JFR-188) are removed from the project's screen layout; pass
+// `includeHidden` only where they must still be listed (the layout settings,
+// so they can be re-added).
+export async function getOrderedApplicableCustomFields(
+  orgId: string,
+  projectId: string,
+  { includeHidden = false }: { includeHidden?: boolean } = {}
+) {
   const [fields, layoutRows] = await Promise.all([
     prisma.customField.findMany({
       where: { orgId },
@@ -13,11 +20,11 @@ export async function getOrderedApplicableCustomFields(orgId: string, projectId:
     }),
     prisma.projectCustomFieldLayout.findMany({
       where: { projectId },
-      select: { customFieldId: true, position: true },
+      select: { customFieldId: true, position: true, hidden: true },
     }),
   ]);
 
-  const layoutByField = new Map(layoutRows.map((l) => [l.customFieldId, l.position]));
+  const layoutByField = new Map(layoutRows.map((l) => [l.customFieldId, l]));
 
   return fields
     .filter(
@@ -27,7 +34,9 @@ export async function getOrderedApplicableCustomFields(orgId: string, projectId:
     )
     .map((f) => ({
       ...f,
-      layoutPosition: layoutByField.get(f.id) ?? f.position + UNARRANGED_GAP,
+      hidden: layoutByField.get(f.id)?.hidden ?? false,
+      layoutPosition: layoutByField.get(f.id)?.position ?? f.position + UNARRANGED_GAP,
     }))
+    .filter((f) => includeHidden || !f.hidden)
     .sort((a, b) => a.layoutPosition - b.layoutPosition);
 }

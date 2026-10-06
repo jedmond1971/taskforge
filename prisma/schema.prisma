@@ -731,6 +731,9 @@ model ProjectCustomFieldLayout {
   projectId     String
   customFieldId String
   position      Int      @default(0)
+  // JFR-188: true = removed from this project's screen layout. The org-wide
+  // CustomField and any stored values are untouched; re-adding clears the flag.
+  hidden        Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
