@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addComment } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { toast } from "sonner";
+import { useShortcut } from "@/components/layout/use-shortcut";
 
 interface CommentFormProps {
   projectKey: string;
@@ -19,6 +20,13 @@ export function CommentForm({ projectKey, issueId, currentUserInitial }: Comment
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const formRef = useRef<HTMLDivElement>(null);
+
+  useShortcut("c", () => {
+    const editor = formRef.current?.querySelector<HTMLElement>('[contenteditable="true"]');
+    formRef.current?.scrollIntoView({ block: "nearest" });
+    editor?.focus();
+  });
 
   function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
@@ -39,7 +47,7 @@ export function CommentForm({ projectKey, issueId, currentUserInitial }: Comment
   }
 
   return (
-    <div className="flex gap-3">
+    <div ref={formRef} className="flex gap-3">
       <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-1">
         <span className="text-xs text-primary-foreground font-semibold">{currentUserInitial}</span>
       </div>

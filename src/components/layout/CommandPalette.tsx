@@ -15,6 +15,7 @@ import {
   Monitor,
   Moon,
   Plus,
+  Keyboard,
   Search,
   Settings,
   ShieldCheck,
@@ -23,6 +24,7 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/issues/StatusBadge";
 import { cn } from "@/lib/utils";
+import { OPEN_SHORTCUTS_EVENT } from "@/lib/shortcuts";
 import {
   PALETTE_RECENT_KEY,
   availableCommands,
@@ -65,6 +67,7 @@ const COMMAND_ICONS: Record<PaletteCommandId, React.ComponentType<{ className?: 
   "go-org-settings": Building2,
   "go-admin": ShieldCheck,
   "create-issue": Plus,
+  "show-shortcuts": Keyboard,
   "theme-light": Sun,
   "theme-dark": Moon,
   "theme-system": Monitor,
@@ -266,6 +269,8 @@ export function CommandPalette() {
     } else if (command.id === "create-issue") {
       // Let the palette dialog finish closing (and restore focus) first.
       setTimeout(() => window.dispatchEvent(new CustomEvent(CREATE_ISSUE_EVENT)), 0);
+    } else if (command.id === "show-shortcuts") {
+      setTimeout(() => window.dispatchEvent(new CustomEvent(OPEN_SHORTCUTS_EVENT)), 0);
     } else if (command.id.startsWith("theme-")) {
       setTheme(command.id.slice("theme-".length));
     }

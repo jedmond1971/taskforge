@@ -1,15 +1,31 @@
 # Keyboard Shortcuts
 
-All single-key shortcuts (`/`, `N`) are suppressed when focus is inside an `INPUT`, `TEXTAREA`, or a `contenteditable` element.
+`src/lib/shortcuts.ts` is the registry (`SHORTCUTS`: id, keys, description, scope). The `?` help overlay (`ShortcutHelp`, JFR-177) renders from it and `shortcuts.test.ts` guards against duplicate keys, so **add every new shortcut there too**. Handlers still live next to the UI they drive — the registry only describes them.
 
-## Global (registered in `DashboardShell`)
-- `Cmd/Ctrl+K` — toggle the command palette (`CommandPalette`, mounted in `DashboardShell`, JFR-176). Unlike `/` and `N` it is **not** suppressed in inputs or `contenteditable`, because it is a modified chord: the TipTap editor (StarterKit's Link) binds no `Mod-k`, so there is nothing to conflict with. If a link shortcut is ever added to the editor, bail out of the palette handler when `target.isContentEditable`. `preventDefault` is called only when the chord is handled.
-- `jedforge:open-palette` (window `CustomEvent`) — opens the palette; used by the Header search button. Other code should dispatch this rather than reaching into the component.
-- `jedforge:create-issue` (window `CustomEvent`) — opens CreateIssueDialog for the current project; listened to by `ProjectShortcuts` (same dialog as `N`). The palette's "Create issue" command fires it after closing.
-- `/` — navigate to `/search` (or fire `jedforge:focus-search` custom event if already there)
+## Suppression rules (all single-key shortcuts)
+`shouldIgnoreShortcut(e)` in `src/lib/shortcuts.ts` — shared by `useShortcut` (`src/components/layout/use-shortcut.ts`) and the G-chord. A shortcut does nothing when:
+- focus is in an `INPUT`, `TEXTAREA`, `SELECT` or `contenteditable`;
+- Ctrl/Cmd/Alt is held (leave browser chords alone) or the key is auto-repeating;
+- any `[role="dialog"]` is in the DOM (confirm dialogs, the palette, Create Issue, this overlay). Note Base UI keeps the dialog mounted for its ~100ms exit animation, so a key pressed instantly after Esc is ignored — only matters for scripted input.
 
-## Project-context (registered via `ProjectShortcuts`, injected into the project layout)
-- `N` — open CreateIssueDialog for the current project
+`preventDefault` is called only when a shortcut actually fires. Use `useShortcut(key, handler, enabled)` for new single keys (matches `e.key` case-insensitively, Shift allowed, so `"?"` works).
 
-## Adding a shortcut
-There is no shared registry yet: each shortcut is an ad-hoc `keydown` listener. A shortcut-help overlay (JFR-177) would need one (id, keys, description, scope, suppression rule) that these listeners register into.
+## Global (`DashboardShell`)
+- `Cmd/Ctrl+K` — toggle the command palette (`CommandPalette`, JFR-176). A modified chord, so it is deliberately **not** subject to the rules above: it works inside inputs and `contenteditable`, because TipTap (StarterKit's Link) binds no `Mod-k`. If a link shortcut is ever added to the editor, bail out of the palette handler when `target.isContentEditable`.
+- `/` — go to `/search` (or fire `jedforge:focus-search` if already there)
+- `?` — open `ShortcutHelp`
+
+## Project (`ProjectShortcuts`, injected by the project layout)
+- `N` — Create Issue dialog
+- `G` then `B` / `I` / `D` — go to `/projects/[key]/board` | `issues` | `docs`. `G` arms a chord for `CHORD_TIMEOUT_MS` (1s); any other key cancels it. Sprint-mode `Backlog` has no chord. Plain `G` itself is reserved as the chord prefix (tested).
+
+## Issue page (`IssueDetail` / `CommentForm`)
+- `E` — edit the description (only if `canEdit`; focuses the editor)
+- `C` — focus the comment editor
+- `A` — focus/open the assignee picker (only if `canEdit`)
+
+## Window events
+- `jedforge:open-palette` — opens the palette (Header search button). Dispatch it rather than reaching into the component.
+- `jedforge:create-issue` — opens CreateIssueDialog for the current project (`ProjectShortcuts` listens; the palette's "Create issue" fires it after closing).
+- `jedforge:open-shortcuts` — opens `ShortcutHelp` (the palette's "Keyboard shortcuts" command fires it).
+- `jedforge:focus-search` — focuses the search box on `/search`.

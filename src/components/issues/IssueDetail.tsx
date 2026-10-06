@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CommentThread } from "@/components/comments/CommentThread";
 import { CommentForm } from "@/components/comments/CommentForm";
+import { useShortcut } from "@/components/layout/use-shortcut";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
 import { AttachmentsPanel } from "@/components/attachments/AttachmentsPanel";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
@@ -261,6 +262,8 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editingDesc, setEditingDesc] = useState(false);
+  const descriptionRef = useRef<HTMLDivElement>(null);
+  const assigneeRef = useRef<HTMLSelectElement>(null);
   const [description, setDescription] = useState(issue.description ?? "");
   const [labels, setLabels] = useState<string[]>(issue.labels);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -290,6 +293,27 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
   const currentUserInitial = currentUserName.charAt(0).toUpperCase();
 
   function refresh() { router.refresh(); }
+
+  useShortcut("e", () => {
+    setEditingDesc(true);
+    descriptionRef.current?.scrollIntoView({ block: "nearest" });
+    // The editor mounts on the next render; focus it so typing starts immediately.
+    requestAnimationFrame(() =>
+      descriptionRef.current?.querySelector<HTMLElement>('[contenteditable="true"]')?.focus()
+    );
+  }, canEdit && !editingDesc);
+
+  useShortcut("a", () => {
+    const select = assigneeRef.current;
+    if (!select) return;
+    select.scrollIntoView({ block: "nearest" });
+    select.focus();
+    try {
+      select.showPicker?.();
+    } catch {
+      // showPicker needs a user gesture in some browsers; focus alone is fine.
+    }
+  }, canEdit);
 
   function handleLinkExistingSubIssue(selected: PickerIssue) {
     setSubIssueLinkPickerOpen(false);
@@ -407,7 +431,7 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
         {/* Main content */}
         <div className="space-y-6">
           {/* Description */}
-          <div>
+          <div ref={descriptionRef}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Description</h3>
               {!editingDesc && canEdit && (
@@ -595,6 +619,7 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
             </PropertyRow>
             <PropertyRow label="Assignee">
               <select
+                ref={assigneeRef}
                 aria-label="Assignee"
                 value={issue.assigneeId ?? ""}
                 onChange={(e) => {
