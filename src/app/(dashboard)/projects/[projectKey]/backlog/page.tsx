@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { AutoRefresh } from "@/components/layout/AutoRefresh";
 import { BacklogView } from "@/components/projects/BacklogView";
+import { orderSprints } from "@/lib/sprint-dates";
 import { canManageSprint, canEditIssues, getUserGrants } from "@/lib/permissions";
 
 
@@ -25,7 +26,6 @@ async function getBacklogData(projectKey: string, userId: string) {
   const [openSprints, backlogIssues] = await Promise.all([
     prisma.sprint.findMany({
       where: { projectId: project.id, status: { in: ["PLANNED", "ACTIVE"] } },
-      orderBy: [{ startDate: "asc" }, { createdAt: "asc" }],
       include: {
         issues: {
           orderBy: { position: "asc" },
@@ -40,11 +40,7 @@ async function getBacklogData(projectKey: string, userId: string) {
     }),
   ]);
 
-  // The ACTIVE sprint first (a sort here, not in SQL: enum order is declaration order),
-  // planned sprints after it in start order.
-  openSprints.sort((a, b) => Number(b.status === "ACTIVE") - Number(a.status === "ACTIVE"));
-
-  return { project, openSprints, backlogIssues };
+  return { project, openSprints: orderSprints(openSprints), backlogIssues };
 }
 
 export default async function BacklogPage(props: { params: Promise<{ projectKey: string }> }) {

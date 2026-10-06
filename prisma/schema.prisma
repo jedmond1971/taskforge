@@ -294,6 +294,8 @@ model Sprint {
   startDate DateTime?
   endDate   DateTime?
   status    SprintStatus @default(PLANNED)
+  // Null until someone drags a sprint on the Backlog; see orderSprints() in src/lib/sprint-dates.ts.
+  position  Int?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
