@@ -22,9 +22,10 @@ async function getBacklogData(projectKey: string, userId: string) {
   });
   if (!project) return null;
 
-  const [currentSprint, backlogIssues] = await Promise.all([
-    prisma.sprint.findFirst({
+  const [openSprints, backlogIssues] = await Promise.all([
+    prisma.sprint.findMany({
       where: { projectId: project.id, status: { in: ["PLANNED", "ACTIVE"] } },
+      orderBy: [{ startDate: "asc" }, { createdAt: "asc" }],
       include: {
         issues: {
           orderBy: { position: "asc" },
@@ -39,7 +40,11 @@ async function getBacklogData(projectKey: string, userId: string) {
     }),
   ]);
 
-  return { project, currentSprint, backlogIssues };
+  // The ACTIVE sprint first (a sort here, not in SQL: enum order is declaration order),
+  // planned sprints after it in start order.
+  openSprints.sort((a, b) => Number(b.status === "ACTIVE") - Number(a.status === "ACTIVE"));
+
+  return { project, openSprints, backlogIssues };
 }
 
 export default async function BacklogPage(props: { params: Promise<{ projectKey: string }> }) {
@@ -49,7 +54,7 @@ export default async function BacklogPage(props: { params: Promise<{ projectKey:
   const data = await getBacklogData(params.projectKey, session.user.id);
   if (!data) redirect("/projects");
 
-  const { project, currentSprint, backlogIssues } = data;
+  const { project, openSprints, backlogIssues } = data;
 
   if (project.workflowMode !== "SPRINT") {
     redirect(`/projects/${params.projectKey}/board`);
@@ -68,18 +73,15 @@ export default async function BacklogPage(props: { params: Promise<{ projectKey:
       <AutoRefresh />
       <BacklogView
         projectKey={params.projectKey}
-        currentSprint={
-          currentSprint
-            ? {
-                id: currentSprint.id,
-                name: currentSprint.name,
-                goal: currentSprint.goal,
-                status: currentSprint.status,
-                startDate: currentSprint.startDate?.toISOString() ?? null,
-                issues: currentSprint.issues,
-              }
-            : null
-        }
+        sprints={openSprints.map((sprint) => ({
+          id: sprint.id,
+          name: sprint.name,
+          goal: sprint.goal,
+          status: sprint.status,
+          startDate: sprint.startDate?.toISOString() ?? null,
+          endDate: sprint.endDate?.toISOString() ?? null,
+          issues: sprint.issues,
+        }))}
         backlogIssues={backlogIssues}
         canManageSprint={userCanManageSprint}
         canEditIssues={userCanEditIssues}

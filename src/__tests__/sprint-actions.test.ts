@@ -54,31 +54,66 @@ describe("createSprint", () => {
     mockLeadMembership();
   });
 
+  const base = { name: "Sprint 1", duration: "2w" as const, startDate: "2026-04-01" }; // a Wednesday
+
   it("rejects an empty name", async () => {
-    const result = await createSprint("PRJ", { name: "   " });
+    const result = await createSprint("PRJ", { ...base, name: "   " });
     expect(result).toEqual({ success: false, error: "Sprint name cannot be empty." });
     expect(mockPrisma.sprint.create).not.toHaveBeenCalled();
   });
 
-  it("rejects a second open sprint", async () => {
+  it("allows a second open sprint — only ACTIVE is limited, and startSprint enforces that", async () => {
     mockPrisma.sprint.findFirst.mockResolvedValue({ id: "existing-sprint" });
+    mockPrisma.sprint.create.mockResolvedValue({ id: "sprint-2" });
 
-    const result = await createSprint("PRJ", { name: "Sprint 2" });
-
-    expect(result).toEqual({ success: false, error: "This project already has an open sprint." });
-    expect(mockPrisma.sprint.create).not.toHaveBeenCalled();
-  });
-
-  it("creates a PLANNED sprint when no open sprint exists", async () => {
-    mockPrisma.sprint.findFirst.mockResolvedValue(null);
-    mockPrisma.sprint.create.mockResolvedValue({ id: "sprint-1", name: "Sprint 1", status: "PLANNED" });
-
-    const result = await createSprint("PRJ", { name: "Sprint 1" });
+    const result = await createSprint("PRJ", { ...base, name: "Sprint 2" });
 
     expect(result.success).toBe(true);
-    expect(mockPrisma.sprint.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ status: "PLANNED", name: "Sprint 1" }) })
-    );
+    expect(mockPrisma.sprint.create).toHaveBeenCalled();
+  });
+
+  it("creates a PLANNED sprint and computes the end date from business days", async () => {
+    mockPrisma.sprint.create.mockResolvedValue({ id: "sprint-1" });
+
+    const result = await createSprint("PRJ", { ...base, goal: " ship it " });
+
+    expect(result.success).toBe(true);
+    expect(mockPrisma.sprint.create).toHaveBeenCalledWith({
+      data: {
+        projectId: "proj-1",
+        name: "Sprint 1",
+        goal: "ship it",
+        status: "PLANNED",
+        startDate: new Date("2026-04-01T00:00:00Z"),
+        endDate: new Date("2026-04-14T00:00:00Z"), // Wed 1st + 10 business days = Tue 14th
+      },
+    });
+  });
+
+  it("ignores a client-supplied end date for a preset duration", async () => {
+    mockPrisma.sprint.create.mockResolvedValue({ id: "sprint-1" });
+    await createSprint("PRJ", { ...base, endDate: "2027-01-01" });
+    expect(mockPrisma.sprint.create.mock.calls[0][0].data.endDate).toEqual(new Date("2026-04-14T00:00:00Z"));
+  });
+
+  it("uses the supplied dates for a custom duration", async () => {
+    mockPrisma.sprint.create.mockResolvedValue({ id: "sprint-1" });
+    await createSprint("PRJ", { ...base, duration: "custom", startDate: "2026-04-04", endDate: "2026-04-20" });
+    const data = mockPrisma.sprint.create.mock.calls[0][0].data;
+    expect(data.startDate).toEqual(new Date("2026-04-04T00:00:00Z")); // a Saturday is fine when custom
+    expect(data.endDate).toEqual(new Date("2026-04-20T00:00:00Z"));
+  });
+
+  it.each([
+    ["a custom sprint with no end date", { duration: "custom" as const }, "Enter a valid end date."],
+    ["a custom end before the start", { duration: "custom" as const, endDate: "2026-03-31" }, "The end date cannot be before the start date."],
+    ["a preset starting on a weekend", { startDate: "2026-04-04" }, "A sprint must start on a weekday."],
+    ["an unparseable start date", { startDate: "nope" }, "Enter a valid start date."],
+    ["an unknown duration", { duration: "constructor" as never }, "Choose a sprint duration."],
+  ])("rejects %s", async (_label, override, error) => {
+    const result = await createSprint("PRJ", { ...base, ...override });
+    expect(result).toEqual({ success: false, error });
+    expect(mockPrisma.sprint.create).not.toHaveBeenCalled();
   });
 });
 
