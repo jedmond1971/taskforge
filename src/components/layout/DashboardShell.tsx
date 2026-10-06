@@ -6,6 +6,7 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { PageTitleProvider } from "./PageTitleContext";
 import { ForgeMark } from "./ForgeMark";
+import { CommandPalette } from "./CommandPalette";
 import { Menu } from "lucide-react";
 
 const SIDEBAR_COLLAPSED_KEY = "jedforge-sidebar-collapsed";
@@ -121,6 +122,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
+    <CommandPalette />
     </PageTitleProvider>
   );
 }
