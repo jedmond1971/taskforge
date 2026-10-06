@@ -35,6 +35,7 @@ export type PaletteCommandId =
   | "go-org-settings"
   | "go-admin"
   | "create-issue"
+  | "show-shortcuts"
   | "theme-light"
   | "theme-dark"
   | "theme-system";
@@ -62,6 +63,7 @@ const ALL_COMMANDS: PaletteCommand[] = [
   { id: "go-org-settings", label: "Go to Org Settings", keywords: "organization members groups", href: "/org-settings" },
   { id: "go-admin", label: "Go to Admin", keywords: "administration users orgs", href: "/admin" },
   { id: "create-issue", label: "Create issue", keywords: "new add ticket task bug" },
+  { id: "show-shortcuts", label: "Keyboard shortcuts", keywords: "help keys hotkeys ?" },
   { id: "theme-light", label: "Theme: Light", keywords: "appearance mode" },
   { id: "theme-dark", label: "Theme: Dark", keywords: "appearance mode night" },
   { id: "theme-system", label: "Theme: System", keywords: "appearance mode auto" },

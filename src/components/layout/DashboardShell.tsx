@@ -7,6 +7,8 @@ import { Header } from "./Header";
 import { PageTitleProvider } from "./PageTitleContext";
 import { ForgeMark } from "./ForgeMark";
 import { CommandPalette } from "./CommandPalette";
+import { ShortcutHelp } from "./ShortcutHelp";
+import { useShortcut } from "./use-shortcut";
 import { Menu } from "lucide-react";
 
 const SIDEBAR_COLLAPSED_KEY = "jedforge-sidebar-collapsed";
@@ -52,26 +54,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     if (mounted) saveSidebarCollapsed(collapsed);
   }, [collapsed, mounted]);
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key !== "/") return;
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      )
-        return;
-      e.preventDefault();
-      if (pathname === "/search") {
-        window.dispatchEvent(new CustomEvent("jedforge:focus-search"));
-      } else {
-        router.push("/search");
-      }
+  useShortcut("/", () => {
+    if (pathname === "/search") {
+      window.dispatchEvent(new CustomEvent("jedforge:focus-search"));
+    } else {
+      router.push("/search");
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [pathname, router]);
+  });
 
   return (
     <PageTitleProvider>
@@ -123,6 +112,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       </div>
     </div>
     <CommandPalette />
+    <ShortcutHelp />
     </PageTitleProvider>
   );
 }
