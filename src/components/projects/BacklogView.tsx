@@ -36,6 +36,8 @@ import { IssueTypeIcon } from "@/components/icons/IssueTypeIcon";
 import { MonoMeta } from "@/components/ui/mono-meta";
 import { moveIssueToSprint } from "@/lib/backlog-state";
 import { SprintDialog } from "@/components/projects/SprintDialog";
+import { SprintCompletionSummary } from "@/components/projects/SprintCompletionSummary";
+import { summarizeSprintCompletion } from "@/lib/sprint-completion";
 import {
   startSprint,
   completeSprint,
@@ -236,7 +238,11 @@ export function BacklogView({
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: keyboardCoordinates })
   );
-  const [completeTarget, setCompleteTarget] = useState<SprintRow | null>(null);
+  // Only the id is kept: the dialog reads the sprint's issues from live state, so its counts follow
+  // a refresh (or another user's change) instead of freezing at the moment the button was clicked.
+  const [completeTargetId, setCompleteTargetId] = useState<string | null>(null);
+  const completeTarget = sprints.find((s) => s.id === completeTargetId) ?? null;
+  const completionReturning = completeTarget ? summarizeSprintCompletion(completeTarget.issues).returning.length : 0;
   const hasActiveSprint = sprints.some((s) => s.status === "ACTIVE");
 
   function handleDragStart(event: DragStartEvent) {
@@ -374,7 +380,7 @@ export function BacklogView({
                       </Button>
                     )}
                     {userCanManageSprint && sprint.status === "ACTIVE" && (
-                      <Button variant="outline" onClick={() => setCompleteTarget(sprint)} disabled={isPending}>
+                      <Button variant="outline" onClick={() => setCompleteTargetId(sprint.id)} disabled={isPending}>
                         Complete Sprint
                       </Button>
                     )}
@@ -473,13 +479,16 @@ export function BacklogView({
 
       <ConfirmDialog
         open={!!completeTarget}
-        onOpenChange={(open) => !open && setCompleteTarget(null)}
-        title="Complete this sprint?"
-        description="Issues not marked Done will be moved back to the backlog."
+        onOpenChange={(open) => !open && setCompleteTargetId(null)}
+        title={completeTarget ? `Complete ${completeTarget.name}?` : "Complete this sprint?"}
+        description="Issues that aren't Done go back to the backlog."
         confirmLabel="Complete Sprint"
-        variant="destructive"
+        // Nothing is moved when every issue is Done, so don't dress it up as a destructive action.
+        variant={completionReturning > 0 ? "destructive" : "default"}
         onConfirm={() => completeTarget && handleCompleteSprint(completeTarget.id)}
-      />
+      >
+        {completeTarget && <SprintCompletionSummary issues={completeTarget.issues} />}
+      </ConfirmDialog>
     </>
   );
 }

@@ -15,6 +15,8 @@ interface ConfirmDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
+  /** Extra content between the description and the buttons (e.g. an itemised list). */
+  children?: React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: "destructive" | "default";
@@ -26,6 +28,7 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
+  children,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   variant = "destructive",
@@ -40,6 +43,7 @@ export function ConfirmDialog({
             <DialogDescription>{description}</DialogDescription>
           )}
         </DialogHeader>
+        {children}
         <DialogFooter>
           <Button
             variant="outline"
