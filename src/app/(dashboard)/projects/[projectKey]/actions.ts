@@ -13,7 +13,7 @@ import {
   canManageProject,
 } from "@/lib/permissions";
 import { IssuePriority, IssueType, IssueLinkType, ProjectMemberRole, StatusCategory, Prisma } from "@prisma/client";
-import { CATEGORY_ORDER } from "@/lib/issue-utils";
+import { CATEGORY_ORDER, MAX_BULK_ISSUES } from "@/lib/issue-utils";
 import bcrypt from "bcryptjs";
 import { notificationService } from "@/lib/notifications";
 import { sanitizeTipTapHtml } from "@/lib/sanitize-html";
@@ -319,6 +319,8 @@ export type BulkIssueUpdates = Partial<{
   assigneeId: string | null;
   dueDate: Date | null;
   parentId: string | null;
+  // Sprint-mode projects only. null moves the issues back to the backlog.
+  sprintId: string | null;
   addLabels: string[];
   removeLabels: string[];
 }>;
@@ -337,11 +339,15 @@ export async function bulkUpdateIssueFields(
   issueIds: string[],
   updates: BulkIssueUpdates
 ) {
+  issueIds = Array.from(new Set(issueIds));
   if (!issueIds.length) return { success: true, count: 0 };
+  if (issueIds.length > MAX_BULK_ISSUES) {
+    throw new Error(`Select at most ${MAX_BULK_ISSUES} issues at a time`);
+  }
 
   const addLabels = updates.addLabels ?? [];
   const removeLabels = updates.removeLabels ?? [];
-  const hasFieldUpdate = (["statusId", "priority", "type", "assigneeId", "dueDate", "parentId"] as const).some(
+  const hasFieldUpdate = (["statusId", "priority", "type", "assigneeId", "dueDate", "parentId", "sprintId"] as const).some(
     (field) => field in updates && updates[field] !== undefined
   );
   if (!hasFieldUpdate && addLabels.length === 0 && removeLabels.length === 0) {
@@ -369,6 +375,27 @@ export async function bulkUpdateIssueFields(
     if (await wouldCreateCycle(targetParent.id, issueIds)) {
       throw new Error("Cannot set parent — this would create a circular hierarchy");
     }
+  }
+
+  let targetSprint: { id: string; name: string } | null = null;
+  const sprintNamesById: Record<string, string> = {};
+  if (updates.sprintId !== undefined) {
+    const project = await prisma.project.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { workflowMode: true },
+    });
+    if (project.workflowMode !== "SPRINT") throw new Error("This project is not in Sprint mode");
+    if (updates.sprintId) {
+      const sprint = await prisma.sprint.findFirst({
+        where: { id: updates.sprintId, projectId },
+        select: { id: true, name: true, status: true },
+      });
+      if (!sprint) throw new Error("Sprint not found in this project");
+      if (sprint.status === "COMPLETED") throw new Error("Cannot add issues to a completed sprint");
+      targetSprint = sprint;
+    }
+    const sprints = await prisma.sprint.findMany({ where: { projectId }, select: { id: true, name: true } });
+    for (const sp of sprints) sprintNamesById[sp.id] = sp.name;
   }
 
   let targetStatus: { id: string; name: string } | null = null;
@@ -402,6 +429,7 @@ export async function bulkUpdateIssueFields(
       reporterId: true,
       parentId: true,
       parent: { select: { key: true } },
+      sprintId: true,
     },
   });
   if (targetIssues.length !== issueIds.length) {
@@ -444,6 +472,16 @@ export async function bulkUpdateIssueFields(
       hasChange = true;
     }
 
+    if ("sprintId" in updates && updates.sprintId !== undefined && updates.sprintId !== issue.sprintId) {
+      updateData.sprintId = updates.sprintId;
+      activityEntries.push({
+        field: "sprint",
+        oldValue: issue.sprintId ? (sprintNamesById[issue.sprintId] ?? "") : "",
+        newValue: targetSprint?.name ?? "",
+      });
+      hasChange = true;
+    }
+
     let statusChanging = false;
     let statusChangedName: string | undefined;
     if (updates.statusId && updates.statusId !== issue.statusId) {
@@ -478,6 +516,19 @@ export async function bulkUpdateIssueFields(
   const anyStatusChange = plans.some((p) => p.statusChanging);
   const statusChangedAt = new Date();
 
+  const activityRows = plans.flatMap((plan) =>
+    plan.activityEntries.map((entry) => ({
+      issueId: plan.id,
+      userId,
+      action: "updated",
+      field: entry.field,
+      oldValue: entry.oldValue,
+      newValue: entry.newValue,
+    }))
+  );
+
+  // Issue writes and their activity rows commit together: a failure part-way leaves
+  // neither a half-applied batch nor changes with no audit trail.
   await prisma.$transaction(async (tx) => {
     if (anyStatusChange) {
       await lockProjectForPositionWrite(tx, projectId);
@@ -491,21 +542,10 @@ export async function bulkUpdateIssueFields(
       }
       await tx.issue.update({ where: { id: plan.id }, data });
     }
+    if (activityRows.length) {
+      await tx.activityLog.createMany({ data: activityRows });
+    }
   });
-
-  const activityRows = plans.flatMap((plan) =>
-    plan.activityEntries.map((entry) => ({
-      issueId: plan.id,
-      userId,
-      action: "updated",
-      field: entry.field,
-      oldValue: entry.oldValue,
-      newValue: entry.newValue,
-    }))
-  );
-  if (activityRows.length) {
-    await prisma.activityLog.createMany({ data: activityRows });
-  }
 
   for (const issue of targetIssues) {
     const plan = plans.find((p) => p.id === issue.id);
@@ -535,6 +575,7 @@ export async function bulkUpdateIssueFields(
 
   revalidatePath(`/projects/${projectKey}/issues`);
   revalidatePath(`/projects/${projectKey}/board`);
+  revalidatePath(`/projects/${projectKey}/backlog`);
   return { success: true, count: plans.filter((p) => p.hasChange).length };
 }
 
