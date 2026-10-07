@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -62,6 +62,8 @@ export function KanbanBoard({ initialIssues, statuses, projectKey, sprintScopeId
   const [activeIssue, setActiveIssue] = useState<CardIssue | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  // Where the dragged card started, so a completed cross-column move can be undone.
+  const dragOrigin = useRef<{ statusId: string; index: number } | null>(null);
 
   const statusIds = new Set(statuses.map((s) => s.id));
 
@@ -93,6 +95,70 @@ export function KanbanBoard({ initialIssues, statuses, projectKey, sprintScopeId
   function handleDragStart({ active }: DragStartEvent) {
     const issue = issues.find((i) => i.id === active.id);
     setActiveIssue(issue ?? null);
+    dragOrigin.current = issue
+      ? { statusId: issue.statusId, index: byColumn(issue.statusId).findIndex((i) => i.id === issue.id) }
+      : null;
+  }
+
+  function saveMove(
+    issue: CardIssue,
+    dest: BoardStatus,
+    position: number,
+    undoTo?: { statusId: string; index: number },
+    isUndo = false
+  ) {
+    setIssues((prev) =>
+      prev.map((i) =>
+        i.id === issue.id
+          ? { ...i, statusId: dest.id, status: { id: dest.id, name: dest.name, category: dest.category }, position }
+          : i
+      )
+    );
+
+    setIsSaving(true);
+    moveIssue(projectKey, issue.id, dest.id, position, sprintScopeId)
+      .then(() => {
+        if (isUndo) {
+          toast.success("Move undone");
+          return;
+        }
+        const origin = undoTo && statuses.find((s) => s.id === undoTo.statusId);
+        toast.success(`${issue.key} moved to ${dest.name}`, {
+          action:
+            origin && undoTo
+              ? { label: "Undo", onClick: () => saveMove(issue, origin, undoTo.index, undefined, true) }
+              : undefined,
+        });
+      })
+      .catch(() => {
+        setIssues(initialIssues);
+        toast.error("Failed to move issue", {
+          action: { label: "Retry", onClick: () => saveMove(issue, dest, position, undoTo, isUndo) },
+        });
+      })
+      .finally(() => setIsSaving(false));
+  }
+
+  function saveReorder(orderedIds: string[], destStatusId: string) {
+    setIssues((prev) => {
+      const byId = new Map(prev.map((i) => [i.id, i]));
+      const others = prev.filter((i) => i.statusId !== destStatusId);
+      const updated = orderedIds.flatMap((id, idx) => {
+        const issue = byId.get(id);
+        return issue ? [{ ...issue, position: idx }] : [];
+      });
+      return [...others, ...updated];
+    });
+
+    setIsSaving(true);
+    reorderIssues(projectKey, orderedIds, sprintScopeId)
+      .catch(() => {
+        setIssues(initialIssues);
+        toast.error("Failed to reorder issues", {
+          action: { label: "Retry", onClick: () => saveReorder(orderedIds, destStatusId) },
+        });
+      })
+      .finally(() => setIsSaving(false));
   }
 
   function handleDragOver({ active, over }: DragOverEvent) {
@@ -138,21 +204,7 @@ export function KanbanBoard({ initialIssues, statuses, projectKey, sprintScopeId
       const destStatus = statuses.find((s) => s.id === destStatusId);
       if (!destStatus) return;
 
-      setIssues((prev) =>
-        prev.map((i) =>
-          i.id === draggedIssue.id
-            ? { ...i, statusId: destStatusId, status: { id: destStatus.id, name: destStatus.name, category: destStatus.category }, position: newPosition }
-            : i
-        )
-      );
-
-      setIsSaving(true);
-      moveIssue(projectKey, draggedIssue.id, destStatusId, newPosition, sprintScopeId)
-        .catch(() => {
-          toast.error("Failed to move issue");
-          setIssues(initialIssues);
-        })
-        .finally(() => setIsSaving(false));
+      saveMove(draggedIssue, destStatus, newPosition, dragOrigin.current ?? undefined);
     } else {
       // Within-column reorder
       const oldIndex = destColumn.findIndex((i) => i.id === draggedIssue.id);
@@ -161,20 +213,7 @@ export function KanbanBoard({ initialIssues, statuses, projectKey, sprintScopeId
       if (oldIndex === newIndex) return;
 
       const reordered = arrayMove(destColumn, oldIndex, newIndex);
-
-      setIssues((prev) => {
-        const others = prev.filter((i) => i.statusId !== destStatusId);
-        const updated = reordered.map((issue, idx) => ({ ...issue, position: idx }));
-        return [...others, ...updated];
-      });
-
-      setIsSaving(true);
-      reorderIssues(projectKey, reordered.map((i) => i.id), sprintScopeId)
-        .catch(() => {
-          toast.error("Failed to reorder issues");
-          setIssues(initialIssues);
-        })
-        .finally(() => setIsSaving(false));
+      saveReorder(reordered.map((i) => i.id), destStatusId);
     }
   }
 

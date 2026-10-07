@@ -539,7 +539,12 @@ export async function bulkUpdateIssueFields(
 }
 
 // --- DELETE ISSUE ---
-export async function deleteIssue(projectKey: string, issueId: string) {
+export async function deleteIssue(
+  projectKey: string,
+  issueId: string,
+  // The Undo flow commits the delete in the background after the user has already navigated.
+  options: { redirect?: boolean } = {}
+) {
   const { projectId } = await requireProjectRole(projectKey, canEditIssues);
 
   const issue = await prisma.issue.findFirst({
@@ -551,7 +556,7 @@ export async function deleteIssue(projectKey: string, issueId: string) {
 
   revalidatePath(`/projects/${projectKey}/issues`);
   revalidatePath(`/projects/${projectKey}/board`);
-  redirect(`/projects/${projectKey}/issues`);
+  if (options.redirect !== false) redirect(`/projects/${projectKey}/issues`);
 }
 
 // --- GET ISSUES (with filtering/sorting) ---

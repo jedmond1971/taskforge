@@ -196,6 +196,9 @@ function EditableTitle({ value, issueId, projectKey, onSaved, canEdit }: {
   );
 }
 
+// How long the Undo toast for a deleted issue stays up before the delete is committed.
+const UNDO_DELETE_MS = 8000;
+
 const selectClass = "w-full px-2 py-1.5 bg-surface-raised border border-border-soft rounded text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50";
 
 function InlineSelect<T extends string>({ label, value, options, issueId, projectKey, fieldKey, onSaved, disabled: extraDisabled = false }: {
@@ -214,8 +217,27 @@ function InlineSelect<T extends string>({ label, value, options, issueId, projec
     if (newValue === value || extraDisabled) return;
     startTransition(async () => {
       await updateIssue(projectKey, issueId, { [fieldKey]: newValue } as Parameters<typeof updateIssue>[2]);
-      toast.success("Issue updated");
       onSaved();
+      if (fieldKey !== "statusId") {
+        toast.success("Issue updated");
+        return;
+      }
+      // Undo re-applies the previous status through updateIssue, which appends to the
+      // end of that column under the project position lock (the issue's old slot is gone).
+      const previous = value;
+      toast.success("Status updated", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            updateIssue(projectKey, issueId, { statusId: previous })
+              .then(() => {
+                toast.success("Status change undone");
+                onSaved();
+              })
+              .catch(() => toast.error("Failed to undo status change"));
+          },
+        },
+      });
     });
   }
 
@@ -351,10 +373,25 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
   }
 
   function handleConfirmDelete() {
-    startTransition(async () => {
-      toast.success("Issue deleted");
-      await deleteIssue(projectKey, issue.id);
+    // Deletes are permanent (comments, attachments), so hold the real delete back for
+    // the Undo window. Leaving the page first is safe: the timer is module-level.
+    const { key, id } = issue;
+    const timer = setTimeout(() => {
+      deleteIssue(projectKey, id, { redirect: false }).catch(() =>
+        toast.error(`Failed to delete ${key}`)
+      );
+    }, UNDO_DELETE_MS);
+    toast.success(`${key} deleted`, {
+      duration: UNDO_DELETE_MS,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          clearTimeout(timer);
+          router.push(`/projects/${projectKey}/issues/${key}`);
+        },
+      },
     });
+    router.push(`/projects/${projectKey}/issues`);
   }
 
   const statusOptions = statuses.map((s) => ({ value: s.id, label: s.name }));
