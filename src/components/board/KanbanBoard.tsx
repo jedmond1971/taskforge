@@ -20,6 +20,7 @@ import { KanbanColumn } from "./KanbanColumn";
 import { KanbanCard } from "./KanbanCard";
 import { moveIssue, reorderIssues } from "@/app/(dashboard)/projects/[projectKey]/actions";
 import { toast } from "sonner";
+import { boardSignature, setBoardBusy } from "@/lib/board-activity";
 
 type BoardStatus = {
   id: string;
@@ -50,6 +51,9 @@ interface KanbanBoardProps {
   sprintScopeId?: string;
 }
 
+// A refresh landing this soon after our own move/reorder is that move's echo, not news.
+const OWN_WRITE_ECHO_MS = 8000;
+
 // Custom collision detection: prefer column droppables for cross-column detection
 const customCollision: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
@@ -71,9 +75,27 @@ export function KanbanBoard({ initialIssues, statuses, projectKey, sprintScopeId
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
+  // AutoRefresh holds off while a card is being dragged or a move is still saving.
+  useEffect(() => {
+    setBoardBusy(activeIssue !== null || isSaving);
+  }, [activeIssue, isSaving]);
+  useEffect(() => () => setBoardBusy(false), []);
+
+  // Fingerprint of the last server data we synced, and when this user last wrote — together they
+  // tell a change from someone else (worth a "Board updated" pill) from the echo of our own move.
+  const syncedSignature = useRef(boardSignature(initialIssues));
+  const lastLocalWrite = useRef(0);
+
   // Sync server-refreshed issues into local state, but not while a drag is in flight
   useEffect(() => {
-    if (!activeIssue) setIssues(initialIssues);
+    if (activeIssue) return;
+    setIssues(initialIssues);
+    const signature = boardSignature(initialIssues);
+    if (signature === syncedSignature.current) return;
+    syncedSignature.current = signature;
+    if (Date.now() - lastLocalWrite.current > OWN_WRITE_ECHO_MS) {
+      toast("Board updated", { id: "board-updated", duration: 2500 });
+    }
   }, [initialIssues]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Group issues by statusId, sorted by position
@@ -116,6 +138,7 @@ export function KanbanBoard({ initialIssues, statuses, projectKey, sprintScopeId
     );
 
     setIsSaving(true);
+    lastLocalWrite.current = Date.now();
     moveIssue(projectKey, issue.id, dest.id, position, sprintScopeId)
       .then(() => {
         if (isUndo) {
@@ -136,7 +159,10 @@ export function KanbanBoard({ initialIssues, statuses, projectKey, sprintScopeId
           action: { label: "Retry", onClick: () => saveMove(issue, dest, position, undoTo, isUndo) },
         });
       })
-      .finally(() => setIsSaving(false));
+      .finally(() => {
+        lastLocalWrite.current = Date.now();
+        setIsSaving(false);
+      });
   }
 
   function saveReorder(orderedIds: string[], destStatusId: string) {
@@ -151,6 +177,7 @@ export function KanbanBoard({ initialIssues, statuses, projectKey, sprintScopeId
     });
 
     setIsSaving(true);
+    lastLocalWrite.current = Date.now();
     reorderIssues(projectKey, orderedIds, sprintScopeId)
       .catch(() => {
         setIssues(initialIssues);
@@ -158,7 +185,10 @@ export function KanbanBoard({ initialIssues, statuses, projectKey, sprintScopeId
           action: { label: "Retry", onClick: () => saveReorder(orderedIds, destStatusId) },
         });
       })
-      .finally(() => setIsSaving(false));
+      .finally(() => {
+        lastLocalWrite.current = Date.now();
+        setIsSaving(false);
+      });
   }
 
   function handleDragOver({ active, over }: DragOverEvent) {

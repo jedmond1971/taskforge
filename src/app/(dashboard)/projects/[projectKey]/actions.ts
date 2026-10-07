@@ -1084,6 +1084,17 @@ export async function moveIssue(
         oldValue: oldStatusName,
         newValue: newStatusName,
       });
+
+      // Same event updateIssue/bulk updates fire; a board drag used to skip it (JFR-184).
+      await notificationService.statusChanged({
+        issueKey: issue.key,
+        issueTitle: issue.title,
+        issueId,
+        newStatus: newStatusName,
+        assigneeId: issue.assigneeId,
+        reporterId: issue.reporterId,
+        actorId: userId,
+      });
     }
 
     revalidatePath(`/projects/${projectKey}/board`);
