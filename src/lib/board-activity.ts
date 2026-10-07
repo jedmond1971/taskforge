@@ -23,6 +23,18 @@ export function onBoardIdle(listener: () => void) {
   };
 }
 
+// When this user last wrote to the board, so a refresh landing right after is recognised as the
+// echo of their own change rather than someone else's.
+let lastWriteAt = 0;
+
+export function markBoardWrite() {
+  lastWriteAt = Date.now();
+}
+
+export function msSinceBoardWrite() {
+  return Date.now() - lastWriteAt;
+}
+
 type SignatureIssue = {
   id: string;
   statusId: string;
