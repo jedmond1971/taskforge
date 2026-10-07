@@ -29,3 +29,10 @@
 - Self-service password change is unaffected: `session.update()` goes through NextAuth's own handler (the `jwt` callback's `trigger === "update"` re-arm), not the wrapped `auth()`. Verified live 2026-09-21.
 - Tests: `src/__tests__/session-invalidation.test.ts` (jwt callback, `auth`/`requireUser`, permissions helpers, the sign-out route, and static scans for the page-guard convention and middleware Edge-safety).
 
+
+## 9. Loading skeletons and the login shell (JFR-179)
+
+- **A `loading.tsx` sits *inside* the layouts above it, which already pad** — `DashboardShell`'s `<main>` is `p-4 sm:p-6`, and `projects/[projectKey]/layout.tsx` adds another `p-4 sm:p-6` around its children. Don't add `p-6` to a skeleton (the originals did, so content jumped on arrival); copy the real page's root container classes (`max-w-*`, `space-y-*`) instead. Skeletons carry `aria-busy` + an `aria-label`.
+- **A `loading.tsx` also covers every route below it that lacks its own.** The dashboard home lives at `(dashboard)/(home)/page.tsx` — `(home)` is a route group (no URL segment) — purely so its skeleton doesn't appear for `/admin`, `/search`, etc. Moving a page changes the generated types: `rm -rf .next/types` before `tsc` (see CLAUDE.md).
+- **The project `[projectKey]/layout.tsx` and `docs/layout.tsx` fetch outside the child `loading.tsx` boundary**, so the nearest skeleton while they resolve is the *parent's* (`projects/loading.tsx`); `docs/loading.tsx` only draws the content column, not the sidebar.
+- **Don't read `useSearchParams` inside an empty `<Suspense>`** — the subtree bails out to client rendering (`BAILOUT_TO_CLIENT_SIDE_RENDERING`) and the first paint is blank. The login page is a server component that reads the `searchParams` prop and passes `callbackUrl` to the client `LoginForm`; it also rejects `//…` callbacks (protocol-relative), which the old `startsWith("/")` check accepted.

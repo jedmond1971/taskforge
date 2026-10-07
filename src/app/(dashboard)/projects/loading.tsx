@@ -1,8 +1,11 @@
 import { Skeleton } from "@/components/ui/skeleton";
 export default function Loading() {
   return (
-    <div className="p-6 space-y-6">
-      <Skeleton className="h-8 w-48" />
+    <div className="max-w-5xl space-y-6">
+      <div>
+        <Skeleton className="h-8 sm:h-9 w-48" />
+        <Skeleton className="h-5 w-24 mt-1" />
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="bg-surface border border-border-soft rounded-xl p-5 space-y-3">
