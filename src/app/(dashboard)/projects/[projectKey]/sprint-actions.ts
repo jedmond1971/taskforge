@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireProjectRole, canManageSprint, canEditIssues } from "@/lib/permissions";
 import { Prisma, Sprint } from "@prisma/client";
 import { logError } from "@/lib/security-events";
+import { DONE_CATEGORY } from "@/lib/sprint-completion";
 import {
   SPRINT_DURATIONS,
   SprintDurationKey,
@@ -231,7 +232,7 @@ export async function completeSprint(
   try {
     const movedToBacklogCount = await prisma.$transaction(async (tx) => {
       const doneStatuses = await tx.projectStatus.findMany({
-        where: { projectId, category: "DONE" },
+        where: { projectId, category: DONE_CATEGORY },
         select: { id: true },
       });
       const doneStatusIds = doneStatuses.map((s) => s.id);
