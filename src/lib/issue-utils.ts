@@ -50,3 +50,9 @@ export const TYPE_CONFIG: Record<IssueType, { label: string }> = {
   STORY: { label: "Story" },
   EPIC: { label: "Epic" },
 };
+
+// Upper bound on one bulk write: it holds the project row lock and does a write per issue
+// inside a single transaction, so an unbounded list would stall every other writer.
+// Lives here (not in the "use server" actions file, which may only export async functions)
+// so the list UI's selection cap and the server check share one number.
+export const MAX_BULK_ISSUES = 100;

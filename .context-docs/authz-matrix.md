@@ -150,7 +150,7 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 |---|---|---|---|
 | `createIssue` | `requireProjectRole(canEditIssues)` | `statusId`, `parentId`, `assigneeId` each verified to belong to the project (SECH-85 fix) | TEAM_MEMBER+ |
 | `updateIssue` | `requireProjectRole(canEditIssues)` | issue by `{id, projectId}`; `statusId` verified; only whitelisted fields written (SECH-85 fix — was a raw spread) | TEAM_MEMBER+ |
-| `bulkUpdateIssueFields` | `requireProjectRole(canEditIssues)` | issues by `{id in, projectId}`, status + assignee verified | TEAM_MEMBER+ |
+| `bulkUpdateIssueFields` | `requireProjectRole(canEditIssues)` | issues by `{id in, projectId}`, status + assignee + parent + sprint (same project, not COMPLETED, Sprint-mode only) verified; max 100 ids (`MAX_BULK_ISSUES`) | TEAM_MEMBER+ |
 | `deleteIssue` | `requireProjectRole(canEditIssues)` | issue by `{id, projectId}` | TEAM_MEMBER+ |
 | `getIssues` | `auth()` + inline `ProjectMember` check | project by key -> membership | any member |
 | `getIssue` | `auth()` + inline `ProjectMember` check | project by key -> membership; issue by `{key, projectId}` | any member |
