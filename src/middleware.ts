@@ -10,7 +10,10 @@ export default auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
 
-  const isAuthRoute = nextUrl.pathname.startsWith("/login") || nextUrl.pathname.startsWith("/register");
+  const isAuthRoute =
+    nextUrl.pathname.startsWith("/login") ||
+    nextUrl.pathname.startsWith("/register") ||
+    nextUrl.pathname.startsWith("/forgot-password");
   const isApiRoute = nextUrl.pathname.startsWith("/api");
 
   const requestHeaders = new Headers(req.headers);
@@ -54,7 +57,9 @@ export default auth((req) => {
     return withRequestId(NextResponse.next({ request: { headers: requestHeaders } }));
   }
 
-  const isInviteRoute = nextUrl.pathname.startsWith("/invite/");
+  // Reachable signed in or out: a reset link opened in a browser that still has a session must work,
+  // and finishing it invalidates that session anyway.
+  const isInviteRoute = nextUrl.pathname.startsWith("/invite/") || nextUrl.pathname.startsWith("/reset-password/");
   if (isInviteRoute) {
     return withRequestId(NextResponse.next({ request: { headers: requestHeaders } }));
   }

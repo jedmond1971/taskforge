@@ -9,6 +9,7 @@ import { deleteObject, deleteObjectsWithPrefix } from "@/lib/s3";
 import { sendOrgInviteEmail, getInviteExpiryDate } from "@/lib/invites";
 import { logAdminAction } from "@/lib/audit-log";
 import { revokeOAuthTokensForUser, revokeApiKeysForUser } from "@/lib/credential-revocation";
+import { deletePasswordResetTokensForUser } from "@/lib/password-reset";
 import { securityEvent } from "@/lib/security-events";
 import { logError } from "@/lib/security-events";
 import { runDrill, type DrillResult } from "@/lib/alerting";
@@ -224,6 +225,8 @@ export async function adminResetUserPassword(
   // OAuth tokens have no captured session version to check live (SECH-94) —
   // revoke them here, the same trigger that invalidates web sessions.
   await revokeOAuthTokensForUser(userId);
+  // An emailed reset link issued before this must not be able to overwrite the new password (JFR-183).
+  await deletePasswordResetTokensForUser(userId);
 
   await logAdminAction({
     actorId,

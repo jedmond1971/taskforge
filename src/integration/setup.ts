@@ -52,6 +52,13 @@ beforeEach(async () => {
   s.setClientIp("203.0.113.200");
 });
 
+// after() throws outside a request scope; run the callback through the test's queue instead (JFR-183).
+vi.mock("next/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/server")>();
+  const s = await import("./session");
+  return { ...actual, after: (callback: () => unknown) => s.queueAfter(callback) };
+});
+
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {

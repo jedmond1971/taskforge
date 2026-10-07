@@ -16,6 +16,8 @@ Named limits live in `LIMITS` in `rate-limit.ts`. **Any new sensitive endpoint s
 | `approveAuthorization` (consent screen; mints codes) | `oauth-approve:<userId>` | attempts | 20 / 15 min | redirect to the client with `error=temporarily_unavailable` |
 | `acceptInviteNewUser` (public) | `invite-ip:<ip>` (bad, expired or used token) **and** `invite-token:<sha256(token)[:32]>` | failures / attempts | 10 / 15 min per IP; 10 / 15 min per token (also caps bcrypt work) | "Too many attempts. Try again in N minutes." |
 | `acceptInviteExistingUser` | `invite-user:<userId>` | attempts | 10 / 15 min | same message |
+| `requestPasswordReset` (public, JFR-183) | `pw-reset-req-ip:<ip>` **and** `pw-reset-req-email:<sha256(email)[:32]>` | attempts | 10 / hour per IP; 3 / hour per email | "Too many attempts…" — same for a registered and an unregistered address, since both keys use only what was typed |
+| `resetPassword` (public, JFR-183) | `pw-reset-ip:<ip>` (bad, expired or used token) **and** `pw-reset-token:<sha256(token)[:32]>` | failures / attempts | 10 / 15 min per IP; 10 / 15 min per token (also caps bcrypt work) | "Too many attempts. Try again in N minutes." |
 | `changePassword` | `pw-change:<userId>` (wrong current password) | failures | 5 / 15 min. Stops a hijacked session brute-forcing its way to an account takeover | same message |
 | `createApiKey` | `apikey-create:<userId>:<orgId>` | attempts | 10 / hour | same message |
 | `adminSendAlertDrill` (SECH-117) | `alert-drill:<userId>` | attempts | 1 / 10 min — each drill sends one email per alert rule | same message |

@@ -171,6 +171,14 @@ export const LIMITS = {
   alertDrillPerUser: { maxAttempts: 1, windowMs: 10 * MINUTE },
   externalApiPerKey: { maxAttempts: 100, windowMs: 1 * MINUTE },
   externalApiAuthFailuresPerIp: { maxAttempts: 20, windowMs: 15 * MINUTE },
+  // JFR-183 password reset. Requests are attempts (each can send an email): the per-email cap stops
+  // the form being used to flood one person's inbox, the per-IP cap stops it being used as a mailer.
+  // Both apply whether or not the account exists, so being throttled reveals nothing.
+  passwordResetRequestPerIp: { maxAttempts: 10, windowMs: 60 * MINUTE },
+  passwordResetRequestPerEmail: { maxAttempts: 3, windowMs: 60 * MINUTE },
+  // Completing a reset: bad/expired/used tokens per IP, and a hard cap per token (also bounds bcrypt work).
+  passwordResetFailuresPerIp: { maxAttempts: 10, windowMs: 15 * MINUTE },
+  passwordResetAttemptsPerToken: { maxAttempts: 10, windowMs: 15 * MINUTE },
 } satisfies Record<string, RateLimitConfig>;
 
 /** User-facing message for throttled Server Actions (no enumeration detail). */
