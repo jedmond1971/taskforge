@@ -15,6 +15,8 @@ import {
   FileText,
 } from "lucide-react";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
+import { OnboardingChecklist } from "@/components/dashboard/OnboardingChecklist";
+import { buildOnboarding } from "@/lib/onboarding";
 import { buildAttentionItems, type AttentionIssue } from "@/lib/dashboard";
 
 async function getUserProjects(userId: string) {
@@ -125,6 +127,33 @@ async function getOpenIssuesCount(userId: string) {
   });
 }
 
+async function getOnboardingState(userId: string, orgId: string | undefined, isPlatformAdmin: boolean, projects: { key: string }[]) {
+  const membership = orgId
+    ? await prisma.orgMember.findUnique({ where: { orgId_userId: { orgId, userId } }, select: { role: true } })
+    : null;
+  const canSetUp = isPlatformAdmin || membership?.role === "OWNER" || membership?.role === "ADMIN";
+  const hasProjects = projects.length > 0;
+  // Skip the org-wide counts for people who will never see a checklist.
+  if (!orgId || !canSetUp) {
+    return buildOnboarding({
+      canSetUp: false, isPlatformAdmin, hasProjects, firstProjectKey: null,
+      orgProjectCount: 0, orgMemberCount: 0, orgInviteCount: 0, orgIssueCount: 0, orgDocPageCount: 0,
+    });
+  }
+  const inOrg = { project: { orgId } };
+  const [orgProjectCount, orgMemberCount, orgInviteCount, orgIssueCount, orgDocPageCount] = await Promise.all([
+    prisma.project.count({ where: { orgId } }),
+    prisma.orgMember.count({ where: { orgId } }),
+    prisma.orgInvite.count({ where: { orgId } }),
+    prisma.issue.count({ where: inOrg }),
+    prisma.docPage.count({ where: { docSpace: inOrg } }),
+  ]);
+  return buildOnboarding({
+    canSetUp, isPlatformAdmin, hasProjects, firstProjectKey: projects[0]?.key ?? null,
+    orgProjectCount, orgMemberCount, orgInviteCount, orgIssueCount, orgDocPageCount,
+  });
+}
+
 const priorityLabel: Record<"CRITICAL" | "HIGH" | "MEDIUM" | "LOW", string> = {
   CRITICAL: "Critical",
   HIGH: "High",
@@ -156,6 +185,8 @@ export default async function DashboardPage() {
     getOpenIssuesCount(userId),
   ]);
 
+  const onboarding = await getOnboardingState(userId, session.user.orgId, session.user.role === "ADMIN", projects);
+
   const firstName = session.user.name?.split(" ")[0] ?? "there";
 
   const attentionItems: AttentionIssue[] = buildAttentionItems(assignedIssues, upcomingDueDates).slice(0, 5);
@@ -168,6 +199,8 @@ export default async function DashboardPage() {
         title={`Welcome back, ${firstName}`}
         subtitle="Here's what needs your attention today."
       />
+
+      {onboarding.kind !== "hidden" && <OnboardingChecklist state={onboarding} userId={userId} />}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
