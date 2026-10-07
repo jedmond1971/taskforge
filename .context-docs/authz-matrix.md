@@ -73,6 +73,18 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | `acceptInviteNewUser` | public — possession of the invite token | invite email/org/role from the invite; existing account blocked | invitee (rate-limited per IP and per token, SECH-107) |
 | `acceptInviteExistingUser` | `auth()` + session email must equal the invite email | invite row by `token` | invitee (rate-limited per user, SECH-107) |
 
+### `(auth)/forgot-password/actions.ts`
+
+| Action | Guard | Tenant scope | Minimum role |
+|---|---|---|---|
+| `requestPasswordReset` | public — no credential; always answers the same (JFR-183) | none — an account is resolved by email only inside `after()`, after the response | anyone (rate-limited per IP and per hashed email, attempts mode; neither the answer nor its timing depends on whether the account exists) |
+
+### `(auth)/reset-password/[token]/actions.ts`
+
+| Action | Guard | Tenant scope | Minimum role |
+|---|---|---|---|
+| `resetPassword` | public — possession of the emailed single-use token (sha256 stored, 1 h expiry, JFR-183) | the token row's `userId` | link holder (rate-limited per IP failures and per token; consumes the token atomically, bumps `sessionVersion`, revokes OAuth tokens, does not sign in) |
+
 ### `(auth)/oauth/authorize/actions.ts`
 
 | Action | Guard | Tenant scope | Minimum role |

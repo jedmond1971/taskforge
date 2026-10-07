@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { PasswordField } from "@/components/auth/PasswordField";
 
 
 // callbackUrl arrives as a prop (resolved on the server in page.tsx) rather than via
@@ -176,24 +178,24 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string }) {
                 name="email"
                 type="email"
                 required
+                autoFocus
+                autoComplete="email"
                 placeholder="you@example.com"
                 className="w-full px-3 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm min-h-[44px]"
               />
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="password" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                placeholder="••••••••"
-                className="w-full px-3 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm min-h-[44px]"
-              />
-            </div>
+            <PasswordField
+              id="password"
+              name="password"
+              label="Password"
+              autoComplete="current-password"
+              labelAside={
+                <Link href="/forgot-password" className="text-xs text-zinc-500 hover:text-primary hover:underline">
+                  Forgot password?
+                </Link>
+              }
+            />
 
             <button
               type="submit"

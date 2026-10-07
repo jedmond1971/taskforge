@@ -18,6 +18,8 @@ const read = (rel: string) => fs.readFileSync(path.join(SRC, rel), "utf8");
 
 /** Each event type, and a file that must emit it. */
 const WIRING: Array<{ type: string; file: string }> = [
+  { type: "auth.password_reset_requested", file: "lib/password-reset.ts" },
+  { type: "session.invalidated", file: "app/(auth)/reset-password/[token]/actions.ts" },
   { type: "oauth.token_failed", file: "app/api/oauth/token/route.ts" },
   { type: "oauth.refresh_reuse_detected", file: "app/api/oauth/token/route.ts" },
   { type: "apikey.created", file: "app/(dashboard)/org-settings/actions.ts" },
