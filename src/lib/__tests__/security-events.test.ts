@@ -157,6 +157,7 @@ describe("event catalog", () => {
       "auth.login_throttled",
       "auth.v1_key_invalid",
       "auth.v1_throttled",
+      "auth.password_reset_requested",
       "ratelimit.monitor_would_block",
       "csp.violation",
       "authz.denied_not_member",

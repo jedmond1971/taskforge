@@ -1,0 +1,1 @@
+ALTER TABLE "Sprint" ADD COLUMN "position" INTEGER;

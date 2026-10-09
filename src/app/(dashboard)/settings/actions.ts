@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { revokeOAuthTokensForUser } from "@/lib/credential-revocation";
 import { checkRateLimit, recordFailure, tooManyAttemptsMessage, LIMITS } from "@/lib/rate-limit";
 import { securityEvent } from "@/lib/security-events";
+import { deletePasswordResetTokensForUser } from "@/lib/password-reset";
 
 type ActionResult = { success: true } | { success: false; error: string };
 
@@ -80,6 +81,8 @@ export async function changePassword(
   // OAuth tokens have no captured session version to check live (SECH-94) —
   // revoke them here, the same trigger that invalidates web sessions.
   await revokeOAuthTokensForUser(session.user.id);
+  // Any reset link already emailed is stale now (JFR-183).
+  await deletePasswordResetTokensForUser(session.user.id);
 
   return { success: true };
 }

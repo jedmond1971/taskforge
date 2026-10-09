@@ -27,3 +27,16 @@ export function setClientIp(ip: string) {
 export function currentClientIp() {
   return clientIp;
 }
+
+// `after()` only exists inside a request, so tests that call a Server Action directly get this stand-in
+// (see setup.ts): callbacks are collected here and a test awaits flushAfter() where the real request
+// would have finished them.
+const pendingAfter: Promise<unknown>[] = [];
+
+export function queueAfter(callback: () => unknown) {
+  pendingAfter.push(Promise.resolve().then(callback));
+}
+
+export async function flushAfter() {
+  await Promise.all(pendingAfter.splice(0));
+}

@@ -73,6 +73,18 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | `acceptInviteNewUser` | public — possession of the invite token | invite email/org/role from the invite; existing account blocked | invitee (rate-limited per IP and per token, SECH-107) |
 | `acceptInviteExistingUser` | `auth()` + session email must equal the invite email | invite row by `token` | invitee (rate-limited per user, SECH-107) |
 
+### `(auth)/forgot-password/actions.ts`
+
+| Action | Guard | Tenant scope | Minimum role |
+|---|---|---|---|
+| `requestPasswordReset` | public — no credential; always answers the same (JFR-183) | none — an account is resolved by email only inside `after()`, after the response | anyone (rate-limited per IP and per hashed email, attempts mode; neither the answer nor its timing depends on whether the account exists) |
+
+### `(auth)/reset-password/[token]/actions.ts`
+
+| Action | Guard | Tenant scope | Minimum role |
+|---|---|---|---|
+| `resetPassword` | public — possession of the emailed single-use token (sha256 stored, 1 h expiry, JFR-183) | the token row's `userId` | link holder (rate-limited per IP failures and per token; consumes the token atomically, bumps `sessionVersion`, revokes OAuth tokens, does not sign in) |
+
 ### `(auth)/oauth/authorize/actions.ts`
 
 | Action | Guard | Tenant scope | Minimum role |
@@ -150,7 +162,7 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 |---|---|---|---|
 | `createIssue` | `requireProjectRole(canEditIssues)` | `statusId`, `parentId`, `assigneeId` each verified to belong to the project (SECH-85 fix) | TEAM_MEMBER+ |
 | `updateIssue` | `requireProjectRole(canEditIssues)` | issue by `{id, projectId}`; `statusId` verified; only whitelisted fields written (SECH-85 fix — was a raw spread) | TEAM_MEMBER+ |
-| `bulkUpdateIssueFields` | `requireProjectRole(canEditIssues)` | issues by `{id in, projectId}`, status + assignee verified | TEAM_MEMBER+ |
+| `bulkUpdateIssueFields` | `requireProjectRole(canEditIssues)` | issues by `{id in, projectId}`, status + assignee + parent + sprint (same project, not COMPLETED, Sprint-mode only) verified; max 100 ids (`MAX_BULK_ISSUES`) | TEAM_MEMBER+ |
 | `deleteIssue` | `requireProjectRole(canEditIssues)` | issue by `{id, projectId}` | TEAM_MEMBER+ |
 | `getIssues` | `auth()` + inline `ProjectMember` check | project by key -> membership | any member |
 | `getIssue` | `auth()` + inline `ProjectMember` check | project by key -> membership; issue by `{key, projectId}` | any member |
@@ -221,6 +233,8 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | Action | Guard | Tenant scope | Minimum role |
 |---|---|---|---|
 | `createSprint` | `requireProjectRole(canManageSprint)` + SPRINT-mode check | sprint by `{id, projectId}` | PROJECT_LEAD (or `SPRINT_MANAGE` grant) |
+| `updateSprint` | `requireProjectRole(canManageSprint)` + SPRINT-mode check | sprint by `{id, projectId}`; following sprints are re-read server-side from the project's own open sprints, never taken from the client (JFR-190) | PROJECT_LEAD (or `SPRINT_MANAGE` grant) |
+| `reorderSprints` | `requireProjectRole(canManageSprint)` + SPRINT-mode check | id list must equal the project's open sprint ids exactly, else nothing is written (JFR-190) | PROJECT_LEAD (or `SPRINT_MANAGE` grant) |
 | `startSprint` | `requireProjectRole(canManageSprint)` + SPRINT-mode check | sprint by `{id, projectId}` | PROJECT_LEAD (or `SPRINT_MANAGE` grant) |
 | `completeSprint` | `requireProjectRole(canManageSprint)` + SPRINT-mode check | sprint by `{id, projectId}` | PROJECT_LEAD (or `SPRINT_MANAGE` grant) |
 | `addIssueToSprint` | `requireProjectRole(canEditIssues)` + SPRINT-mode check | sprint and issue both by `{id, projectId}` | TEAM_MEMBER+ |

@@ -10,12 +10,14 @@ const { mockPrisma, mockAuthFn } = vi.hoisted(() => {
     projectStatus: { findMany: vi.fn() },
     sprint: {
       findFirst: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn(),
       update: vi.fn(),
     },
     issue: { updateMany: vi.fn() },
     $transaction: vi.fn(),
   };
+  mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(mockPrisma));
   const mockAuthFn = vi.fn();
   return { mockPrisma, mockAuthFn };
 });
@@ -24,7 +26,7 @@ vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/auth", () => ({ auth: mockAuthFn }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-import { createSprint, startSprint, completeSprint } from "@/app/(dashboard)/projects/[projectKey]/sprint-actions";
+import { createSprint, updateSprint, reorderSprints, startSprint, completeSprint } from "@/app/(dashboard)/projects/[projectKey]/sprint-actions";
 // Real Prisma.PrismaClientKnownRequestError — a plain class, no DB connection
 // needed to construct it, so it doesn't need mocking like `prisma` does.
 import { Prisma } from "@prisma/client";
@@ -84,6 +86,7 @@ describe("createSprint", () => {
         name: "Sprint 1",
         goal: "ship it",
         status: "PLANNED",
+        position: null,
         startDate: new Date("2026-04-01T00:00:00Z"),
         endDate: new Date("2026-04-14T00:00:00Z"), // Wed 1st + 10 business days = Tue 14th
       },
@@ -114,6 +117,105 @@ describe("createSprint", () => {
     const result = await createSprint("PRJ", { ...base, ...override });
     expect(result).toEqual({ success: false, error });
     expect(mockPrisma.sprint.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("createSprint position", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSession();
+    mockLeadMembership();
+    mockPrisma.sprint.create.mockResolvedValue({ id: "s" });
+  });
+  const input = { name: "S", duration: "2w" as const, startDate: "2026-04-01" };
+
+  it("leaves position null while no sprint has been hand-ordered", async () => {
+    mockPrisma.sprint.findMany.mockResolvedValue([{ position: null }]);
+    await createSprint("PRJ", input);
+    expect(mockPrisma.sprint.create.mock.calls[0][0].data.position).toBeNull();
+  });
+
+  it("appends to a hand-made order", async () => {
+    mockPrisma.sprint.findMany.mockResolvedValue([{ position: 0 }, { position: 3 }, { position: null }]);
+    await createSprint("PRJ", input);
+    expect(mockPrisma.sprint.create.mock.calls[0][0].data.position).toBe(4);
+  });
+});
+
+describe("updateSprint", () => {
+  const d = (s: string) => new Date(`${s}T00:00:00Z`);
+  const sp = (id: string, start: string, end: string, status = "PLANNED") => ({
+    id, status, position: null, startDate: d(start), endDate: d(end), createdAt: d("2026-01-01"),
+  });
+  const edit = { name: "Renamed", goal: " new goal ", duration: "custom" as const, startDate: "2026-04-01", endDate: "2026-04-16" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(mockPrisma));
+    mockSession();
+    mockLeadMembership();
+    mockPrisma.sprint.findFirst.mockResolvedValue(sp("s1", "2026-04-01", "2026-04-14"));
+    mockPrisma.sprint.findMany.mockResolvedValue([
+      sp("s1", "2026-04-01", "2026-04-14"),
+      sp("s2", "2026-04-15", "2026-04-28"),
+    ]);
+    mockPrisma.sprint.update.mockImplementation(async ({ where }: { where: { id: string } }) => ({ id: where.id }));
+  });
+
+  it("saves the edited fields without touching other sprints by default", async () => {
+    const result = await updateSprint("PRJ", "s1", edit);
+    expect(result).toMatchObject({ success: true, adjustedCount: 0 });
+    expect(mockPrisma.sprint.update).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.sprint.update).toHaveBeenCalledWith({
+      where: { id: "s1" },
+      data: { name: "Renamed", goal: "new goal", startDate: d("2026-04-01"), endDate: d("2026-04-16") },
+    });
+  });
+
+  it("shifts the following sprints when asked", async () => {
+    const result = await updateSprint("PRJ", "s1", { ...edit, adjustFollowing: true });
+    expect(result).toMatchObject({ success: true, adjustedCount: 1 });
+    expect(mockPrisma.sprint.update).toHaveBeenCalledWith({
+      where: { id: "s2" },
+      data: { startDate: d("2026-04-17"), endDate: d("2026-04-30") },
+    });
+  });
+
+  it("rejects completed sprints, unknown sprints and invalid input", async () => {
+    mockPrisma.sprint.findFirst.mockResolvedValueOnce({ ...sp("s1", "2026-04-01", "2026-04-14"), status: "COMPLETED" });
+    expect(await updateSprint("PRJ", "s1", edit)).toEqual({ success: false, error: "A completed sprint cannot be edited." });
+    mockPrisma.sprint.findFirst.mockResolvedValueOnce(null);
+    expect(await updateSprint("PRJ", "nope", edit)).toEqual({ success: false, error: "Sprint not found." });
+    expect(await updateSprint("PRJ", "s1", { ...edit, name: " " })).toEqual({ success: false, error: "Sprint name cannot be empty." });
+    expect(await updateSprint("PRJ", "s1", { ...edit, endDate: undefined })).toEqual({ success: false, error: "Enter a valid end date." });
+    expect(mockPrisma.sprint.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("reorderSprints", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(mockPrisma));
+    mockSession();
+    mockLeadMembership();
+    mockPrisma.sprint.findMany.mockResolvedValue([{ id: "a" }, { id: "b" }, { id: "c" }]);
+  });
+
+  it("stores each sprint's index as its position", async () => {
+    expect(await reorderSprints("PRJ", ["c", "a", "b"])).toEqual({ success: true });
+    expect(mockPrisma.sprint.update.mock.calls.map((c) => [c[0].where.id, c[0].data.position])).toEqual([
+      ["c", 0], ["a", 1], ["b", 2],
+    ]);
+  });
+
+  it.each([
+    ["a missing sprint", ["a", "b"]],
+    ["a foreign id", ["a", "b", "zzz"]],
+    ["a duplicate", ["a", "a", "b"]],
+  ])("rejects %s without writing anything", async (_label, ids) => {
+    const result = await reorderSprints("PRJ", ids);
+    expect(result).toEqual({ success: false, error: "The sprint list is out of date — refresh and try again." });
+    expect(mockPrisma.sprint.update).not.toHaveBeenCalled();
   });
 });
 

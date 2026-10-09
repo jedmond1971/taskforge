@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { canEditIssues, getUserGrants } from "@/lib/permissions";
+import { orderSprints } from "@/lib/sprint-dates";
 import { IssuePriority, IssueType } from "@prisma/client";
 import {
   getIssues,
@@ -35,7 +38,7 @@ function isValidType(v: string): v is IssueType {
 export default async function IssuesPage(props: PageProps) {
   const searchParams = await props.searchParams;
   const params = await props.params;
-  await requireUser();
+  const session = await requireUser();
 
   const [allStatuses, members] = await Promise.all([
     getProjectStatuses(params.projectKey),
@@ -60,6 +63,25 @@ export default async function IssuesPage(props: PageProps) {
   };
 
   const issues = await getIssues(params.projectKey, filters);
+
+  // Bulk selection is for editors only; Sprint-mode projects also get an "Add to sprint" action.
+  const currentMember = members.find((m) => m.userId === session.user.id);
+  const project = currentMember
+    ? await prisma.project.findUnique({
+        where: { key: params.projectKey.toUpperCase() },
+        select: { id: true, orgId: true, workflowMode: true },
+      })
+    : null;
+  const grants = project ? await getUserGrants(session.user.id, project.orgId, project.id) : undefined;
+  const canEdit = currentMember ? canEditIssues(currentMember.role, grants) : false;
+  const openSprints =
+    canEdit && project?.workflowMode === "SPRINT"
+      ? orderSprints(
+          await prisma.sprint.findMany({
+            where: { projectId: project.id, status: { in: ["PLANNED", "ACTIVE"] } },
+          })
+        )
+      : undefined;
 
   const bulkEditParams = new URLSearchParams();
   if (searchParams.status) bulkEditParams.set("status", searchParams.status);
@@ -98,7 +120,19 @@ export default async function IssuesPage(props: PageProps) {
           currentFilters={searchParams}
         />
       </Suspense>
-      <IssueList issues={issues} projectKey={params.projectKey} />
+      <IssueList
+        issues={issues}
+        projectKey={params.projectKey}
+        bulk={
+          canEdit
+            ? {
+                statuses: allStatuses,
+                members: members.map((m) => m.user),
+                sprints: openSprints?.map((sp) => ({ id: sp.id, name: sp.name, status: sp.status as "PLANNED" | "ACTIVE" })),
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

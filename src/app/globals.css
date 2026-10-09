@@ -299,4 +299,12 @@
   html {
     @apply font-sans;
   }
+  /* A native <select> on a transparent background (the common `bg-transparent` recipe)
+     leaves its popup on the browser default — white in dark mode, with the inherited
+     light text invisible on it (JFR-191). Give the options the popover surface. */
+  select option,
+  select optgroup {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
 }

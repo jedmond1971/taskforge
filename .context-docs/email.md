@@ -11,4 +11,6 @@ const html = await render(MyEmail({ ...props }));
 await resend.emails.send({ ..., html });
 ```
 
-Sending domain `jedforge.com` is verified with Resend. From address: `invites@jedforge.com` (the specific mailbox does not need to exist).
+Sending domain `jedforge.com` is verified with Resend. From address: `invites@jedforge.com` for invites, `security@jedforge.com` for password resets (JFR-183) — the specific mailbox does not need to exist.
+
+**The local `.env` carries a real `RESEND_API_KEY`**, so any code path that sends mail sends it for real from `npm run dev` — including to made-up seeded addresses like `member@jedforge.dev`. Integration tests fake the `resend` module; a browser test of a mail-sending flow does not. See `password-reset.md` for how JFR-183 was hand-tested without sending.

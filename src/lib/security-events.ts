@@ -23,6 +23,8 @@ export type SecurityEventType =
   | "auth.login_throttled"
   | "auth.v1_key_invalid"
   | "auth.v1_throttled"
+  // JFR-183: emitted only when an account exists, so this is an audit trail for owners, never an oracle for callers.
+  | "auth.password_reset_requested"
   | "ratelimit.monitor_would_block"
   | "csp.violation"
   // Phase 2 — net-new emissions
@@ -48,6 +50,7 @@ export const SECURITY_EVENT_SEVERITY: Record<SecurityEventType, SecuritySeverity
   "auth.login_throttled": "warn",
   "auth.v1_key_invalid": "warn",
   "auth.v1_throttled": "warn",
+  "auth.password_reset_requested": "info",
   "ratelimit.monitor_would_block": "info",
   "csp.violation": "info",
   // Tenancy-boundary denials are near-zero volume in normal use and are the highest

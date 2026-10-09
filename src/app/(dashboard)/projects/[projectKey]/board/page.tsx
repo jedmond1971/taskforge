@@ -6,6 +6,7 @@ import { KanbanBoard } from "@/components/board/KanbanBoard";
 import { AutoRefresh } from "@/components/layout/AutoRefresh";
 import { CATEGORY_ORDER } from "@/lib/issue-utils";
 import { StatusCategory } from "@prisma/client";
+import { canEditIssues, getUserGrants } from "@/lib/permissions";
 
 
 const ISSUE_SELECT = {
@@ -25,10 +26,20 @@ const ISSUE_SELECT = {
 async function getBoardData(projectKey: string, userId: string) {
   const project = await prisma.project.findFirst({
     where: { key: projectKey.toUpperCase(), members: { some: { userId } } },
-    include: { statuses: true },
+    include: {
+      statuses: true,
+      members: { select: { userId: true, role: true, user: { select: { id: true, name: true, avatarUrl: true } } } },
+    },
   });
 
   if (!project) return null;
+
+  const me = project.members.find((m) => m.userId === userId);
+  const grants = await getUserGrants(userId, project.orgId, project.id);
+  const canEdit = !!me && !project.isClosed && canEditIssues(me.role, grants);
+  const members = project.members
+    .map((m) => m.user)
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   let activeSprintId: string | null = null;
   if (project.workflowMode === "SPRINT") {
@@ -73,7 +84,7 @@ async function getBoardData(projectKey: string, userId: string) {
       )
     : mappedIssues;
 
-  return { ...project, statuses: sortedStatuses, issues: visibleIssues, activeSprintId };
+  return { ...project, statuses: sortedStatuses, issues: visibleIssues, activeSprintId, canEdit, boardMembers: members };
 }
 
 export default async function BoardPage(props: { params: Promise<{ projectKey: string }> }) {
@@ -105,6 +116,8 @@ export default async function BoardPage(props: { params: Promise<{ projectKey: s
         initialIssues={project.issues}
         statuses={project.statuses}
         projectKey={params.projectKey}
+        members={project.boardMembers}
+        canEdit={project.canEdit}
         sprintScopeId={project.workflowMode === "SPRINT" ? project.activeSprintId! : undefined}
       />
     </div>

@@ -61,7 +61,8 @@ never pass a severity, so the same event cannot be reported at two severities fr
 | `apikey.created` | info | `app/(dashboard)/org-settings/actions.ts` |
 | `apikey.revoked` | info | `org-settings/actions.ts`, `lib/credential-revocation.ts` |
 | `apikey.used_after_revoke` | critical | `lib/external-api-auth.ts` |
-| `session.invalidated` | info | `admin/actions.ts` (×2), `settings/actions.ts` |
+| `auth.password_reset_requested` | info | `lib/password-reset.ts` — only when the account exists (JFR-183); it is a log line for owners, never visible to the requester |
+| `session.invalidated` | info | `admin/actions.ts` (×2), `settings/actions.ts`, `(auth)/reset-password/[token]/actions.ts` (`trigger: "password_reset"`) |
 | `upload.rejected` | warn | the 3 attachment routes + `editor-images` |
 | `admin.action` | info | `lib/audit-log.ts` (bridge) |
 | `admin.role_granted` | critical | `admin/actions.ts` (×2: create-as-ADMIN, role change to ADMIN) |

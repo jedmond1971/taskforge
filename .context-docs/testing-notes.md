@@ -22,3 +22,6 @@
 - **`RateLimitAttempt` rows persist in the real DB across integration tests**, so a test that hits a `consumeRateLimit` limiter (e.g. `adminSendAlertDrill`, 1 per 10 min) must `prisma.rateLimitAttempt.deleteMany({ where: { key: { startsWith: "<prefix>:" } } })` in `beforeEach`, or every test after the first is throttled. Also call `setSendRetryDelaysForTest([0, 0])` + `resetAlertingWarningsForTest()` in alerting itests (real retry delays are 2 s and 10 s).
 
 - **Query-language filters need quoted values** — `search_issues` / `executeQuery` parse `project = "KEY"`, not `project = KEY` (unquoted returns a `Parse error`, which an MCP/itest caller sees as non-JSON text). Bit the first run of `issue-hierarchy.itest.ts`.
+
+## `after()` in integration tests (JFR-183)
+`after()` from `next/server` throws outside a request, so `src/integration/setup.ts` mocks `next/server` (keeping the real `NextRequest` etc.) and routes `after(cb)` into a queue in `session.ts`. A test that calls a Server Action using `after()` must `await flushAfter()` before asserting on what the callback did — the action returns before it runs, as in production. To read an emailed link back, fake the `resend` module in that test file (`vi.mock("resend", …)`) and parse the captured `html`.

@@ -5,7 +5,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { StatusCategory } from "@prisma/client";
 import { Plus, ChevronDown, ChevronRight, Inbox } from "lucide-react";
-import { KanbanCard } from "./KanbanCard";
+import { KanbanCard, type QuickUpdate } from "./KanbanCard";
 import { CreateIssueDialog } from "@/components/issues/CreateIssueDialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
@@ -38,9 +38,12 @@ interface KanbanColumnProps {
   issues: CardIssue[];
   projectKey: string;
   isOver?: boolean;
+  members?: { id: string; name: string; avatarUrl: string | null }[];
+  canEdit?: boolean;
+  onQuickUpdate?: (issue: CardIssue, updates: QuickUpdate) => void;
 }
 
-export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColumnProps) {
+export function KanbanColumn({ status, issues, projectKey, isOver, members, canEdit, onQuickUpdate }: KanbanColumnProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const accent = COLUMN_ACCENT[status.category];
@@ -49,7 +52,10 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
   const { setNodeRef } = useDroppable({ id: status.id });
 
   return (
-    <div className="flex flex-col flex-shrink-0 w-64 sm:w-72 h-full">
+    <section
+      aria-label={`${status.name}, ${issues.length} ${issues.length === 1 ? "issue" : "issues"}`}
+      className="flex flex-col flex-shrink-0 w-64 sm:w-72 h-full snap-start"
+    >
       {/* Column header */}
       <div
         className={cn(
@@ -69,7 +75,11 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
           )}
           <div className={cn("w-2 h-2 rounded-full flex-shrink-0", accent.dot)} />
           <span className="text-sm font-semibold text-foreground truncate">{status.name}</span>
-          <span className="text-xs text-muted-foreground bg-surface-active rounded px-1.5 py-0.5 font-mono flex-shrink-0">
+          <span
+            className="text-xs text-muted-foreground bg-surface-active rounded px-1.5 py-0.5 font-mono flex-shrink-0"
+            title={`${issues.length} ${issues.length === 1 ? "issue" : "issues"} in ${status.name}`}
+            aria-hidden="true"
+          >
             {issues.length}
           </span>
         </div>
@@ -97,7 +107,14 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
         >
           {!collapsed &&
             issues.map((issue) => (
-              <KanbanCard key={issue.id} issue={issue} projectKey={projectKey} />
+              <KanbanCard
+                key={issue.id}
+                issue={issue}
+                projectKey={projectKey}
+                members={members}
+                canEdit={canEdit}
+                onQuickUpdate={onQuickUpdate}
+              />
             ))}
         </SortableContext>
 
@@ -124,6 +141,6 @@ export function KanbanColumn({ status, issues, projectKey, isOver }: KanbanColum
         onOpenChange={setCreateOpen}
         defaultStatusId={status.id}
       />
-    </div>
+    </section>
   );
 }

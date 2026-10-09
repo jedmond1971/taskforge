@@ -141,6 +141,7 @@ model User {
   invitedOrgInvites OrgInvite[]     @relation("InvitedBy")
   adminAuditLogs    AdminAuditLog[]
   apiKeys           ApiKey[]
+  passwordResetTokens PasswordResetToken[]
 
   oauthAuthorizationCodes OAuthAuthorizationCode[]
   oauthAccessTokens       OAuthAccessToken[]
@@ -294,6 +295,8 @@ model Sprint {
   startDate DateTime?
   endDate   DateTime?
   status    SprintStatus @default(PLANNED)
+  // Null until someone drags a sprint on the Backlog; see orderSprints() in src/lib/sprint-dates.ts.
+  position  Int?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
@@ -403,6 +406,21 @@ model OrgMember {
   user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([orgId, userId])
+}
+
+// Single-use password-reset links (JFR-183). Only the sha256 of the emailed token is stored, so a
+// database read can't be turned into account takeovers; the row is deleted when it is used.
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model OrgInvite {

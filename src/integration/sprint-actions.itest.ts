@@ -28,7 +28,7 @@ const failed = async (p: Promise<unknown>, error: RegExp) =>
 
 async function snapshotA() {
   const [sprints, issues] = await Promise.all([
-    prisma.sprint.findMany({ where: { projectId: w.A.project.id }, orderBy: { id: "asc" }, select: { id: true, name: true, status: true, startDate: true, endDate: true } }),
+    prisma.sprint.findMany({ where: { projectId: w.A.project.id }, orderBy: { id: "asc" }, select: { id: true, name: true, status: true, startDate: true, endDate: true, position: true } }),
     prisma.issue.findMany({ where: { projectId: w.A.project.id }, orderBy: { key: "asc" }, select: { id: true, sprintId: true } }),
   ]);
   return { sprints, issues };
@@ -41,6 +41,8 @@ describe("Org B cannot run sprint actions on Org A's project", () => {
     const k = w.keyA;
     const attempts: Array<[string, () => Promise<unknown>]> = [
       ["createSprint", () => sprintActions.createSprint(k, { name: "pwn", duration: "2w", startDate: "2026-10-05" })],
+      ["updateSprint", () => sprintActions.updateSprint(k, sprintA.id, { name: "pwn", duration: "2w", startDate: "2026-10-05", adjustFollowing: true })],
+      ["reorderSprints", () => sprintActions.reorderSprints(k, [sprintA.id])],
       ["startSprint", () => sprintActions.startSprint(k, sprintA.id)],
       ["completeSprint", () => sprintActions.completeSprint(k, sprintA.id)],
       ["addIssueToSprint", () => sprintActions.addIssueToSprint(k, w.A.issue.id, sprintA.id)],
@@ -59,6 +61,10 @@ describe("Org B cannot run sprint actions on Org A's project", () => {
       const before = await snapshotA();
       const k = w.keyB;
       await failed(sprintActions.startSprint(k, sprintA.id), /sprint not found/i);
+      await failed(sprintActions.updateSprint(k, sprintA.id, { name: "pwn", duration: "2w", startDate: "2026-10-05", adjustFollowing: true }), /sprint not found/i);
+      // B's own sprint list is exactly [sprintB]; A's id in it is a stale/foreign list.
+      await failed(sprintActions.reorderSprints(k, [sprintA.id]), /out of date/i);
+      await failed(sprintActions.reorderSprints(k, [sprintB.id, sprintA.id]), /out of date/i);
       await failed(sprintActions.completeSprint(k, sprintA.id), /sprint not found/i);
       await failed(sprintActions.addIssueToSprint(k, w.B.issue.id, sprintA.id), /sprint not found/i);
       await failed(sprintActions.addIssueToSprint(k, w.A.issue.id, sprintB.id), /issue not found/i);
@@ -85,6 +91,8 @@ describe("sprint roles inside a tenant", () => {
     actAs(w.users.aMember);
     const before = await snapshotA();
     await expect(sprintActions.createSprint(w.keyA, { name: "member sprint", duration: "2w", startDate: "2026-10-05" })).rejects.toThrow(DENIED);
+    await expect(sprintActions.updateSprint(w.keyA, sprintA.id, { name: "x", duration: "2w", startDate: "2026-10-05" })).rejects.toThrow(DENIED);
+    await expect(sprintActions.reorderSprints(w.keyA, [sprintA.id])).rejects.toThrow(DENIED);
     await expect(sprintActions.startSprint(w.keyA, sprintA.id)).rejects.toThrow(DENIED);
     await expect(sprintActions.completeSprint(w.keyA, sprintA.id)).rejects.toThrow(DENIED);
     expect(await snapshotA()).toEqual(before);
@@ -127,6 +135,31 @@ describe("sprint roles inside a tenant", () => {
 });
 
 describe("sprint lifecycle for the rightful tenant (control)", () => {
+  it("a PROJECT_LEAD can edit a sprint, adjust the following one, and hand-order the list (JFR-190)", async () => {
+    actAs(w.users.aOwner);
+    await prisma.sprint.update({ where: { id: sprintA.id }, data: { startDate: new Date("2026-04-01"), endDate: new Date("2026-04-14") } });
+    const created = await sprintActions.createSprint(w.keyA, { name: "Second", duration: "2w", startDate: "2026-04-15" });
+    if (!created.success) throw new Error(created.error);
+    try {
+      expect(created.sprint.position).toBeNull(); // nobody has dragged yet
+
+      const edited = await sprintActions.updateSprint(w.keyA, sprintA.id, {
+        name: "Renamed", goal: "g", duration: "custom", startDate: "2026-04-01", endDate: "2026-04-16", adjustFollowing: true,
+      });
+      expect(edited).toMatchObject({ success: true, adjustedCount: 1 });
+      const second = await prisma.sprint.findUniqueOrThrow({ where: { id: created.sprint.id } });
+      expect([second.startDate?.toISOString().slice(0, 10), second.endDate?.toISOString().slice(0, 10)]).toEqual(["2026-04-17", "2026-04-30"]);
+      expect((await prisma.sprint.findUniqueOrThrow({ where: { id: sprintA.id } })).name).toBe("Renamed");
+
+      expect(await sprintActions.reorderSprints(w.keyA, [created.sprint.id, sprintA.id])).toEqual({ success: true });
+      const positions = await prisma.sprint.findMany({ where: { id: { in: [sprintA.id, created.sprint.id] } }, select: { id: true, position: true } });
+      expect(Object.fromEntries(positions.map((p) => [p.id, p.position]))).toEqual({ [created.sprint.id]: 0, [sprintA.id]: 1 });
+    } finally {
+      await prisma.sprint.delete({ where: { id: created.sprint.id } });
+      await prisma.sprint.update({ where: { id: sprintA.id }, data: { name: "A sprint", goal: null, position: null, startDate: null, endDate: null } });
+    }
+  });
+
   it("a PROJECT_LEAD can start and complete a sprint; unfinished issues go back to the backlog", async () => {
     actAs(w.users.aOwner);
     expect(await sprintActions.addIssueToSprint(w.keyA, w.A.issue.id, sprintA.id)).toEqual({ success: true });
