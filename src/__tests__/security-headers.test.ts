@@ -3,7 +3,7 @@ import path from "node:path";
 import { POST as cspReport } from "@/app/api/csp-report/route";
 
 /**
- * SECH-84: baseline security headers + CSP (report-only phase). Loads the real
+ * SECH-84: baseline security headers + enforcing CSP. Loads the real
  * next.config.mjs and calls its headers() so a change to the config — or a
  * dropped header — fails CI. The header values Next serves are exactly what
  * headers() returns.
@@ -43,16 +43,21 @@ describe("baseline headers", () => {
   });
 });
 
-describe("Content-Security-Policy (report-only)", () => {
-  it("is report-only, not enforcing, until the review period ends", async () => {
+describe("Content-Security-Policy (enforcing)", () => {
+  it("is enforcing, with no leftover report-only twin", async () => {
     const h = await loadHeaders();
-    expect(h["Content-Security-Policy-Report-Only"]).toBeDefined();
-    expect(h["Content-Security-Policy"]).toBeUndefined();
+    expect(h["Content-Security-Policy"]).toBeDefined();
+    expect(h["Content-Security-Policy-Report-Only"]).toBeUndefined();
+  });
+
+  it("still reports violations so a regression shows up as a [csp-report] line", async () => {
+    const csp = (await loadHeaders())["Content-Security-Policy"];
+    expect(directive(csp, "report-uri")).toEqual(["/api/csp-report"]);
   });
 
   it("locks down the non-negotiables", async () => {
     vi.stubEnv("NODE_ENV", "production");
-    const csp = (await loadHeaders())["Content-Security-Policy-Report-Only"];
+    const csp = (await loadHeaders())["Content-Security-Policy"];
     expect(directive(csp, "default-src")).toEqual(["'self'"]);
     expect(directive(csp, "object-src")).toEqual(["'none'"]);
     expect(directive(csp, "base-uri")).toEqual(["'self'"]);
@@ -63,7 +68,7 @@ describe("Content-Security-Policy (report-only)", () => {
 
   it("allows exactly the documented external sources, and no wildcards or http:", async () => {
     vi.stubEnv("NODE_ENV", "production");
-    const csp = (await loadHeaders())["Content-Security-Policy-Report-Only"];
+    const csp = (await loadHeaders())["Content-Security-Policy"];
     expect(directive(csp, "img-src")).toEqual(["'self'", "blob:", "https://*.storageapi.dev"]);
     expect(directive(csp, "frame-src")).toEqual(["'self'", "https://*.storageapi.dev"]);
     expect(directive(csp, "connect-src")).toEqual(["'self'"]);
@@ -73,11 +78,11 @@ describe("Content-Security-Policy (report-only)", () => {
 
   it("keeps unsafe-eval and websockets out of production", async () => {
     vi.stubEnv("NODE_ENV", "production");
-    const prod = (await loadHeaders())["Content-Security-Policy-Report-Only"];
+    const prod = (await loadHeaders())["Content-Security-Policy"];
     expect(prod).not.toContain("unsafe-eval");
     expect(directive(prod, "connect-src")).not.toContain("ws:");
     vi.stubEnv("NODE_ENV", "development");
-    const dev = (await loadHeaders())["Content-Security-Policy-Report-Only"];
+    const dev = (await loadHeaders())["Content-Security-Policy"];
     expect(dev).toContain("'unsafe-eval'");
   });
 });
