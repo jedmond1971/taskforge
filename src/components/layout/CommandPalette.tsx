@@ -12,6 +12,7 @@ import {
   FileText,
   FolderKanban,
   LayoutDashboard,
+  MessageSquare,
   Monitor,
   Moon,
   Plus,
@@ -37,6 +38,7 @@ import {
   type PaletteCommand,
   type PaletteCommandId,
   type RecentItem,
+  type Snippet,
 } from "@/lib/command-palette";
 import { paletteSearch, type PaletteSearchResult } from "@/app/(dashboard)/command-palette-actions";
 
@@ -50,7 +52,14 @@ type SearchState = "idle" | "loading" | "error";
 
 type Item =
   | { type: "command"; id: string; command: PaletteCommand }
-  | { type: "result"; id: string; recent: RecentItem; status?: Hits["issues"][number] };
+  | {
+      type: "result";
+      id: string;
+      recent: RecentItem;
+      status?: Hits["issues"][number];
+      snippet?: Snippet;
+      icon?: "comment";
+    };
 
 interface Group {
   label: string;
@@ -239,6 +248,26 @@ export function CommandPalette() {
         });
       }
     }
+    if (hits?.content.length) {
+      resultGroups.push({
+        label: "In content",
+        items: hits.content.map((c) => ({
+          type: "result",
+          id: "",
+          snippet: c.snippet,
+          icon: c.kind === "comment" ? "comment" : undefined,
+          recent:
+            c.kind === "doc"
+              ? { kind: "doc", title: c.title, subtitle: c.projectKey, href: `/projects/${c.projectKey}/docs/${c.ref}` }
+              : {
+                  kind: "issue",
+                  title: c.title,
+                  subtitle: c.kind === "comment" ? `${c.ref} · comment` : `${c.ref} · description`,
+                  href: `/projects/${c.projectKey}/issues/${c.ref}`,
+                },
+        })),
+      });
+    }
     for (const g of resultGroups) for (const item of g.items) item.id = nextId();
     out.push(...resultGroups);
     const commandItems = toCommandItems();
@@ -407,12 +436,14 @@ function PaletteRow({
   let primary: string;
   let secondary: string | null = null;
   let hint: React.ReactNode = null;
+  let snippet: Snippet | undefined;
 
   if (item.type === "command") {
     Icon = COMMAND_ICONS[item.command.id];
     primary = item.command.label;
   } else {
-    Icon = KIND_ICONS[item.recent.kind];
+    Icon = item.icon === "comment" ? MessageSquare : KIND_ICONS[item.recent.kind];
+    snippet = item.snippet;
     primary = item.recent.title;
     secondary = item.recent.subtitle;
     if (item.status) {
@@ -434,8 +465,20 @@ function PaletteRow({
       )}
     >
       <Icon className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
-      {secondary && <span className="flex-shrink-0 text-xs text-muted-foreground tabular-nums">{secondary}</span>}
-      <span className="truncate flex-1 min-w-0">{primary}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2.5">
+          {secondary && <span className="flex-shrink-0 text-xs text-muted-foreground tabular-nums">{secondary}</span>}
+          <span className="truncate flex-1 min-w-0">{primary}</span>
+        </div>
+        {snippet && (
+          // Plain text nodes only — the snippet is stripped text, never markup.
+          <p className="truncate text-xs text-muted-foreground">
+            {snippet.before}
+            <mark className="bg-transparent font-semibold text-foreground">{snippet.match}</mark>
+            {snippet.after}
+          </p>
+        )}
+      </div>
       {hint && <span className="flex-shrink-0">{hint}</span>}
     </div>
   );

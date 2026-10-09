@@ -257,7 +257,7 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 
 | Action | Guard | Tenant scope | Minimum role |
 |---|---|---|---|
-| `paletteSearch` | `getCurrentUser()` (null for invalidated sessions → `{ ok: false, error: "unauthorized" }`) | every query ANDs `project: { members: { some: { userId } }, isClosed: false }`; no lookup by key alone; public docspaces of non-member projects deliberately excluded | any project member (VIEWER+) |
+| `paletteSearch` | `getCurrentUser()` (null for invalidated sessions → `{ ok: false, error: "unauthorized" }`) | every query ANDs `project: { members: { some: { userId } }, isClosed: false }`; no lookup by key alone; public docspaces of non-member projects deliberately excluded (JFR-194 kept this). Content queries (issue description, comment body, doc content, ≥3 chars) AND the same `projectScope` — comments via `issue: { project: projectScope }`, docs via `docSpace: { project: projectScope }`; snippets are plain-text parts, never HTML | any project member (VIEWER+) |
 
 ### `(dashboard)/search/filter-actions.ts`
 

@@ -31,7 +31,7 @@ Takeaways:
 
 ## Snippets
 
-Built in application code from the matched row, not in SQL: strip tags, decode entities, collapse whitespace, then take a window of ~120 chars around the first case-insensitive occurrence of the query with `…` at cut ends. The client renders it as **text** (never `dangerouslySetInnerHTML`); highlighting splits the string on the query and wraps matches in `<mark>` React nodes. Cap the content scanned per row (first ~20k chars) so one huge doc can't dominate.
+Built in application code from the matched row, not in SQL: strip tags, decode entities, collapse whitespace, then take a window of ~120 chars around the first case-insensitive occurrence of the query with `…` at cut ends. The client renders it as **text** (never `dangerouslySetInnerHTML`); highlighting splits the string on the query and wraps matches in `<mark>` React nodes. Only the first 50,000 characters of a row's HTML are scanned (`SNIPPET_MAX_SCAN`), so one huge doc can't dominate; a match past that is not shown.
 
 **Known false-positive:** `ILIKE` on raw HTML also matches tag/attribute text (`strong`, `href`, `class`). Post-filter after stripping: fetch a small multiple of the cap, drop rows whose *stripped* text doesn't contain the query, then slice to the cap.
 
@@ -46,3 +46,9 @@ CREATE INDEX "DocPage_content_trgm" ON "DocPage"
 ```
 
 (same for `Issue.description` and `Comment.body`) and query with the identical expression so the planner uses it. Trigram keeps substring semantics, so no behaviour change. Needs the extension to be creatable on Railway Postgres (verify on staging first), and Prisma `contains` would have to become `$queryRaw` for those three fields.
+
+## Shipped (JFR-194/195)
+
+- `paletteSearch` returns `content: ContentHit[]` (`kind`, `ref`, `title`, `projectKey`, `snippet {before, match, after}`), at most 4 per source (docs, issue descriptions, comments; one comment hit per issue), only for queries of 3+ characters (`PALETTE_CONTENT_MIN_QUERY`). Rows already shown by a title match are not repeated as content hits. Helpers `htmlToText`/`buildSnippet` live in `src/lib/command-palette.ts`; the UI group is "In content".
+- **Public docspaces of projects the caller isn't a member of stay excluded** (the open question in JFR-194). The palette is a member-scoped surface; a public docspace is reachable by link, and surfacing it would put text from teams the caller never joined into a search box. Revisit only as a product decision, and it would need the SECH-95 `OrgMember` check, not just `isPublic`.
+- Tests: `command-palette.test.ts` (snippet/strip/XSS, scope on every content query, caps) and `search-scoping.itest.ts` (Org B finds nothing by any path, same-org non-member + public docspace, closed project, membership removal, inert markup).

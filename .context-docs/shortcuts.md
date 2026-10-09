@@ -25,6 +25,7 @@
 - `A` — focus/open the assignee picker (only if `canEdit`)
 
 ## Window events
+- Palette search covers titles (2+ chars) and, from 3 chars, issue descriptions, comment bodies and doc page content, shown as an "In content" group with a text snippet (JFR-194). Approach, caps and why public docspaces of non-member projects stay excluded: `search-approach.md`.
 - `jedforge:open-palette` — opens the palette (Header search button). Dispatch it rather than reaching into the component.
 - `jedforge:create-issue` — opens CreateIssueDialog for the current project (`ProjectShortcuts` listens; the palette's "Create issue" fires it after closing).
 - `jedforge:open-shortcuts` — opens `ShortcutHelp` (the palette's "Keyboard shortcuts" command fires it).
