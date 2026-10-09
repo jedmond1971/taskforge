@@ -1,7 +1,7 @@
 /**
- * Content-Security-Policy (SECH-84). Currently shipped REPORT-ONLY: violations are
- * POSTed to /api/csp-report and logged, nothing is blocked. Move to enforcing by
- * renaming the header key below once production shows no unexpected violations.
+ * Content-Security-Policy (SECH-84). ENFORCING since the report-only review period
+ * (2026-09-21 onward) showed no unexpected violations. Violations are still POSTed to
+ * /api/csp-report and logged, so a regression shows up as a [csp-report] line.
  *
  * Every allowed source has a reason; anything not listed falls back to default-src 'self'.
  */
@@ -68,7 +68,7 @@ const nextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
           },
-          // Legacy twin of CSP frame-ancestors; enforced now, unlike the report-only CSP.
+          // Legacy twin of CSP frame-ancestors.
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
           // Production builds only (browsers ignore HSTS over plain http anyway, so a
           // local `next start` can't pin localhost). No includeSubDomains/preload:
@@ -76,7 +76,7 @@ const nextConfig = {
           ...(isProd
             ? [{ key: "Strict-Transport-Security", value: "max-age=31536000" }]
             : []),
-          { key: "Content-Security-Policy-Report-Only", value: buildCsp(isProd) },
+          { key: "Content-Security-Policy", value: buildCsp(isProd) },
         ],
       },
     ];
