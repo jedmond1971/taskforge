@@ -338,6 +338,7 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 ## Reference docs (load when relevant)
 
 - .context-docs/shortcuts.md — global/project/issue keyboard shortcuts, the `?` help overlay and shared registry `src/lib/shortcuts.ts` (JFR-177 — new shortcuts must be added there), and the Cmd/Ctrl+K command palette (JFR-176: `CommandPalette`, `paletteSearch` gated on `getCurrentUser()` + member/non-closed scope, `jedforge:open-palette` / `jedforge:create-issue` events)
+- .context-docs/search-approach.md — why palette content search is `ILIKE` + app-side HTML stripping/snippets rather than tsvector, benchmark numbers, the pg_trgm escalation recipe, public-docspace exclusion (JFR-193/194)
 - .context-docs/rate-limiting.md — durable limiter (failure vs attempt counting, `LIMITS` table for every sensitive endpoint, `RATE_LIMIT_MODE=monitor` rollback switch, fail-closed policy), leftmost-XFF client IP (Railway appends a per-request internal hop — rightmost silently disables limits), prod-verified behaviour + re-verify recipe (SECH-82/108)
 - .context-docs/log-redaction.md — the three log leak sources and how each is closed, the never-log list, why `code` and cuids are deliberately preserved, the opt-in cap, and how to add a sensitive key (SECH-115)
 - .context-docs/security-events.md — structured security-event catalog, severity map, denial classification (why two denials are deliberately silent), the emit() seam for SECH-115/117, request-ID propagation and the /api/auth matcher gap (SECH-114)

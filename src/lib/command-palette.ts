@@ -6,6 +6,8 @@
 
 export const PALETTE_MIN_QUERY = 2;
 export const PALETTE_MAX_QUERY = 100;
+/** Content (description / comment / doc body) search starts one character later than title search — two-letter substrings match nearly every body. */
+export const PALETTE_CONTENT_MIN_QUERY = 3;
 
 const ISSUE_KEY_RE = /^[A-Za-z][A-Za-z0-9]*-\d+$/;
 
@@ -23,6 +25,74 @@ export function isSearchable(query: string): boolean {
 export function detectIssueKey(query: string): string | null {
   const q = query.trim();
   return ISSUE_KEY_RE.test(q) ? q.toUpperCase() : null;
+}
+
+export function isContentSearchable(query: string): boolean {
+  return query.length >= PALETTE_CONTENT_MIN_QUERY;
+}
+
+/** Raw HTML scanned per row; a match past this is not found, which keeps one huge page from dominating a query. */
+export const SNIPPET_MAX_SCAN = 50_000;
+const SNIPPET_BEFORE = 40;
+const SNIPPET_AFTER = 80;
+
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ",
+};
+
+function decodeEntities(text: string): string {
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, body: string) => {
+    if (body[0] === "#") {
+      const code = body[1].toLowerCase() === "x" ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+    }
+    return NAMED_ENTITIES[body.toLowerCase()] ?? whole;
+  });
+}
+
+/**
+ * TipTap HTML to plain text. Block boundaries become spaces so adjacent paragraphs don't fuse
+ * into one word; inline tags vanish. Entities are decoded AFTER tags are removed, so an escaped
+ * "&lt;script&gt;" survives as literal text — the result is only ever rendered as text, never markup.
+ */
+export function htmlToText(html: string): string {
+  return decodeEntities(
+    html
+      .slice(0, SNIPPET_MAX_SCAN)
+      .replace(/<\/?(?:p|div|li|ul|ol|br|hr|h[1-6]|blockquote|pre|label)\b[^>]*>/gi, " ")
+      .replace(/<[^>]*>?/g, "")
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export interface Snippet {
+  before: string;
+  match: string;
+  after: string;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * A short window of the plain text around the first case-insensitive occurrence of `query`, split
+ * so the client can emphasise `match` without parsing anything. Returns null when the stripped
+ * text does not contain the query (the SQL match was on tag or attribute text).
+ */
+export function buildSnippet(html: string | null | undefined, query: string): Snippet | null {
+  if (!html || !query) return null;
+  const text = htmlToText(html);
+  const m = new RegExp(escapeRegExp(query), "i").exec(text);
+  if (!m) return null;
+  const start = Math.max(0, m.index - SNIPPET_BEFORE);
+  const end = Math.min(text.length, m.index + m[0].length + SNIPPET_AFTER);
+  return {
+    before: (start > 0 ? "…" : "") + text.slice(start, m.index),
+    match: m[0],
+    after: text.slice(m.index + m[0].length, end) + (end < text.length ? "…" : ""),
+  };
 }
 
 export type PaletteCommandId =
