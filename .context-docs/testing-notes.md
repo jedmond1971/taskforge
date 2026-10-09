@@ -25,3 +25,7 @@
 
 ## `after()` in integration tests (JFR-183)
 `after()` from `next/server` throws outside a request, so `src/integration/setup.ts` mocks `next/server` (keeping the real `NextRequest` etc.) and routes `after(cb)` into a queue in `session.ts`. A test that calls a Server Action using `after()` must `await flushAfter()` before asserting on what the callback did — the action returns before it runs, as in production. To read an emailed link back, fake the `resend` module in that test file (`vi.mock("resend", …)`) and parse the captured `html`.
+
+## Integration fixtures: every Org A user is a project member (2026-10-09, JFR-195)
+
+`createWorld()` (`src/integration/fixtures.ts`) makes all of `aOwner/aMember/aViewer/aAdmin` `ProjectMember`s of project A, so none of them is a "same-org, not a project member" user. To test that case, delete one's `ProjectMember` row inside the test and recreate it (same `id`) in `finally`/`afterAll`; the same applies to the public-docspace case (`DocSpace.isPublic` flip, then restore). `search-scoping.itest.ts` → "paletteSearch content matches" is the worked example. Fixture content (issue description, comment body, doc content) is shared across `describe`s in a file, so use a per-run `w.tag` token that no title contains, or title matches will mask content paths.
