@@ -20,8 +20,6 @@ async function main() {
   await prisma.subscription.deleteMany();
   await prisma.orgInvite.deleteMany();
   await prisma.orgMember.deleteMany();
-  await prisma.column.deleteMany();
-  await prisma.board.deleteMany();
   await prisma.project.deleteMany();
   await prisma.organization.deleteMany();
   await prisma.user.deleteMany();
