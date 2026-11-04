@@ -23,31 +23,9 @@ import { RelatedDocsSection } from "@/components/issues/RelatedDocsSection";
 import { LinkedIssuesSection } from "@/components/issues/LinkedIssuesSection";
 import { ParentPicker, IssuePickerDialog, type PickerIssue } from "@/components/issues/ParentPicker";
 import { CustomFieldsPanel } from "@/components/issues/CustomFieldsPanel";
-import { AiChatPanel } from "@/components/ai/AiChatPanel";
 import { StatusChip, MetaChip } from "@/components/ui/badge";
 import { MonoMeta } from "@/components/ui/mono-meta";
 import { PropertyRow } from "@/components/ui/property-row";
-import { cn } from "@/lib/utils";
-
-const AI_CHAT_COLLAPSED_KEY = "jedforge-ai-chat-collapsed";
-
-function loadAiChatCollapsed(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return localStorage.getItem(AI_CHAT_COLLAPSED_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-function saveAiChatCollapsed(value: boolean): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(AI_CHAT_COLLAPSED_KEY, String(value));
-  } catch {
-    // Ignore storage errors
-  }
-}
 
 type User = { id: string; name: string; avatarUrl: string | null };
 type ActivityLog = {
@@ -142,7 +120,6 @@ interface IssueDetailProps {
   canEdit: boolean;
   customFields: CustomField[];
   customFieldValues: Record<string, string | number | boolean | string[]>;
-  aiChatEnabled: boolean;
 }
 
 function EditableTitle({ value, issueId, projectKey, onSaved, canEdit }: {
@@ -280,7 +257,7 @@ function SubIssueRow({ subIssue, projectKey }: { subIssue: SubIssue; projectKey:
   );
 }
 
-export function IssueDetail({ issue, members, statuses, projectKey, currentUserId, currentUserName, canEdit, customFields, customFieldValues, aiChatEnabled }: IssueDetailProps) {
+export function IssueDetail({ issue, members, statuses, projectKey, currentUserId, currentUserName, canEdit, customFields, customFieldValues }: IssueDetailProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editingDesc, setEditingDesc] = useState(false);
@@ -291,8 +268,6 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [subIssueDialogOpen, setSubIssueDialogOpen] = useState(false);
   const [subIssueLinkPickerOpen, setSubIssueLinkPickerOpen] = useState(false);
-  const [aiChatCollapsed, setAiChatCollapsed] = useState(false);
-  const [aiChatMounted, setAiChatMounted] = useState(false);
   const [dueDate, setDueDate] = useState<string>(
     issue.dueDate ? new Date(issue.dueDate).toISOString().split("T")[0] : ""
   );
@@ -301,16 +276,6 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
   );
 
   useEffect(() => { setLabels(issue.labels); }, [issue.labels]);
-
-  useEffect(() => {
-    // Syncing with localStorage, an external system — not derivable at render time.
-    setAiChatCollapsed(loadAiChatCollapsed());
-    setAiChatMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (aiChatMounted) saveAiChatCollapsed(aiChatCollapsed);
-  }, [aiChatCollapsed, aiChatMounted]);
 
   const currentUserInitial = currentUserName.charAt(0).toUpperCase();
 
@@ -760,21 +725,6 @@ export function IssueDetail({ issue, members, statuses, projectKey, currentUserI
         </div>
       </div>
     </div>
-
-    {aiChatEnabled && (
-      <div
-        className={cn(
-          "w-full 2xl:shrink-0 2xl:sticky 2xl:top-6",
-          aiChatCollapsed ? "2xl:w-12" : "2xl:w-[420px]"
-        )}
-      >
-        <AiChatPanel
-          issueId={issue.id}
-          collapsed={aiChatCollapsed}
-          onToggleCollapse={() => setAiChatCollapsed((v) => !v)}
-        />
-      </div>
-    )}
     </div>
     </>
   );

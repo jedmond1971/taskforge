@@ -68,7 +68,6 @@ Most project tools make you choose: a simple board that runs out of steam, or a 
 
 ### Bring in AI
 - **Claude connector (MCP)** — use JedForge from Claude.ai, as described above.
-- **In-app AI chat** — an assistant panel on each issue that can act on your project through the same tools. *This is an owner-only feature gated by the `AI_CHAT_ENABLED` flag and is off by default.*
 
 ### Integrate
 - **External REST API** at `/api/external/v1/` — list projects, read and create issues, and post comments, authenticated with org-scoped API keys that admins create and revoke under **Org Settings**. New issues and comments are attributed to the key's creator, so nobody can impersonate someone else.
@@ -87,7 +86,7 @@ Most project tools make you choose: a simple board that runs out of steam, or a 
 | Drag & drop | dnd-kit |
 | File storage | S3-compatible object storage (Railway Buckets) |
 | Email | Resend + React Email |
-| AI | Anthropic SDK, Model Context Protocol SDK |
+| AI | Model Context Protocol SDK |
 | Testing | Vitest (unit + DB-backed cross-tenant integration suite), Playwright |
 | CI / hosting | GitHub Actions → Railway |
 
@@ -182,7 +181,6 @@ Optional features:
 | `RAILWAY_BUCKET_ENDPOINT`, `RAILWAY_BUCKET_ACCESS_KEY_ID`, `RAILWAY_BUCKET_SECRET_ACCESS_KEY`, `RAILWAY_BUCKET_NAME`, `RAILWAY_BUCKET_REGION` | File attachments, doc uploads and avatars (S3-compatible storage) |
 | `RESEND_API_KEY` | Invitation and alert emails |
 | `V1_API_KEY` | Internal tracking API (`/api/v1`) shared secret |
-| `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `AI_CHAT_ENABLED` | In-app AI chat (off unless `AI_CHAT_ENABLED=true`) |
 | `ALERTING_ENABLED`, `ALERT_EMAIL_TO` | Owner security alerting |
 | `OAUTH_MCP_ENABLED`, `UPLOADS_ENABLED`, `EXTERNAL_API_ENABLED` | Kill switches (default on; set `false` to disable a surface) |
 

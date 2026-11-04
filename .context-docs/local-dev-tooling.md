@@ -82,7 +82,7 @@ Create a **new, empty** environment named `staging` in the existing Railway proj
 2. **Bucket:** add a new bucket in `staging`; its five `RAILWAY_BUCKET_*` values are its own.
 3. **App service:** add a service from the GitHub repo `jedmond1971/taskforge`, **branch `staging`**, and turn **auto-deploy off** (deploy on manual trigger only). It picks up `railway.toml`, so the same `preDeployCommand = "npx prisma migrate deploy"` runs the migrations.
 4. **Variables (set before the first deploy):** `DATABASE_URL` as a reference to the *staging* Postgres service, `AUTH_SECRET` (fresh, `openssl rand -base64 32`), `V1_API_KEY` (fresh, different from production's), `NEXTAUTH_URL` (the staging public URL, no trailing slash — the smoke check fails if the OAuth issuer disagrees), the five `RAILWAY_BUCKET_*`, and a **separate `RESEND_API_KEY`**. Optional: `ALERTING_ENABLED=true` + `ALERT_EMAIL_TO` to rehearse alerts.
-5. **Do not set** `AI_CHAT_ENABLED`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `NEXTAUTH_SECRET` (dead, see [secret-rotation.md](secret-rotation.md)) or `ADMIN_PASSWORD`.
+5. **Do not set** `NEXTAUTH_SECRET` (dead, see [secret-rotation.md](secret-rotation.md)) or `ADMIN_PASSWORD`.
 6. **Domain:** generate a Railway public domain for the app service.
 7. OAuth client registrations need no provisioning — clients register themselves through `/api/oauth/register` at runtime.
 8. Staging sends real email through Resend: invite only addresses you own.
@@ -102,9 +102,9 @@ DATABASE_URL='<staging public url>' SEED_ALLOW_REMOTE='<that url's host>' SEED_P
 
 ### Smoke checks
 ```bash
-node scripts/smoke-check.mjs https://<staging-domain> --ai off
+node scripts/smoke-check.mjs https://<staging-domain>
 ```
-Unauthenticated only (headers, auth rejections, OAuth issuer matches the URL, AI chat 404). It also passes against production (`https://www.jedforge.com`, without `--ai off` since AI chat is on there) — run it after every production deploy too.
+Unauthenticated only (headers, auth rejections, OAuth issuer matches the URL). It also passes against production (`https://www.jedforge.com`) — run it after every production deploy too.
 
 ### IDs (fill in after provisioning)
 | Item | Value |

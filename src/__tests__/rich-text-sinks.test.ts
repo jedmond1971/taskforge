@@ -36,13 +36,6 @@ const SANITISING = /sanitiz|normalizeBody/i;
  */
 const EXCEPTIONS: Array<{ file: string; model: string; field: string; reason: string }> = [
   {
-    file: "app/api/ai/chat/route.ts",
-    model: "aiMessage",
-    field: "content",
-    reason:
-      "AI chat transcript. AiChatPanel renders {m.content} as a React child, which React escapes — it is never passed to a raw-HTML sink. Sanitising it would mangle code blocks the model legitimately returns.",
-  },
-  {
     file: "app/api/docs/[projectKey]/pages/[pageId]/route.ts",
     model: "pageRevision",
     field: "content",
