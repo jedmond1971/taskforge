@@ -2,18 +2,15 @@
 /**
  * Post-deploy security smoke checks (SECH-110 / SECH-120).
  *
- *   node scripts/smoke-check.mjs https://staging.example.com [--ai off|on]
+ *   node scripts/smoke-check.mjs https://staging.example.com
  *
  * Unauthenticated requests only: no credentials are read or sent, nothing is written, so it is safe to point at
  * production as well. Exits 1 if any check fails. Dependency-free (Node 18+ fetch).
- *
- * `--ai off` additionally asserts AI chat answers 404 (it must be off anywhere that is not Jamie's own deployment).
  */
 const args = process.argv.slice(2);
 const base = (args.find((a) => /^https?:\/\//.test(a)) ?? "").replace(/\/+$/, "");
-const aiFlag = args.includes("--ai") ? args[args.indexOf("--ai") + 1] : undefined;
 if (!base) {
-  console.error("usage: node scripts/smoke-check.mjs <base-url> [--ai off|on]");
+  console.error("usage: node scripts/smoke-check.mjs <base-url>");
   process.exit(2);
 }
 const isHttps = base.startsWith("https://");
@@ -88,11 +85,6 @@ await check("OAuth protected-resource metadata is served", async () => {
   if (!String(resource).startsWith(base)) throw new Error(`resource is ${resource}, expected it under ${base}`);
   return `resource ${resource}`;
 });
-
-if (aiFlag === "off") {
-  await check("AI chat is disabled", async () =>
-    expectStatus(await req("/api/ai/chat", { method: "POST", headers: { "Content-Type": "application/json", "User-Agent": "jedforge-smoke-check" }, body: "{}" }), 404));
-}
 
 let failed = 0;
 for (const r of results) {

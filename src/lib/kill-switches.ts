@@ -8,7 +8,6 @@
  * (no DB write, no S3 write, no token minted).
  *
  * Imports nothing on purpose: used from middleware, which runs on the Edge runtime.
- * AI_CHAT_ENABLED is a different shape (default OFF, Jamie-only) and stays in lib/ai.
  */
 
 export type KillSwitch = "OAUTH_MCP_ENABLED" | "UPLOADS_ENABLED" | "EXTERNAL_API_ENABLED";

@@ -16,7 +16,6 @@ Staging does not exist yet (SECH-110). When it does, it must get its **own** val
 | `DATABASE_URL` | Postgres connection string (Railway internal network). Also read by `alerting/store.ts` and Prisma | Railway (reference to the Postgres service); local `.env` (Docker, localhost) | Never. Integration tests refuse any non-localhost host |
 | `RAILWAY_BUCKET_ACCESS_KEY_ID` / `RAILWAY_BUCKET_SECRET_ACCESS_KEY` | S3-compatible credentials for attachments, avatars, editor images, doc files | Railway | Never (a staging bucket needs its own) |
 | `RESEND_API_KEY` | Invite emails and owner alerts | Railway | Never |
-| `ANTHROPIC_API_KEY` | AI chat (`/api/ai/chat`) | Railway (Jamie's deployment only); local `.env` | Never; absent on any buyer deployment |
 
 Held outside the app, but part of the same blast radius:
 
@@ -32,8 +31,6 @@ Held outside the app, but part of the same blast radius:
 |---|---|---|
 | `NEXTAUTH_URL` | Public base URL; also the OAuth issuer (falls back to `https://www.jedforge.com`) | — |
 | `RAILWAY_BUCKET_ENDPOINT`, `RAILWAY_BUCKET_NAME`, `RAILWAY_BUCKET_REGION` | Bucket location | — |
-| `ANTHROPIC_MODEL` | AI chat model | `claude-sonnet-5` |
-| `AI_CHAT_ENABLED` | AI chat gate, Jamie-only | off |
 | `ALERTING_ENABLED`, `ALERT_EMAIL_TO` | Owner alerting; the address is personal data, not committed | off |
 | `RATE_LIMIT_MODE` | `monitor` = log-only rollback switch | enforcing |
 | `OAUTH_MCP_ENABLED`, `UPLOADS_ENABLED`, `EXTERNAL_API_ENABLED` | Kill switches ([kill-switches.md](kill-switches.md)) | on |
@@ -69,10 +66,6 @@ Setting a Railway variable (dashboard or `variableUpsert`, see [local-dev-toolin
 - **Impact:** invite emails and owner alerts fail between key swap and deploy completion. Nothing is queued — an invite sent in that window must be resent.
 - **Steps:** 1) Resend dashboard → create a new API key (send-only is enough); 2) set `RESEND_API_KEY` in Railway; 3) after the deploy send a test alert from `/admin/alerting`; 4) **then** delete the old key in Resend.
 
-### Anthropic
-- **Impact:** AI chat errors until the deploy completes. Jamie-only feature.
-- **Steps:** 1) console.anthropic.com → create a new key; 2) set `ANTHROPIC_API_KEY` in Railway and local `.env`; 3) send a chat message on an issue page; 4) delete the old key.
-
 ### `DATABASE_URL` (Postgres password)
 - **Impact:** the largest of the set: every query fails if the app and the database disagree. Take it in a quiet window.
 - **Steps:** 1) change the role's password in Postgres (`ALTER USER … PASSWORD …`, run by Jamie via the public proxy); 2) update the Postgres service's password variable so Railway's reference variables resolve to the new value; 3) redeploy the app; 4) confirm `/login` loads and a project page renders.
@@ -98,6 +91,5 @@ Setting a Railway variable (dashboard or `variableUpsert`, see [local-dev-toolin
 | `V1_API_KEY` | 2026-10-01 | Rehearsal run by Jamie (Claude Code's classifier blocks secret-store writes). Railway deploy `SUCCESS`, new key `200` / no key `401`, manual cleanup-cron run green. Whole procedure took ~10 min; old-key 401 was not directly checked (backup file removed early) |
 | Bucket credentials | unknown — treat as never rotated | Railway shows no creation date (checked 2026-10-01) |
 | `RESEND_API_KEY` | created ~July 2026 (Resend dashboard shows "3 months ago" on 2026-10-01; exact date not shown) | Never rotated since creation, ~3 months old |
-| `ANTHROPIC_API_KEY` | created 2026-07-31 (Anthropic console) | Never rotated since creation, ~2 months old |
 | `DATABASE_URL` / Postgres password | unknown — treat as never rotated | Railway shows no creation date (checked 2026-10-01) |
 | `RAILWAY_API_TOKEN` | unknown — treat as never rotated | Railway shows no creation date (checked 2026-10-01) |

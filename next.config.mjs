@@ -24,8 +24,7 @@ function buildCsp(isProd) {
     "img-src": ["'self'", "blob:", "https://*.storageapi.dev"],
     // next/font/google self-hosts Inter at build time; no runtime font CDN.
     "font-src": ["'self'"],
-    // Every browser fetch/XHR is same-origin (uploads POST to /api/attachments/upload,
-    // AI chat goes through /api/ai/*; Anthropic is only called server-side).
+    // Every browser fetch/XHR is same-origin (uploads POST to /api/attachments/upload).
     // ws:/wss: is dev-only, for Next's HMR socket.
     "connect-src": ["'self'", ...(isProd ? [] : ["ws:", "wss:"])],
     // https://*.storageapi.dev: in-app PDF preview iframe (doc-document-view.tsx)

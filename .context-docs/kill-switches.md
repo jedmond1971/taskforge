@@ -8,7 +8,6 @@ Three independent env-var switches let the owner contain an OAuth/MCP, upload or
 | `EXTERNAL_API_ENABLED` | everything under `/api/external/*` |
 | `UPLOADS_ENABLED` | writes (POST/PUT/PATCH) to `/api/attachments/{presign,upload,confirm}`, `/api/avatar`, `/api/editor-images`, `/api/docs/<key>/pages/<id>/file` |
 
-`AI_CHAT_ENABLED` is separate (default **off**, Jamie-only — see CLAUDE.md "Security constraints").
 
 **Off values** (case-insensitive, trimmed): `false`, `0`, `off`, `no`, `disabled`. Anything else, including unset, is on. This is deliberately lenient so a typo during an incident can't leave a surface open.
 
