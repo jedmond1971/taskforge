@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+*.docx
+*.zip
+coverage
+tsconfig.tsbuildinfo
+.claude
+.context-docs/screenshots
+design_handoff_docs_module
+jedforge_icons_light_dark

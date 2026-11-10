@@ -1,0 +1,15 @@
+# Template: bootstrap.sh copies this to /opt/jedforge/garage.toml with a generated rpc_secret.
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+# sqlite, not lmdb: this is a home server and a power cut must not corrupt the metadata.
+db_engine = "sqlite"
+replication_factor = 1
+
+rpc_bind_addr = "0.0.0.0:3901"
+rpc_public_addr = "127.0.0.1:3901"
+rpc_secret = "__RPC_SECRET__"
+
+[s3_api]
+s3_region = "garage"
+api_bind_addr = "0.0.0.0:3900"
+# No root_domain: path-style addressing only (the app sets S3_FORCE_PATH_STYLE=true).

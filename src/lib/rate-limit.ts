@@ -47,6 +47,16 @@ export function getClientIp(request: Request): string {
 
 /** Same as getClientIp, for Server Actions (`await headers()` from next/headers). */
 export function clientIpFromHeaders(headers: Headers): string {
+  // Self-hosted behind a Cloudflare Tunnel (TRUSTED_PROXY=cloudflare): Cloudflare APPENDS the
+  // client IP to a client-supplied X-Forwarded-For, so the leftmost entry is attacker-controlled
+  // there. CF-Connecting-IP is overwritten by Cloudflare and the origin is only reachable through
+  // the tunnel, so it is the header to trust. Off by default: on Railway a client could send its
+  // own CF-Connecting-IP, so it must never be honoured there.
+  if (process.env.TRUSTED_PROXY === "cloudflare") {
+    const cf = headers.get("cf-connecting-ip")?.trim();
+    if (cf) return cf;
+  }
+
   const forwardedFor = headers.get("x-forwarded-for");
   if (forwardedFor) {
     const first = forwardedFor.split(",")[0]?.trim();

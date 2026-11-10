@@ -1,0 +1,9 @@
+[Unit]
+Description=JedForge orphaned attachment cleanup
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=jamie
+ExecStart=/opt/jedforge/repo/deploy/selfhost/cleanup.sh

@@ -1,0 +1,9 @@
+[Unit]
+Description=JedForge nightly database and file backup
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=jamie
+ExecStart=/opt/jedforge/repo/deploy/selfhost/backup.sh
