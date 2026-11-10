@@ -7,7 +7,7 @@ name: jedforge
 
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: jedforge-db-1
     restart: unless-stopped
     environment:
@@ -15,7 +15,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: taskforge
     volumes:
-      - /opt/jedforge/data/postgres:/var/lib/postgresql/data
+      - /opt/jedforge/data/postgres:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U taskforge -d taskforge"]
       interval: 10s
