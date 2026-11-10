@@ -174,6 +174,7 @@ describe("event catalog", () => {
       "upload.rejected",
       "admin.action",
       "admin.role_granted",
+      "storage.orphans_deleted",
       "prisma.error",
       "app.error",
     ];

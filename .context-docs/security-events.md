@@ -66,6 +66,7 @@ never pass a severity, so the same event cannot be reported at two severities fr
 | `upload.rejected` | warn | the 3 attachment routes + `editor-images` |
 | `admin.action` | info | `lib/audit-log.ts` (bridge) |
 | `admin.role_granted` | critical | `admin/actions.ts` (×2: create-as-ADMIN, role change to ADMIN) |
+| `storage.orphans_deleted` | info | `app/api/internal/cleanup-orphaned-attachments/route.ts` — only when something was deleted; counts plus a per-issue-id tally, never object keys (they embed the uploader's file name) |
 
 ## Denial classification — why we do not sample
 

@@ -42,6 +42,8 @@ export type SecurityEventType =
   | "upload.rejected"
   | "admin.action"
   | "admin.role_granted"
+  // Audit trail for the nightly orphaned-attachment cleanup: counts and issue ids, never file names.
+  | "storage.orphans_deleted"
   | "prisma.error"
   | "app.error";
 
@@ -74,6 +76,9 @@ export const SECURITY_EVENT_SEVERITY: Record<SecurityEventType, SecuritySeverity
   // A new platform ADMIN can read and change every tenant. Rare, deliberate, and the single
   // most valuable thing to know about if it was not you.
   "admin.role_granted": "critical",
+  // The nightly cleanup deleted customer files it judged orphaned. Routine, but it is the
+  // only automated bulk delete of customer data, so it leaves a record of what went.
+  "storage.orphans_deleted": "info",
   // A failed DB write, summarised: operation and code only, never the payload.
   "prisma.error": "warn",
   // A caught application error, summarised by logError().
