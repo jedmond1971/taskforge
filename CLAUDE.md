@@ -371,3 +371,4 @@ OAuth 2.1 authorization server + MCP server backing the Claude.ai custom connect
 - .context-docs/authz-matrix.md — every route handler and server action: auth mechanism, tenant scope, minimum role; audit findings (SECH-85)
 - .context-docs/external-api.md — external v1 API auth guard, org isolation, helpers
 - .context-docs/mcp.md — MCP OAuth authorization server + Streamable HTTP server (JFR-100 B1/B2); refresh-token family revocation and why reuse != the concurrent-claim race (SECH-109); SH-021 token verification matrix (scenario → test)
+- .context-docs/self-hosting.md — Proxmox self-hosted deployment (JFR-198): VM layout, compose stack, `S3_PUBLIC_ENDPOINT` / `TRUSTED_PROXY=cloudflare` / `S3_FORCE_PATH_STYLE`, bootstrap + pull-based deploy, backups, why Garage not MinIO. Migration plan: `proxmox-migration-plan.md`

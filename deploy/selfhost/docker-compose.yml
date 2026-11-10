@@ -1,0 +1,90 @@
+# Self-hosted JedForge (Proxmox VM). Run from this directory with the host env file:
+#   docker compose --env-file /opt/jedforge/.env up -d --build
+# then run ./garage-init.sh once (idempotent) to create the bucket, app key and CORS rules.
+# Nothing here publishes a port to the LAN: the app and Garage bind to 127.0.0.1 only, and the
+# internet reaches them solely through the cloudflared tunnel. See .context-docs/self-hosting.md.
+name: jedforge
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: jedforge-db-1
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: taskforge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: taskforge
+    volumes:
+      - /opt/jedforge/data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskforge -d taskforge"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  # S3-compatible object store (replaces Railway's bucket). Garage rather than MinIO: MinIO stopped
+  # publishing container images. Single node, replication_factor 1; the VM backup is the safety net.
+  garage:
+    image: dxflrs/garage:v2.1.0
+    container_name: jedforge-garage-1
+    restart: unless-stopped
+    volumes:
+      - /opt/jedforge/garage.toml:/etc/garage.toml:ro
+      - /opt/jedforge/data/garage/meta:/var/lib/garage/meta
+      - /opt/jedforge/data/garage/data:/var/lib/garage/data
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "127.0.0.1:3900:3900"
+
+  app:
+    build:
+      context: ../..
+      args:
+        S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:?set S3_PUBLIC_ENDPOINT}
+    image: jedforge-app:latest
+    container_name: jedforge-app-1
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      garage:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://taskforge:${POSTGRES_PASSWORD}@db:5432/taskforge
+      NEXTAUTH_URL: ${APP_ORIGIN}
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
+      V1_API_KEY: ${V1_API_KEY:?set V1_API_KEY}
+      # The variable names are historical (Railway bucket); they point at Garage here.
+      RAILWAY_BUCKET_ENDPOINT: http://garage:3900
+      RAILWAY_BUCKET_REGION: garage
+      RAILWAY_BUCKET_NAME: ${S3_BUCKET:-jedforge}
+      RAILWAY_BUCKET_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY}
+      RAILWAY_BUCKET_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?set S3_SECRET_KEY}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT}
+      S3_FORCE_PATH_STYLE: "true"
+      # Rate limiting must key on CF-Connecting-IP behind the tunnel (see rate-limit.ts).
+      TRUSTED_PROXY: cloudflare
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      ALERTING_ENABLED: ${ALERTING_ENABLED:-}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+      UPLOADS_ENABLED: ${UPLOADS_ENABLED:-true}
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: jedforge-cloudflared-1
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
+      - garage

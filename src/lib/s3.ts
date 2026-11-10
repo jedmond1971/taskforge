@@ -10,14 +10,34 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { downloadHeaders } from "./download-headers";
 
+// S3_FORCE_PATH_STYLE=true is needed for Garage/MinIO (no per-bucket DNS names); unset on Railway.
+const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === "true";
+
 const s3 = new S3Client({
   endpoint: process.env.RAILWAY_BUCKET_ENDPOINT!,
   region: process.env.RAILWAY_BUCKET_REGION!,
+  forcePathStyle,
   credentials: {
     accessKeyId: process.env.RAILWAY_BUCKET_ACCESS_KEY_ID!,
     secretAccessKey: process.env.RAILWAY_BUCKET_SECRET_ACCESS_KEY!,
   },
 });
+
+// Presigned URLs are opened by the browser, so they must be signed for a hostname the browser can
+// reach. Self-hosted, the server talks to the object store on the internal network (RAILWAY_BUCKET_ENDPOINT)
+// while browsers use the public hostname (S3_PUBLIC_ENDPOINT). Signing is offline, so this second
+// client is only ever used for getSignedUrl. Unset (Railway) = the same client as above.
+const s3Presigner = process.env.S3_PUBLIC_ENDPOINT
+  ? new S3Client({
+      endpoint: process.env.S3_PUBLIC_ENDPOINT,
+      region: process.env.RAILWAY_BUCKET_REGION!,
+      forcePathStyle,
+      credentials: {
+        accessKeyId: process.env.RAILWAY_BUCKET_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.RAILWAY_BUCKET_SECRET_ACCESS_KEY!,
+      },
+    })
+  : s3;
 
 const bucket = process.env.RAILWAY_BUCKET_NAME!;
 
@@ -32,7 +52,7 @@ export async function getPresignedUploadUrl(
     ContentType: mimeType,
     ContentLength: fileSizeBytes,
   });
-  return getSignedUrl(s3, command, { expiresIn: 15 * 60 });
+  return getSignedUrl(s3Presigner, command, { expiresIn: 15 * 60 });
 }
 
 /**
@@ -49,7 +69,7 @@ export async function getPresignedDownloadUrl(
     Key: key,
     ...downloadHeaders(opts.contentType, opts.fileName ?? key.split("/").pop() ?? "download"),
   });
-  return getSignedUrl(s3, command, { expiresIn: 60 * 60 });
+  return getSignedUrl(s3Presigner, command, { expiresIn: 60 * 60 });
 }
 
 export async function putObject(

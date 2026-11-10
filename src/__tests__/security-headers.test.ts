@@ -76,6 +76,18 @@ describe("Content-Security-Policy (enforcing)", () => {
     expect(csp).not.toMatch(/(^|\s)(\*|https?:)(\s|;|$)/);
   });
 
+  it("adds only the self-hosted storage origin when S3_PUBLIC_ENDPOINT is set", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("S3_PUBLIC_ENDPOINT", "https://files.example.test/some/path");
+    const csp = (await loadHeaders())["Content-Security-Policy"];
+    expect(directive(csp, "img-src")).toEqual(["'self'", "blob:", "https://*.storageapi.dev", "https://files.example.test"]);
+    expect(directive(csp, "frame-src")).toEqual(["'self'", "https://*.storageapi.dev", "https://files.example.test"]);
+    expect(directive(csp, "connect-src")).toEqual(["'self'"]);
+    vi.stubEnv("S3_PUBLIC_ENDPOINT", "not a url");
+    const bad = (await loadHeaders())["Content-Security-Policy"];
+    expect(directive(bad, "img-src")).toEqual(["'self'", "blob:", "https://*.storageapi.dev"]);
+  });
+
   it("keeps unsafe-eval and websockets out of production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const prod = (await loadHeaders())["Content-Security-Policy"];

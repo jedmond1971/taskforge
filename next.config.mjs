@@ -5,7 +5,23 @@
  *
  * Every allowed source has a reason; anything not listed falls back to default-src 'self'.
  */
+/**
+ * Self-hosted storage (S3_PUBLIC_ENDPOINT, e.g. https://files.jedforge.com): browsers load presigned
+ * URLs from this origin instead of Railway's bucket. headers() is evaluated at BUILD time for
+ * `next start`, so the Docker build must receive it as a build arg. Unset on Railway.
+ */
+function selfHostedStorageOrigins() {
+  const raw = process.env.S3_PUBLIC_ENDPOINT;
+  if (!raw) return [];
+  try {
+    return [new URL(raw).origin];
+  } catch {
+    return [];
+  }
+}
+
 function buildCsp(isProd) {
+  const storage = selfHostedStorageOrigins();
   const directives = {
     "default-src": ["'self'"],
     // 'unsafe-inline': Next.js App Router injects inline <script> tags for RSC
@@ -21,7 +37,7 @@ function buildCsp(isProd) {
     // attachment/doc previews use presigned URLs directly.
     // blob:: AvatarUpload.tsx loads the chosen file via URL.createObjectURL().
     // No data: — TipTap is configured with allowBase64: false.
-    "img-src": ["'self'", "blob:", "https://*.storageapi.dev"],
+    "img-src": ["'self'", "blob:", "https://*.storageapi.dev", ...storage],
     // next/font/google self-hosts Inter at build time; no runtime font CDN.
     "font-src": ["'self'"],
     // Every browser fetch/XHR is same-origin (uploads POST to /api/attachments/upload).
@@ -29,7 +45,7 @@ function buildCsp(isProd) {
     "connect-src": ["'self'", ...(isProd ? [] : ["ws:", "wss:"])],
     // https://*.storageapi.dev: in-app PDF preview iframe (doc-document-view.tsx)
     // embeds the presigned bucket URL.
-    "frame-src": ["'self'", "https://*.storageapi.dev"],
+    "frame-src": ["'self'", "https://*.storageapi.dev", ...storage],
     "object-src": ["'none'"],
     "base-uri": ["'self'"],
     "form-action": ["'self'"],
