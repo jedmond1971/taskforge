@@ -32,6 +32,10 @@ const s3Presigner = process.env.S3_PUBLIC_ENDPOINT
       endpoint: process.env.S3_PUBLIC_ENDPOINT,
       region: process.env.RAILWAY_BUCKET_REGION!,
       forcePathStyle,
+      // Since SDK 3.729 a presigned PUT carries `x-amz-checksum-crc32` = the CRC of an EMPTY body
+      // (the body isn't known when signing). Railway's bucket ignores it; Garage/MinIO enforce it,
+      // so every browser upload fails with InvalidDigest. Only add checksums when the API requires.
+      requestChecksumCalculation: "WHEN_REQUIRED",
       credentials: {
         accessKeyId: process.env.RAILWAY_BUCKET_ACCESS_KEY_ID!,
         secretAccessKey: process.env.RAILWAY_BUCKET_SECRET_ACCESS_KEY!,

@@ -7,7 +7,7 @@ Drafted 2026-11-10. Goal: stop paying for Railway for a while, with Jamie doing 
 | Railway piece | Evidence | Replacement on Proxmox |
 |---|---|---|
 | App service (`next start`, health `/login`, `preDeployCommand = prisma migrate deploy`) | `railway.toml` | Docker container built from a new `Dockerfile`; migrations run at container start |
-| Postgres service | `DATABASE_URL` | `postgres:16` container on a volume, nightly `pg_dump` |
+| Postgres service | `DATABASE_URL` | `postgres:18` container on a volume, nightly `pg_dump` |
 | Object storage bucket (attachments, avatars, editor images, doc files) | `src/lib/s3.ts`, `*.storageapi.dev` in CSP | Garage container (S3-compatible) |
 | Public HTTPS on `www.jedforge.com` | Railway edge | Cloudflare Tunnel (`cloudflared`), no router port-forward |
 | Auto-deploy on merge to `main` | Railway GitHub link | Pull-based deploy timer on the host |
@@ -20,7 +20,7 @@ Drafted 2026-11-10. Goal: stop paying for Railway for a while, with Jamie doing 
 New guest, **separate from dev CT 110**: VM `jedforge-prod` cloned from template 9000 (cloud-init; a VM is more robust for Docker than an unprivileged LXC), 2 vCPU / 4 GB / 60 GB, static IP on 10.0.0.x, enabled `onboot`. Docker Compose stack:
 
 - `app` — Next.js production build, port 3000 (internal only)
-- `db` — Postgres 16, named volume
+- `db` — Postgres 18 (matches Railway), bind-mounted volume
 - `garage` — S3 API on a public hostname via the tunnel; console bound to localhost only
 - `cloudflared` — routes `www.jedforge.com` → `app:3000` and `files.jedforge.com` → `garage:9000`
 

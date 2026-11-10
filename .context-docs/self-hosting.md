@@ -14,7 +14,7 @@ VM `jedforge-prod` (Proxmox VMID 120, Debian 13, 2 vCPU / 4 GB / 60 GB, `10.0.0.
 | `backups/` | nightly `db/*.sql.gz` (14 days) + hard-linked `files/<date>/` snapshots |
 | `.deployed-sha` | last commit the deploy timer put live |
 
-Compose stack (`deploy/selfhost/docker-compose.yml`): `db` (Postgres 16), `garage` (S3-compatible store, initialised by `garage-init.sh`), `app` (built from the root `Dockerfile`), `cloudflared`. Ports are bound to `127.0.0.1`; the internet only reaches the box through the tunnel. UFW allows only SSH from the LAN.
+Compose stack (`deploy/selfhost/docker-compose.yml`): `db` (Postgres 18, matching Railway; the 18 image keeps its data under `/var/lib/postgresql/18/docker`, so the volume is mounted one level up), `garage` (S3-compatible store, initialised by `garage-init.sh`), `app` (built from the root `Dockerfile`), `cloudflared`. Ports are bound to `127.0.0.1`; the internet only reaches the box through the tunnel. UFW allows only SSH from the LAN.
 
 ## Things that differ from Railway (and why)
 

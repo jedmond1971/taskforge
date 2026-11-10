@@ -51,6 +51,13 @@ describe("presigned URLs with a separate public storage endpoint", () => {
     expect(u.searchParams.get("X-Amz-Signature")).toBeTruthy();
   });
 
+  it("does not put an empty-body checksum in the presigned PUT (Garage/MinIO reject it)", async () => {
+    const s3 = await load({ S3_PUBLIC_ENDPOINT: "https://files.example.test", S3_FORCE_PATH_STYLE: "true" });
+    const u = new URL(await s3.getPresignedUploadUrl("attachments/i/a.png", "image/png", 10));
+    expect(u.searchParams.has("x-amz-checksum-crc32")).toBe(false);
+    expect(u.searchParams.has("x-amz-sdk-checksum-algorithm")).toBe(false);
+  });
+
   it("keeps using the single configured endpoint when no public endpoint is set", async () => {
     const s3 = await load({ RAILWAY_BUCKET_ENDPOINT: "https://bucket.example.test" });
     const u = new URL(await s3.getPresignedDownloadUrl("attachments/i/a.png", { contentType: "image/png" }));
