@@ -53,6 +53,7 @@ Setting a Railway variable (dashboard or `variableUpsert`, see [local-dev-toolin
 
 ### `V1_API_KEY`
 - **Impact:** Claude Code's v1 API calls and the daily attachment-cleanup cron get 401 between the Railway deploy swapping in and the other two copies being updated. Nothing user-facing.
+- **Since the 2026-11-10 move to self-hosting only two copies are live:** `/opt/jedforge/.env` on the VM `jedforge-prod` and the local `.env`; the GitHub Actions secret is unused (the cleanup cron is now a systemd timer on the VM). The text below describes the Railway-era procedure.
 - **Three copies, all must change:** Railway variable, local `/home/jamie/Projects/TaskForge/.env`, and the **GitHub Actions secret** `V1_API_KEY` (`gh secret set V1_API_KEY --repo jedmond1971/taskforge`). Missing the GitHub copy fails the cleanup cron silently (the job goes red, nothing pages anyone).
 - **Steps:** 1) generate a value; 2) update the GitHub secret and local `.env` first (both are inert until Railway changes); 3) set the Railway variable; 4) after the deploy: `curl -s -o /dev/null -w "%{http_code}" -H "X-Internal-Api-Key: <new>" https://taskforge-production-099b.up.railway.app/api/v1/projects` → `200`, same call with the old value → `401`; 5) re-run the cron: `gh workflow run cleanup-orphaned-attachments.yml` and confirm it passes.
 - Read the key into the shell with `set -a; source .env; set +a` — see CLAUDE.md for the `source` gotcha.

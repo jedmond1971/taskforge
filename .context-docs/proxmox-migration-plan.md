@@ -1,6 +1,8 @@
 # Plan: move JedForge production from Railway to Proxmox
 
-Drafted 2026-11-10. Goal: stop paying for Railway for a while, with Jamie doing as little as possible. Nothing here has been executed.
+> **Status: executed 2026-11-10.** Production runs on Proxmox; see `self-hosting.md` for the current state, the rollback recipe and what changed from this plan (Garage instead of MinIO, Postgres 18, a Cloudflare WAF rule as the write freeze, a systemd timer instead of the GitHub cron).
+
+Drafted 2026-11-10. Goal: stop paying for Railway for a while, with Jamie doing as little as possible. (Written before the move; see the status note above.)
 
 ## What Railway currently provides (and the replacement)
 

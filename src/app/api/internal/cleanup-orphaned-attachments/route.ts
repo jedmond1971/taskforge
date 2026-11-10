@@ -55,7 +55,7 @@ function isDryRun(request: NextRequest): boolean {
 // closed, etc — see SECH-90 write-up in .context-docs/data-integrity.md).
 // This finds objects under attachments/ older than the grace period with no
 // matching Attachment.fileKey and deletes them. Intended to be called on a
-// schedule (see .github/workflows/cleanup-orphaned-attachments.yml), not by
+// schedule (see deploy/selfhost/cleanup.sh (jedforge-cleanup.timer)), not by
 // the app itself.
 //
 // Before deleting anything it checks the storage marker (bucket and database must belong

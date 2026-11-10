@@ -53,3 +53,27 @@ Restore: `gunzip -c backups/db/taskforge-<date>.sql.gz | docker exec -i jedforge
 ## Why Garage, not MinIO
 
 The first design used MinIO. In November 2025 the project stopped publishing container images (Docker Hub and quay.io both refuse `pull`; source-only), so the stack uses Garage (`dxflrs/garage`, pinned). Garage differences that matter here: key ids must be `GK` + 24 hex and secrets 64 hex (`bootstrap.sh` generates that shape), path-style only, no shell in the image (so `garage-init.sh` runs `garage` via `docker exec`), CORS set through the S3 API, and metadata kept in sqlite for crash safety on a home server.
+
+## Production state (live since 2026-11-10)
+
+- `www.jedforge.com` → tunnel route → `http://app:3000`; `files.jedforge.com` → `http://garage:3900`. The `www` CNAME to Railway was deleted when the route was added; Cloudflare created the tunnel CNAMEs itself. Routes are edited in Cloudflare (Networking → Tunnels → `jedforge-prod` → Routes) and deleting a route deletes its DNS record.
+- DNS lives in Cloudflare (free plan; registrar stays IONOS, nameservers `anita`/`hugh.ns.cloudflare.com`). The imported records kept IONOS mail and the Resend/SES records.
+- Timers: `jedforge-deploy` (5 min), `jedforge-backup` (03:30 daily), `jedforge-cleanup` (08:00 UTC daily). Off-VM safety net: the Proxmox `vzdump` job for VMID 120 (Sundays 02:00, last 3, stored on the Proxmox host's `local` storage, so it does not survive losing that machine).
+- Alerts: the app's own owner alerting (Resend email) plus a Cloudflare "Tunnel health alert" email to the account address, which fires when the VM or its internet link is down.
+- Sessions were invalidated once at cutover (new `AUTH_SECRET`); OAuth/MCP tokens and API keys moved with the database.
+
+### Rollback to Railway (valid while the Railway deployment still exists)
+Railway kept running untouched with the data as of the cutover. To go back: delete the `www` route in Cloudflare (this removes its CNAME), add a proxied CNAME `www` → `q954rsle.up.railway.app`, and make sure the Railway deployment is running. Anything written on the VM after the cutover is NOT in Railway's database; dump it first (`docker exec jedforge-db-1 pg_dump ...`) if it matters.
+
+### How the cutover was done (reuse for a future move)
+1. Pre-flight with no user impact: VM + stack on rehearsal hostnames, a full data rehearsal (`migrate-data.sh`: `pg_dump` from Railway with a Postgres 18 client, `pg_restore --no-owner`, `rclone sync` bucket to Garage, row/object count comparison), app image prebuilt with the final `APP_ORIGIN`/`S3_PUBLIC_ENDPOINT`.
+2. Write freeze without touching the source host: a Cloudflare custom rule blocking every method except GET/HEAD/OPTIONS on `www`.
+3. Final data copy (38 s for 15 MB + 26 objects), recreate the app, re-run `garage-init.sh` so CORS allows the production origin.
+4. Switch: delete the old CNAME, add the tunnel route, delete the freeze rule, smoke-test through Cloudflare's IPs.
+
+### Gotchas found along the way
+- MinIO no longer ships images (use Garage). Garage rejects a presigned PUT that carries the SDK's empty-body checksum (`requestChecksumCalculation: WHEN_REQUIRED` on the presigner). `sharp` needs a VM CPU type of `host`, not the default `kvm64`.
+- Railway's database is Postgres 18: dump with an 18 client, run 18 locally.
+- Handoff values added after the first `bootstrap.sh` run are only imported by re-running it (idempotent; it no longer touches data directory ownership).
+- Cloudflare appends to a client `X-Forwarded-For`, hence `TRUSTED_PROXY=cloudflare` (`CF-Connecting-IP`).
+- This PC kept resolving `www` to Railway for hours after the move (stale resolver cache); test with `curl --resolve www.jedforge.com:443:<cloudflare ip>`.
