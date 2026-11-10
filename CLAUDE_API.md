@@ -14,7 +14,7 @@ The key is set in Railway environment variables and in the local `.env` file. Ne
 
 Example curl:
 ```bash
-curl -H "X-Internal-Api-Key: $V1_API_KEY" https://taskforge-production-099b.up.railway.app/api/v1/projects
+curl -H "X-Internal-Api-Key: $V1_API_KEY" https://www.jedforge.com/api/v1/projects
 ```
 
 ---
@@ -24,7 +24,7 @@ curl -H "X-Internal-Api-Key: $V1_API_KEY" https://taskforge-production-099b.up.r
 | Environment | URL |
 |---|---|
 | Local dev | `http://localhost:3000/api/v1` |
-| Production | `https://taskforge-production-099b.up.railway.app/api/v1` |
+| Production | `https://www.jedforge.com/api/v1` |
 
 ---
 

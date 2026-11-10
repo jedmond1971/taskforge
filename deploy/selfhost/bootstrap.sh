@@ -6,8 +6,14 @@ set -euo pipefail
 
 ROOT=/opt/jedforge
 HANDOFF=${1:-}
-sudo mkdir -p "$ROOT"/{data/postgres,data/garage,backups}
-sudo chown -R "$USER":"$USER" "$ROOT"
+sudo mkdir -p "$ROOT"/{data/postgres,data/garage,backups,migration}
+# Never `chown -R $ROOT`: data/postgres belongs to the postgres container user (uid 70), and a
+# recursive chown leaves the database unable to read its own files (it took production's database
+# down during the 2026-11-10 cutover; the data was intact). Only chown what the host user owns.
+sudo chown "$USER":"$USER" "$ROOT"
+for d in repo backups migration data/garage; do
+  [ -e "$ROOT/$d" ] && sudo chown -R "$USER":"$USER" "$ROOT/$d"
+done
 
 # BRANCH lets a rehearsal run from an unmerged branch; the default (main) is what production uses.
 [ -d "$ROOT/repo/.git" ] || git clone -q --branch "${BRANCH:-main}" https://github.com/jedmond1971/taskforge.git "$ROOT/repo"
