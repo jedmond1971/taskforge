@@ -62,6 +62,15 @@ describe("immediate rules and cooldown", () => {
     expect(h.send.mock.calls[1][0].html).toMatch(/Suppressed since last alert(?:<!-- -->)?:<\/strong>(?:\s|<!-- -->)*1</);
   });
 
+  it("cleanup_stopped emails a critical alert once per reason inside its 12 h cooldown", async () => {
+    const stopped = (reason: string) => ({ type: "storage.cleanup_stopped", ts: ts(), meta: { reason, scanned: 3, candidates: 3, wouldDelete: 3 } });
+    await observe(stopped("marker_mismatch"));
+    await observe(stopped("marker_mismatch"));
+    await observe(stopped("too_many_orphans"));
+    expect(h.send).toHaveBeenCalledTimes(2);
+    expect(subjects()[0]).toBe("[JedForge CRITICAL] Attachment cleanup stopped without deleting anything");
+  });
+
   it("admin_role_granted has no cooldown: two grants to the same user email twice", async () => {
     const grant = { type: "admin.role_granted", ts: ts(), userId: "admin1", targetUserId: "u9" };
     await observe(grant);

@@ -78,6 +78,7 @@ function everyAdminAction(): Array<[string, () => Promise<unknown>]> {
     ["adminRevokeInvite", () => adminActions.adminRevokeInvite(invite.id)],
     ["getAdminAuditLog", () => adminActions.getAdminAuditLog()],
     ["adminSendAlertDrill", () => adminActions.adminSendAlertDrill()],
+    ["adminCreateStorageMarker", () => adminActions.adminCreateStorageMarker()],
   ];
 }
 

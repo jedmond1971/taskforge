@@ -44,6 +44,8 @@ export type SecurityEventType =
   | "admin.role_granted"
   // Audit trail for the nightly orphaned-attachment cleanup: counts and issue ids, never file names.
   | "storage.orphans_deleted"
+  // The cleanup refused to delete: storage marker missing or mismatched, or a deletion guard tripped.
+  | "storage.cleanup_stopped"
   | "prisma.error"
   | "app.error";
 
@@ -79,6 +81,10 @@ export const SECURITY_EVENT_SEVERITY: Record<SecurityEventType, SecuritySeverity
   // The nightly cleanup deleted customer files it judged orphaned. Routine, but it is the
   // only automated bulk delete of customer data, so it leaves a record of what went.
   "storage.orphans_deleted": "info",
+  // Either the bucket may belong to another database, or a run was about to delete far more
+  // customer files than a normal night. Nothing was deleted, but cleanup stays stopped until
+  // someone looks, so it always reaches the owner.
+  "storage.cleanup_stopped": "critical",
   // A failed DB write, summarised: operation and code only, never the payload.
   "prisma.error": "warn",
   // A caught application error, summarised by logError().

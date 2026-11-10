@@ -34,6 +34,7 @@ securityEvent() → emit() ─┬─ console.warn(line)            (unchanged, f
 | `admin_role_granted` | `admin.role_granted` | `targetUserId` | every occurrence | none |
 | `authz_probe` | `authz.denied_not_member`, `_private_project`, `_not_org_member`, `authz.denied_admin` | acting `userId` | ≥ 10 in 10 min | 1 h per user |
 | `error_spike` | `app.error`, `prisma.error` | `"global"` | ≥ 20 in 5 min | 30 min |
+| `cleanup_stopped` | `storage.cleanup_stopped` | `meta.reason` | every occurrence (critical) | 12 h per reason |
 | Site down | — (not in the app) | — | external uptime monitor on `https://www.jedforge.com/login` | — |
 
 - **`login_spray` counts failures, not only throttles.** Credential stuffing tries one password

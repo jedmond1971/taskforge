@@ -130,3 +130,13 @@ export async function getObjectBuffer(key: string): Promise<Buffer> {
   for await (const chunk of stream) chunks.push(Buffer.from(chunk));
   return Buffer.concat(chunks);
 }
+
+/** Reads a small text object, or returns null when it does not exist. Other errors throw. */
+export async function getObjectTextOrNull(key: string): Promise<string | null> {
+  try {
+    return (await getObjectBuffer(key)).toString("utf8");
+  } catch (error) {
+    if (error instanceof Error && (error.name === "NoSuchKey" || error.name === "NotFound")) return null;
+    throw error;
+  }
+}

@@ -18,9 +18,10 @@ export type AuditAction =
   | "PROJECT_REOPENED"
   | "INVITE_CREATED"
   | "INVITE_RESENT"
-  | "INVITE_REVOKED";
+  | "INVITE_REVOKED"
+  | "STORAGE_MARKER_CREATED";
 
-export type AuditTargetType = "User" | "Organization" | "Project" | "OrgInvite" | "OrgMember";
+export type AuditTargetType = "User" | "Organization" | "Project" | "OrgInvite" | "OrgMember" | "Storage";
 
 export async function logAdminAction(params: {
   actorId: string;

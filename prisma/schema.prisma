@@ -862,3 +862,12 @@ model AlertState {
 
   @@id([rule, subject])
 }
+
+// Small platform-wide settings that must live in the database rather than in env vars
+// (SECH-92 follow-up). First use: `storage.instanceId`, the half of the storage marker
+// that proves the bucket the cleanup job is about to delete from belongs to this database.
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

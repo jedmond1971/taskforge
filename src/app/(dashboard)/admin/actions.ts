@@ -13,6 +13,7 @@ import { deletePasswordResetTokensForUser } from "@/lib/password-reset";
 import { securityEvent } from "@/lib/security-events";
 import { logError } from "@/lib/security-events";
 import { runDrill, type DrillResult } from "@/lib/alerting";
+import { createStorageMarker, STORAGE_MARKER_PROBLEM_TEXT } from "@/lib/storage-marker";
 import { consumeRateLimit, LIMITS, tooManyAttemptsMessage } from "@/lib/rate-limit";
 
 // Discriminated union returned by all admin mutation actions.
@@ -925,4 +926,36 @@ export async function adminSendAlertDrill(): Promise<
   const limit = await consumeRateLimit(`alert-drill:${userId}`, LIMITS.alertDrillPerUser);
   if (!limit.allowed) return { success: false, error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
   return { success: true, result: await runDrill() };
+}
+
+// ─── Storage marker (SECH-92 follow-up) ──────────────────────────────────────
+
+// Binds this database to its bucket so the orphaned-attachment cleanup can prove they belong
+// together before it deletes. Creates both halves only when neither exists; every other state
+// is refused with an explanation, because "fixing" it by recreating the marker would defeat it.
+export async function adminCreateStorageMarker(): Promise<ActionResult> {
+  const { userId } = await requireAdmin();
+  try {
+    const result = await createStorageMarker();
+    if (!result.created) {
+      return {
+        success: false,
+        error:
+          result.problem === "already_set_up"
+            ? "The storage marker already exists and matches."
+            : STORAGE_MARKER_PROBLEM_TEXT[result.problem],
+      };
+    }
+  } catch (error) {
+    logError("adminCreateStorageMarker", error);
+    return { success: false, error: "Could not create the storage marker. Nothing was changed; try again." };
+  }
+  await logAdminAction({
+    actorId: userId,
+    action: "STORAGE_MARKER_CREATED",
+    targetType: "Storage",
+    targetLabel: "Attachment storage marker",
+  });
+  revalidatePath("/admin/storage");
+  return { success: true };
 }

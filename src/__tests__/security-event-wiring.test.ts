@@ -34,6 +34,7 @@ const WIRING: Array<{ type: string; file: string }> = [
   { type: "upload.rejected", file: "app/api/attachments/confirm/route.ts" },
   { type: "upload.rejected", file: "app/api/editor-images/route.ts" },
   { type: "storage.orphans_deleted", file: "app/api/internal/cleanup-orphaned-attachments/route.ts" },
+  { type: "storage.cleanup_stopped", file: "app/api/internal/cleanup-orphaned-attachments/route.ts" },
   { type: "prisma.error", file: "lib/prisma.ts" },
   { type: "app.error", file: "lib/security-events.ts" },
 ];
