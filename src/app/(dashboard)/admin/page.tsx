@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
-import { Users, FolderKanban, CircleDot, Building2, Mail, ScrollText, BellRing } from "lucide-react";
+import { Users, FolderKanban, CircleDot, Building2, Mail, ScrollText, BellRing, HardDrive } from "lucide-react";
 
 
 export default async function AdminPage() {
@@ -64,6 +64,13 @@ export default async function AdminPage() {
       description: "Check alert configuration and send a test alert for every rule.",
       icon: BellRing,
       stat: "Delivery drill",
+    },
+    {
+      href: "/admin/storage",
+      title: "Storage Marker",
+      description: "Check that the attachment bucket belongs to this database before the nightly cleanup deletes.",
+      icon: HardDrive,
+      stat: "Cleanup safety check",
     },
   ];
 

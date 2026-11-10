@@ -295,7 +295,7 @@ See `.context-docs/testing-notes.md` — hand-written Prisma mocks in `tenancy.t
 See `.context-docs/data-integrity.md` for full details. Key facts:
 
 - Issue key generation and kanban position writes are wrapped in `prisma.$transaction` with row-level locks — **true for the UI's `moveIssue`/`reorderIssues` actions, but not for the v1 API's `POST /api/v1/issues` or `PATCH /api/v1/issues/[key]`**, which do a plain non-transactional `count()`-based position write; this gap is the root cause of a known position-collision bug (JFR-122).
-- S3 objects are cleaned up on delete (issues, doc sections, project delete), and a daily GitHub Actions cron (`.github/workflows/cleanup-orphaned-attachments.yml`, this app's only scheduled job) deletes attachment objects orphaned by abandoned presigned uploads.
+- S3 objects are cleaned up on delete (issues, doc sections, project delete), and a daily GitHub Actions cron (`.github/workflows/cleanup-orphaned-attachments.yml`, this app's only scheduled job) deletes attachment objects orphaned by abandoned presigned uploads. It refuses to delete (409 + critical alert) unless the DB/bucket **storage marker** matches, and above 50 orphans or 10% of scanned; the marker is created once by hand at Admin → Storage Marker, never automatically, so a fresh environment's nightly run stops until someone does.
 - Org storage quota (flat 5 GB, not per-user, not tied to `Organization.plan`) is enforced at every attachment/doc-file upload path — see `src/lib/storage-quota.ts`.
 - Notification cap = 100; PageRevision cap = 50.
 - `SavedFilter` requires `projectId` — global `/search` page cannot save/load filters.

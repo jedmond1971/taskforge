@@ -46,7 +46,7 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | `api/external/v1/projects/[key]/issues/route.ts` | GET, POST | external org API key | `requireProjectInOrg`; assignee must be a project member | org-wide | reporter forced to key's `createdById`; description sanitized |
 | `api/external/v1/projects/[key]/route.ts` | GET | external org API key | `requireProjectInOrg(key, orgId)` | org-wide | 404 for other orgs and closed projects |
 | `api/external/v1/projects/route.ts` | GET | external org API key (`X-Api-Key`) | key's `orgId` | org-wide | excludes closed projects |
-| `api/internal/cleanup-orphaned-attachments/route.ts` | POST | internal v1 secret (`X-Internal-Api-Key`) | global (storage housekeeping) | shared secret | called by the daily GitHub Actions cron |
+| `api/internal/cleanup-orphaned-attachments/route.ts` | POST | internal v1 secret (`X-Internal-Api-Key`) | global (storage housekeeping) | shared secret | called by the daily GitHub Actions cron; `?dryRun=1` deletes nothing; refuses (409, critical alert) on a missing/mismatched storage marker or a tripped deletion guard; response is counts only |
 | `api/issues/[issueId]/route.ts` | PATCH, DELETE | session (`auth()`, fail-closed on invalidated) | issue -> project membership | `canEditIssues` (+grants) | PATCH field whitelist; assignee must be a project member |
 | `api/mcp/route.ts` | GET, POST, DELETE | OAuth bearer (`requireOAuthToken`) | token's `orgId`; every tool re-resolves project/issue scoped to that org + requires `ProjectMember` | per-tool scope; writes need `canEditIssues` | closed projects excluded (docs exempt); stateless transport per request |
 | `api/oauth/register/route.ts` | POST | public (RFC 7591 dynamic client registration) | n/a | n/a | spec-required to be public; attempt rate limit per IP (SECH-107) |
@@ -100,6 +100,7 @@ Roles: project `PROJECT_LEAD > TEAM_MEMBER > VIEWER`; org `OWNER / ADMIN / MEMBE
 | `adminUpdateUser` | `requireAdmin()` (permissions.ts) | target user id | platform ADMIN; role change bumps `sessionVersion` |
 | `adminResetUserPassword` | `requireAdmin()` (permissions.ts) | target user id | platform ADMIN; bumps `sessionVersion` |
 | `adminSendAlertDrill` | `requireAdmin()` (permissions.ts) | none — sends synthetic alerts to the configured owner address only | platform ADMIN; rate-limited 1 per 10 min per admin (`alertDrillPerUser`) |
+| `adminCreateStorageMarker` | `requireAdmin()` (permissions.ts) | global (one bucket, one database) — creates the storage marker only when neither half exists; refuses every other state | platform ADMIN; audit-logged as `STORAGE_MARKER_CREATED` |
 | `adminAddUserToProject` | `requireAdmin()` (permissions.ts) | upserts `OrgMember` first (tenancy invariant 8) | platform ADMIN |
 | `adminGetProjectsForSelect` | `requireAdmin()` (permissions.ts) | none — platform ADMIN acts across all orgs by design | platform ADMIN |
 | `adminDeleteUser` | `requireAdmin()` (permissions.ts) | target user id | platform ADMIN; pre-flights every ON DELETE RESTRICT relation (owned orgs, issues reported, attachments, doc pages/revisions, links, invites, API keys) and refuses with a message |

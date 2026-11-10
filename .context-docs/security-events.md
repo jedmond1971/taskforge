@@ -67,6 +67,7 @@ never pass a severity, so the same event cannot be reported at two severities fr
 | `admin.action` | info | `lib/audit-log.ts` (bridge) |
 | `admin.role_granted` | critical | `admin/actions.ts` (×2: create-as-ADMIN, role change to ADMIN) |
 | `storage.orphans_deleted` | info | `app/api/internal/cleanup-orphaned-attachments/route.ts` — only when something was deleted; counts plus a per-issue-id tally, never object keys (they embed the uploader's file name) |
+| `storage.cleanup_stopped` | critical | same route — the run deleted nothing because the storage marker is missing/mismatched or a deletion guard tripped; `meta.reason` names which. Alerted by the `cleanup_stopped` rule |
 
 ## Denial classification — why we do not sample
 

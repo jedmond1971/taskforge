@@ -175,6 +175,7 @@ describe("event catalog", () => {
       "admin.action",
       "admin.role_granted",
       "storage.orphans_deleted",
+      "storage.cleanup_stopped",
       "prisma.error",
       "app.error",
     ];

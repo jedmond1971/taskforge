@@ -36,6 +36,7 @@ const ACTION_LABELS: Record<string, string> = {
   INVITE_CREATED: "Invite Created",
   INVITE_RESENT: "Invite Resent",
   INVITE_REVOKED: "Invite Revoked",
+  STORAGE_MARKER_CREATED: "Storage Marker Created",
 };
 
 const ACTION_COLORS: Record<string, string> = {

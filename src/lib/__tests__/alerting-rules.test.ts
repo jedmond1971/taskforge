@@ -59,8 +59,19 @@ describe("immediate rules", () => {
     expect(obs.rule.cooldownMs).toBe(0);
   });
 
+  it("cleanup_stopped groups by the stop reason; a missing reason is dropped", () => {
+    const rec = { ...base, type: "storage.cleanup_stopped", meta: { reason: "marker_mismatch", scanned: 9 } };
+    expect(observationsFor(rec)[0]).toMatchObject({ subject: "marker_mismatch" });
+    expect(observationsFor(rec)[0].rule).toMatchObject({ id: "cleanup_stopped", severity: "critical", cooldownMs: 12 * 60 * 60_000 });
+    expect(observationsFor({ ...base, type: "storage.cleanup_stopped", meta: {} })).toEqual([]);
+  });
+
+  it("the routine deletion record is not alerted", () => {
+    expect(observationsFor({ ...base, type: "storage.orphans_deleted", meta: { orphansDeleted: 3 } })).toEqual([]);
+  });
+
   it("immediate rules trip on any count", () => {
-    for (const id of ["refresh_reuse", "revoked_key_used", "admin_role_granted"]) {
+    for (const id of ["refresh_reuse", "revoked_key_used", "admin_role_granted", "cleanup_stopped"]) {
       expect(isTripped(rule(id), 1)).toBe(true);
     }
   });

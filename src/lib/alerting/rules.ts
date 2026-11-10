@@ -12,7 +12,8 @@ export type AlertRuleId =
   | "revoked_key_used"
   | "admin_role_granted"
   | "authz_probe"
-  | "error_spike";
+  | "error_spike"
+  | "cleanup_stopped";
 
 /** The subset of a security-event record alerting reads (post-redaction). */
 export interface AlertableRecord {
@@ -118,6 +119,17 @@ export const ALERT_RULES: readonly AlertRule[] = [
     threshold: { count: 20, windowMs: 5 * MINUTE },
     cooldownMs: 30 * MINUTE,
     summary: "The application logged many errors in a short window. Check Deploy Logs for the app.error / prisma.error events.",
+  },
+  {
+    id: "cleanup_stopped",
+    title: "Attachment cleanup stopped without deleting anything",
+    severity: "critical",
+    sources: ["storage.cleanup_stopped"],
+    subject: (r) => str(r.meta?.reason),
+    // The job runs once a day; a manual re-run soon after should not email again.
+    cooldownMs: 12 * HOUR,
+    summary:
+      "The nightly orphaned-attachment cleanup refused to delete. Either the storage marker is missing or does not match this database (the bucket may belong to another environment), or one run would have deleted far more files than normal. Cleanup stays stopped until this is resolved: see Admin → Storage and the storage.cleanup_stopped event in Deploy Logs.",
   },
 ];
 
