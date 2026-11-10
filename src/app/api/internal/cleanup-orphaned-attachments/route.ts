@@ -2,13 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireV1ApiKey } from "@/lib/v1-auth";
 import { prisma } from "@/lib/prisma";
 import { listObjects, deleteObjects } from "@/lib/s3";
-import { logError } from "@/lib/security-events";
+import { logError, securityEvent } from "@/lib/security-events";
 
 export const maxDuration = 60;
+
+// Only this prefix is ever scanned or deleted. Editor images, docs files and avatars
+// live under other prefixes and are deliberately out of reach.
+const ATTACHMENTS_PREFIX = "attachments/";
 
 // Objects newer than this are left alone even if no Attachment row references
 // them yet — an in-flight presigned upload may not have called /confirm yet.
 const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Attachment keys are `attachments/<issueId>/<uuid>-<fileName>`. Returns the issue id,
+ * so the audit line can say where files went without carrying the user's file name.
+ */
+function issueIdFromKey(key: string): string {
+  return key.slice(ATTACHMENTS_PREFIX.length).split("/")[0] || "unknown";
+}
 
 // POST /api/internal/cleanup-orphaned-attachments (SECH-92)
 //
@@ -20,17 +32,23 @@ const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000;
 // matching Attachment.fileKey and deletes them. Intended to be called on a
 // schedule (see .github/workflows/cleanup-orphaned-attachments.yml), not by
 // the app itself.
+//
+// The response carries counts only. Object keys contain the uploader's original file
+// name, and the scheduled caller's logs are public, so which files were removed is
+// recorded server-side instead (`storage.orphans_deleted`), by issue id, never by name.
 export async function POST(request: NextRequest) {
   const authError = await requireV1ApiKey(request);
   if (authError) return authError;
 
   try {
-    const objects = await listObjects("attachments/");
+    const objects = (await listObjects(ATTACHMENTS_PREFIX)).filter((o) =>
+      o.key.startsWith(ATTACHMENTS_PREFIX)
+    );
     const cutoff = Date.now() - GRACE_PERIOD_MS;
     const candidates = objects.filter((o) => o.lastModified.getTime() < cutoff);
 
     if (candidates.length === 0) {
-      return NextResponse.json({ scanned: objects.length, candidates: 0, orphansDeleted: 0, deletedKeys: [] });
+      return NextResponse.json({ scanned: objects.length, candidates: 0, orphansDeleted: 0 });
     }
 
     const existing = await prisma.attachment.findMany({
@@ -43,13 +61,26 @@ export async function POST(request: NextRequest) {
 
     if (orphanKeys.length > 0) {
       await deleteObjects(orphanKeys);
+
+      const perIssue: Record<string, number> = {};
+      for (const key of orphanKeys) {
+        const issueId = issueIdFromKey(key);
+        perIssue[issueId] = (perIssue[issueId] ?? 0) + 1;
+      }
+      securityEvent("storage.orphans_deleted", {
+        meta: {
+          scanned: objects.length,
+          candidates: candidates.length,
+          orphansDeleted: orphanKeys.length,
+          perIssue,
+        },
+      });
     }
 
     return NextResponse.json({
       scanned: objects.length,
       candidates: candidates.length,
       orphansDeleted: orphanKeys.length,
-      deletedKeys: orphanKeys,
     });
   } catch (error) {
     logError("POST /api/internal/cleanup-orphaned-attachments error", error);
